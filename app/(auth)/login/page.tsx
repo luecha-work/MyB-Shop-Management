@@ -2,6 +2,8 @@
 
 import { useActionState } from 'react'
 import { login } from '@/lib/actions/auth'
+import { Input, Button } from 'antd'
+import { MailOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
 
 export default function LoginPage() {
   const [state, action, isPending] = useActionState(login, undefined)
@@ -18,25 +20,26 @@ export default function LoginPage() {
         <form action={action} className="space-y-4">
           <div className="text-left">
             <label className="block text-label-md text-on-surface-variant mb-1 font-bold">อีเมล</label>
-            <input
+            <Input
               type="email"
               name="email"
               defaultValue="admin@myb.com"
               required
-              className="w-full px-4 py-3 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all font-body-md"
+              prefix={<MailOutlined className="text-outline-variant mr-2" />}
               placeholder="กรอกอีเมลของคุณ"
+              className="font-body-md"
             />
           </div>
           
           <div className="text-left">
             <label className="block text-label-md text-on-surface-variant mb-1 font-bold">รหัสผ่าน</label>
-            <input
-              type="password"
+            <Input.Password
               name="password"
               defaultValue="admin123"
               required
-              className="w-full px-4 py-3 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all font-body-md"
+              prefix={<LockOutlined className="text-outline-variant mr-2" />}
               placeholder="กรอกรหัสผ่าน"
+              className="font-body-md"
             />
           </div>
 
@@ -46,17 +49,16 @@ export default function LoginPage() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-primary text-on-primary font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-70 mt-4 flex items-center justify-center gap-2 interactive-press"
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isPending}
+            icon={<LoginOutlined />}
+            className="w-full mt-4 font-bold h-12 text-body-md"
+            style={{ borderRadius: 8 }}
           >
-            {isPending ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-              'เข้าสู่ระบบ'
-            )}
-          </button>
+            เข้าสู่ระบบ
+          </Button>
         </form>
 
         <div className="mt-8 text-left bg-surface-container-low p-4 rounded-xl border border-surface-container-highest">

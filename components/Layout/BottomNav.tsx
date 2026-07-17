@@ -2,17 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import {
+  DashboardOutlined,
+  ShoppingOutlined,
+  HistoryOutlined,
+  AppstoreOutlined,
+  InboxOutlined
+} from '@ant-design/icons'
 
 export default function BottomNav({ userRole }: { userRole: string }) {
   const pathname = usePathname()
   const isStaff = userRole === 'STAFF'
 
   const navItems = [
-    { id: 'dashboard', href: '/dashboard', icon: 'dashboard', label: 'แดชบอร์ด', adminOnly: true },
-    { id: 'pos', href: '/pos', icon: 'point_of_sale', label: 'ขาย', adminOnly: false },
-    { id: 'history', href: '/history', icon: 'history', label: 'ประวัติ', adminOnly: false },
-    { id: 'inventory', href: '/inventory', icon: 'inventory_2', label: 'คลัง', adminOnly: false },
-    { id: 'stockin', href: '/stockin', icon: 'inventory', label: 'รับเข้า', adminOnly: false },
+    { id: 'dashboard', href: '/dashboard', icon: <DashboardOutlined />, label: 'แดชบอร์ด', adminOnly: true },
+    { id: 'pos', href: '/pos', icon: <ShoppingOutlined />, label: 'ขาย', adminOnly: false },
+    { id: 'history', href: '/history', icon: <HistoryOutlined />, label: 'ประวัติ', adminOnly: false },
+    { id: 'inventory', href: '/inventory', icon: <AppstoreOutlined />, label: 'คลัง', adminOnly: false },
+    { id: 'stockin', href: '/stockin', icon: <InboxOutlined />, label: 'รับเข้า', adminOnly: false },
   ]
 
   return (
@@ -31,10 +38,10 @@ export default function BottomNav({ userRole }: { userRole: string }) {
                 : 'flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-xl p-2 transition-colors'
             }
           >
-            <span className={`material-symbols-outlined text-[22px] ${isActive ? 'filled' : ''}`}>
+            <span className={`text-[22px] leading-none mb-1 ${isActive ? 'font-bold' : ''}`}>
               {item.icon}
             </span>
-            <span className={`font-label-sm mt-0.5 ${isActive ? 'font-bold' : ''}`}>
+            <span className={`font-label-sm ${isActive ? 'font-bold' : ''}`}>
               {item.label}
             </span>
           </Link>
