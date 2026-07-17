@@ -661,7 +661,7 @@ export default function HistoryPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setDeleteConfirm({ open: false, orderIds: [] })} className="h-11">
+            <Button block onClick={() => setDeleteConfirm({ open: false, orderIds: [] })} className="h-11 ant-btn-cancel-soft">
               ยกเลิก
             </Button>
             <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">

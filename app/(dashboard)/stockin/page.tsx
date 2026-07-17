@@ -327,7 +327,7 @@ export default function StockInPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>

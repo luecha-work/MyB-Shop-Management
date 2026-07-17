@@ -53,6 +53,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **Components:** Use antd for all cards, inputs, tables, buttons, modals, tags, pagination. Layout/spacing stays Tailwind. Mobile list views are custom Tailwind cards (antd Table is desktop-only, hidden below `lg`).
 - **Icons:** Use `@ant-design/icons` ONLY (Material Symbols was removed). Nav mapping: `DashboardOutlined`, `TransactionOutlined` (POS), `HistoryOutlined`, `AppstoreOutlined` (inventory), `InboxOutlined` (stock-in). Active nav state = gold color + `font-bold` (no filled variant).
 - **Gold (secondary) buttons:** `className="ant-btn-secondary-solid"` on antd `Button` (e.g., checkout, modal confirm). Destructive confirm = `type="primary" danger`.
+- **Cancel buttons:** Modal cancel buttons labeled `ยกเลิก` use `className="ant-btn-cancel-soft"` for a light red treatment.
 - **Tables:** antd `Table` with `rowSelection` (keys mirror a `Set` in state), built-in pagination (`pageSizeOptions [10,15,20,25,30]`, Thai `showTotal` "แสดง X-Y จาก Z รายการ"). Data is pre-filtered/sliced in `useMemo`; pass the page slice + `total`. Mobile card lists pair with a standalone antd `Pagination size="small"`.
 - **Dates:** Keep state as `YYYY-MM-DD` strings; antd `DatePicker` converts via `value={v ? dayjs(v) : null}` / `onChange={(d) => set(d?.format('YYYY-MM-DD') ?? '')}`, display `format="DD/MM/YYYY"`.
 - **Modals:** antd `Modal` (centered, custom `title`/`footer` per the original design). POS mobile cart = antd `Drawer placement="bottom" size="90dvh"` — antd v6 API: use `size` (not `width`/`height`) and `styles.section` (not `styles.content`).
@@ -69,7 +70,7 @@ The app uses PostgreSQL-backed authentication.
 - **Roles:** Menus and admin-only sections adapt to `ADMIN` vs `STAFF`. Dashboard menu + History stat cards + Inventory edit buttons are ADMIN-only via the `role-admin-only` class (hidden by `.role-staff` on the layout container).
 - **Middleware:** `middleware.ts` redirects unauthenticated users to `/login`. Keep this classic middleware file unless the user explicitly asks to migrate to `proxy.ts`.
 - **Admin-only pages:** `/users*` and `/branches/*` are blocked for `STAFF` by middleware. Entry points live in the Topbar profile menu and are shown only to `OWNER` and `ADMIN`, not in Sidebar/BottomNav. The user menu label is "จัดการ user" and opens `/users`.
-- **User passwords:** Admins never type passwords manually. Add-user shows a generated read-only password with Generate/Copy controls before saving; reset-password generates a new password server-side and shows it once in a copy modal. The current logged-in user cannot be selected/deleted from the user table.
+- **User passwords:** Admins never type passwords manually. Add-user shows a generated read-only password with Generate/Copy controls before saving; required add-user fields must validate with red error states before submit. Reset-password generates a new password server-side and shows it once in a copy modal. The current logged-in user cannot be selected/deleted from the user table.
 - **Token lifetime:** `access_token` expires in 1 hour. `refresh_token` expires in 24 hours. Middleware can recreate a missing access token from a valid refresh token.
 - **Local seed user:** run `make seed-owner` after `make init-db` to create/update `owner@myb.com` / `owner123`.
 

@@ -550,7 +550,7 @@ export default function InventoryPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
@@ -663,7 +663,7 @@ export default function InventoryPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setEditModal({ ...editModal, open: false })} className="h-11">ยกเลิก</Button>
+            <Button block onClick={() => setEditModal({ ...editModal, open: false })} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button block icon={<SaveOutlined />} onClick={saveProductEdit} className="ant-btn-secondary-solid h-11">
               บันทึก
             </Button>
@@ -766,7 +766,7 @@ export default function InventoryPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setStockInModal({ ...stockInModal, open: false })} className="h-11">ยกเลิก</Button>
+            <Button block onClick={() => setStockInModal({ ...stockInModal, open: false })} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button block icon={<SaveOutlined />} onClick={saveStockIn} className="ant-btn-secondary-solid h-11">
               บันทึกการรับเข้า
             </Button>

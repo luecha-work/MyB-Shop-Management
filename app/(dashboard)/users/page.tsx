@@ -84,6 +84,7 @@ export default function ManageUsersPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [passwordResult, setPasswordResult] = useState<PasswordResult>(null)
   const [form, setForm] = useState<UserForm>(EMPTY_FORM)
+  const [formErrors, setFormErrors] = useState<Set<keyof UserForm>>(new Set())
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -131,16 +132,36 @@ export default function ManageUsersPage() {
 
   const updateField = (key: keyof UserForm, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
+    setFormErrors((current) => {
+      if (!current.has(key)) return current
+      const next = new Set(current)
+      next.delete(key)
+      return next
+    })
   }
 
   const openAddModal = () => {
     setForm({ ...EMPTY_FORM, password: generateClientPassword() })
+    setFormErrors(new Set())
     setError('')
     setSuccess('')
     setAddOpen(true)
   }
 
   const submitUser = async () => {
+    const required: (keyof UserForm)[] = ['firstName', 'lastName', 'email', 'password', 'roleId']
+    const nextErrors = new Set<keyof UserForm>()
+    required.forEach((key) => {
+      if (!String(form[key] ?? '').trim()) nextErrors.add(key)
+    })
+    if (isStaff && !form.branchId) nextErrors.add('branchId')
+
+    setFormErrors(nextErrors)
+    if (nextErrors.size > 0) {
+      setError('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน')
+      return
+    }
+
     setIsSaving(true)
     setError('')
     setSuccess('')
@@ -156,6 +177,7 @@ export default function ManageUsersPage() {
 
       await loadUsers()
       setForm(EMPTY_FORM)
+      setFormErrors(new Set())
       setAddOpen(false)
       setPasswordResult({
         title: 'เพิ่มผู้ใช้เรียบร้อยแล้ว',
@@ -374,7 +396,7 @@ export default function ManageUsersPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setAddOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button block onClick={() => setAddOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button block icon={<SaveOutlined />} loading={isSaving} onClick={submitUser} className="ant-btn-secondary-solid h-11">
               บันทึกผู้ใช้
             </Button>
@@ -384,20 +406,21 @@ export default function ManageUsersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-1">
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ชื่อ</label>
-            <Input size="large" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
+            <Input size="large" status={formErrors.has('firstName') ? 'error' : undefined} value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">นามสกุล</label>
-            <Input size="large" value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
+            <Input size="large" status={formErrors.has('lastName') ? 'error' : undefined} value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">อีเมล</label>
-            <Input size="large" type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} placeholder="user@example.com" />
+            <Input size="large" status={formErrors.has('email') ? 'error' : undefined} type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} placeholder="user@example.com" />
           </div>
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">บทบาท</label>
             <Select
               size="large"
+              status={formErrors.has('roleId') ? 'error' : undefined}
               value={form.roleId || undefined}
               onChange={(value) => updateField('roleId', value)}
               placeholder="เลือกบทบาท"
@@ -410,6 +433,7 @@ export default function ManageUsersPage() {
             <Input
               size="large"
               readOnly
+              status={formErrors.has('password') ? 'error' : undefined}
               value={form.password}
               addonAfter={
                 <div className="flex items-center gap-1">
@@ -427,6 +451,7 @@ export default function ManageUsersPage() {
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>
             <Select
               size="large"
+              status={formErrors.has('branchId') ? 'error' : undefined}
               value={form.branchId || undefined}
               onChange={(value) => updateField('branchId', value)}
               placeholder={isStaff ? 'เลือกสาขาสำหรับ STAFF' : 'ไม่ระบุ = ทุกสาขา'}
@@ -509,7 +534,7 @@ export default function ManageUsersPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setDeleteOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button block onClick={() => setDeleteOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>

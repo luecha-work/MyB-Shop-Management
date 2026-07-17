@@ -679,7 +679,7 @@ export default function POSPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setConfirmOpen(false)} className="h-11">
+            <Button block onClick={() => setConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">
               ยกเลิก
             </Button>
             <Button block icon={<CheckCircleOutlined />} onClick={executeCheckout} className="ant-btn-secondary-solid h-11">

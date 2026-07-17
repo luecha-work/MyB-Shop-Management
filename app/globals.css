@@ -181,6 +181,19 @@ body {
   border-color: var(--color-secondary) !important;
 }
 
+.ant-btn-cancel-soft {
+  background: color-mix(in srgb, var(--color-error) 8%, white) !important;
+  border-color: color-mix(in srgb, var(--color-error) 24%, white) !important;
+  color: var(--color-error) !important;
+  font-weight: 600;
+}
+
+.ant-btn-cancel-soft:hover {
+  background: color-mix(in srgb, var(--color-error) 14%, white) !important;
+  border-color: color-mix(in srgb, var(--color-error) 34%, white) !important;
+  color: var(--color-error) !important;
+}
+
 /* สีแถวที่ถูกเลือกใน antd Table ให้เหมือนหน้า Stock-in และไม่ติด primary สีดำ */
 .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td,
 .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected:hover > td {
