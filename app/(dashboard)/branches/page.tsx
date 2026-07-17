@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Empty, Input, Modal, Select, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { DeleteOutlined, ExclamationCircleOutlined, PlusOutlined, SaveOutlined, ShopOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, ExclamationCircleOutlined, EyeOutlined, PlusOutlined, SaveOutlined, ShopOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
 
 type BranchRow = {
@@ -12,6 +12,15 @@ type BranchRow = {
   branchName: string
   address: string
   phone: string
+  status: string
+  users: BranchUser[]
+}
+
+type BranchUser = {
+  id: string
+  name: string
+  email: string
+  roleName: string
   status: string
 }
 
@@ -36,14 +45,25 @@ const statusTag = (status: string) => {
   return <Tag className="rounded-full border-slate-300 bg-slate-50 !text-slate-600 font-bold">Inactive</Tag>
 }
 
+const roleTag = (roleName: string) => {
+  const role = roleName.toUpperCase()
+  if (role === 'OWNER') return <Tag className="rounded-full border-purple-300 bg-purple-50 !text-purple-700 font-bold">{role}</Tag>
+  if (role === 'ADMIN') return <Tag className="rounded-full border-blue-300 bg-blue-50 !text-blue-700 font-bold">{role}</Tag>
+  return <Tag className="rounded-full border-amber-300 bg-amber-50 !text-amber-700 font-bold">{role}</Tag>
+}
+
 export default function ManageBranchesPage() {
   const [branches, setBranches] = useState<BranchRow[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [viewingBranchId, setViewingBranchId] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [viewBranch, setViewBranch] = useState<BranchRow | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editingBranchId, setEditingBranchId] = useState('')
   const [form, setForm] = useState<BranchForm>(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState<Set<keyof BranchForm>>(new Set())
   const [error, setError] = useState('')
@@ -99,11 +119,52 @@ export default function ManageBranchesPage() {
   }
 
   const openAddModal = () => {
+    setEditingBranchId('')
     setForm(EMPTY_FORM)
     setFormErrors(new Set())
     setError('')
     setSuccess('')
     setAddOpen(true)
+  }
+
+  const openEditModal = (branch: BranchRow) => {
+    setEditingBranchId(branch.id)
+    setForm({
+      branchCode: branch.branchCode,
+      branchName: branch.branchName,
+      address: branch.address,
+      phone: branch.phone,
+      status: branch.status,
+    })
+    setFormErrors(new Set())
+    setError('')
+    setSuccess('')
+    setEditOpen(true)
+  }
+
+  const closeFormModal = () => {
+    setAddOpen(false)
+    setEditOpen(false)
+    setEditingBranchId('')
+    setForm(EMPTY_FORM)
+    setFormErrors(new Set())
+  }
+
+  const openViewModal = async (branchId: string) => {
+    setViewingBranchId(branchId)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch(`/api/branches?id=${encodeURIComponent(branchId)}`, { cache: 'no-store' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'โหลดรายละเอียดสาขาไม่สำเร็จ')
+      setViewBranch(data.branch)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'โหลดรายละเอียดสาขาไม่สำเร็จ')
+    } finally {
+      setViewingBranchId('')
+    }
   }
 
   const submitBranch = async () => {
@@ -124,10 +185,11 @@ export default function ManageBranchesPage() {
     setSuccess('')
 
     try {
+      const isEdit = Boolean(editingBranchId)
       const response = await fetch('/api/branches', {
-        method: 'POST',
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(isEdit ? { ...form, id: editingBranchId } : form),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'บันทึกสาขาไม่สำเร็จ')
@@ -136,7 +198,9 @@ export default function ManageBranchesPage() {
       setForm(EMPTY_FORM)
       setFormErrors(new Set())
       setAddOpen(false)
-      setSuccess('เพิ่มสาขาเรียบร้อยแล้ว')
+      setEditOpen(false)
+      setEditingBranchId('')
+      setSuccess(isEdit ? 'แก้ไขสาขาเรียบร้อยแล้ว' : 'เพิ่มสาขาเรียบร้อยแล้ว')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'บันทึกสาขาไม่สำเร็จ'
       setError(message)
@@ -209,6 +273,31 @@ export default function ManageBranchesPage() {
       align: 'center',
       render: (status: string) => statusTag(status),
     },
+    {
+      title: 'จัดการ',
+      key: 'actions',
+      width: 140,
+      align: 'center',
+      render: (_, branch) => (
+        <div className="flex items-center justify-center gap-1">
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            loading={viewingBranchId === branch.id}
+            onClick={() => openViewModal(branch.id)}
+            className="text-on-surface-variant hover:!text-secondary"
+            title="ดูรายละเอียด"
+          />
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(branch)}
+            className="text-on-surface-variant hover:!text-secondary"
+            title="แก้ไขสาขา"
+          />
+        </div>
+      ),
+    },
   ]
 
   if (isLoading) return <Loader text="โหลดข้อมูลสาขา..." />
@@ -261,7 +350,7 @@ export default function ManageBranchesPage() {
               pageSizeOptions: [10, 15, 20, 25, 30],
               showTotal: (total, range) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
             }}
-            scroll={{ x: 900 }}
+            scroll={{ x: 1040 }}
             rowSelection={{
               selectedRowKeys: Array.from(selected),
               onChange: (keys) => setSelected(new Set(keys as string[])),
@@ -273,26 +362,26 @@ export default function ManageBranchesPage() {
       </div>
 
       <Modal
-        open={addOpen}
-        onCancel={() => setAddOpen(false)}
+        open={addOpen || editOpen}
+        onCancel={closeFormModal}
         centered
         width={640}
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-              <ShopOutlined className="text-[18px]" />
+              {editOpen ? <EditOutlined className="text-[18px]" /> : <ShopOutlined className="text-[18px]" />}
             </div>
             <div>
-              <div className="font-headline-sm text-on-surface">เพิ่มสาขา</div>
-              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">กรอกข้อมูลที่จำเป็นให้ครบถ้วน</div>
+              <div className="font-headline-sm text-on-surface">{editOpen ? 'แก้ไขสาขา' : 'เพิ่มสาขา'}</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{editOpen ? form.branchName : 'กรอกข้อมูลที่จำเป็นให้ครบถ้วน'}</div>
             </div>
           </div>
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setAddOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
+            <Button block onClick={closeFormModal} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button block icon={<SaveOutlined />} loading={isSaving} onClick={submitBranch} className="ant-btn-secondary-solid h-11">
-              บันทึกสาขา
+              {editOpen ? 'บันทึกการแก้ไข' : 'บันทึกสาขา'}
             </Button>
           </div>
         }
@@ -351,6 +440,84 @@ export default function ManageBranchesPage() {
             />
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!viewBranch}
+        onCancel={() => setViewBranch(null)}
+        centered
+        width={520}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
+              <EyeOutlined className="text-[18px]" />
+            </div>
+            <div>
+              <div className="font-headline-sm text-on-surface">รายละเอียดสาขา</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{viewBranch?.branchCode}</div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setViewBranch(null)} className="h-11">ปิด</Button>
+          </div>
+        }
+      >
+        {viewBranch && (
+          <div className="space-y-3 py-1">
+            <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+              <div className="text-xs font-semibold text-on-surface-variant mb-1">ชื่อสาขา</div>
+              <div className="font-semibold text-primary text-body-lg">{viewBranch.branchName}</div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+                <div className="text-xs font-semibold text-on-surface-variant mb-1">รหัสสาขา</div>
+                <div className="font-medium text-on-surface">{viewBranch.branchCode}</div>
+              </div>
+              <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+                <div className="text-xs font-semibold text-on-surface-variant mb-1">สถานะ</div>
+                <div>{statusTag(viewBranch.status)}</div>
+              </div>
+            </div>
+            <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+              <div className="text-xs font-semibold text-on-surface-variant mb-1">เบอร์โทร</div>
+              <div className="font-medium text-on-surface">{viewBranch.phone || '-'}</div>
+            </div>
+            <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+              <div className="text-xs font-semibold text-on-surface-variant mb-1">ที่อยู่</div>
+              <div className="font-medium text-on-surface whitespace-pre-wrap">{viewBranch.address || '-'}</div>
+            </div>
+            <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <div className="text-xs font-semibold text-on-surface-variant mb-1">ผู้ใช้ในสาขานี้</div>
+                  <div className="font-semibold text-primary">{viewBranch.users.length.toLocaleString('th-TH')} คน</div>
+                </div>
+              </div>
+              {viewBranch.users.length === 0 ? (
+                <div className="text-sm text-on-surface-variant">ยังไม่มี user ที่ผูกกับสาขานี้</div>
+              ) : (
+                <div className="space-y-2">
+                  {viewBranch.users.map((user) => (
+                    <div key={user.id} className="rounded-lg border border-outline-variant/40 bg-white p-3">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-on-surface break-words">{user.name}</div>
+                          <div className="text-xs text-on-surface-variant break-all mt-0.5">{user.email}</div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
+                          {roleTag(user.roleName)}
+                          {statusTag(user.status)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
 
       <Modal
