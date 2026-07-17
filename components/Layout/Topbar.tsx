@@ -25,19 +25,27 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openMenuKeys, setOpenMenuKeys] = useState<string[]>([])
+  const [menuInstanceKey, setMenuInstanceKey] = useState(0)
 
   const handleDesktopMenuOpenChange = (open: boolean) => {
-    if (!open) setOpenMenuKeys([])
+    if (!open) {
+      setOpenMenuKeys([])
+      setMenuInstanceKey((current) => current + 1)
+    }
     setDesktopMenuOpen(open)
   }
 
   const handleMobileMenuOpenChange = (open: boolean) => {
-    if (!open) setOpenMenuKeys([])
+    if (!open) {
+      setOpenMenuKeys([])
+      setMenuInstanceKey((current) => current + 1)
+    }
     setMobileMenuOpen(open)
   }
 
   const closeUserMenu = () => {
     setOpenMenuKeys([])
+    setMenuInstanceKey((current) => current + 1)
     setDesktopMenuOpen(false)
     setMobileMenuOpen(false)
   }
@@ -152,6 +160,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
       </div>
       <div className="h-px bg-outline-variant/40 my-1" />
       <Menu
+        key={menuInstanceKey}
         mode="inline"
         selectable
         selectedKeys={canSelectBranch ? [`branch:${selectedBranch}`] : []}
@@ -189,6 +198,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             placement="bottomRight"
             open={desktopMenuOpen}
             onOpenChange={handleDesktopMenuOpenChange}
+            destroyOnHidden
             styles={{ content: { padding: 0, borderRadius: 12 } }}
           >
             <Button type="text" className="h-auto px-2 py-1.5">
@@ -224,6 +234,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             placement="bottomRight"
             open={mobileMenuOpen}
             onOpenChange={handleMobileMenuOpenChange}
+            destroyOnHidden
             styles={{ content: { padding: 0, borderRadius: 12 } }}
           >
             <button
