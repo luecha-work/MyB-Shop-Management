@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
@@ -20,6 +20,7 @@ import {
   SwapRightOutlined,
 } from '@ant-design/icons'
 import { thbFormat, currentMonthRange } from '@/lib/format'
+import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
 // Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action getSalesHistory)
@@ -149,7 +150,17 @@ const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
 
 export default function HistoryPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
-  const [allData, setAllData] = useState<HistoryRow[]>(() => buildMockHistory())
+  const [isLoading, setIsLoading] = useState(true)
+  const [allData, setAllData] = useState<HistoryRow[]>([])
+
+  // TODO: แทนด้วย Server Action getSalesHistory (ตอนนี้จำลองการโหลดข้อมูล)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setAllData(buildMockHistory())
+      setIsLoading(false)
+    }, 600)
+    return () => clearTimeout(t)
+  }, [])
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
   const [endDate, setEndDate] = useState(monthRange.end)
@@ -293,6 +304,9 @@ export default function HistoryPage() {
   }))
 
   const deleteBtnActive = selected.size > 0
+
+  // แสดง loading ระหว่างรอโหลดข้อมูล
+  if (isLoading) return <Loader text="โหลดข้อมูลประวัติการขาย..." />
 
   const paginationConfig = {
     current: currentPage,

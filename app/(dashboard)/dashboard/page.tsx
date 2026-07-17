@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DatePicker } from 'antd'
 import dayjs from 'dayjs'
 import {
@@ -13,6 +13,7 @@ import {
   FallOutlined,
   ProfileOutlined,
 } from '@ant-design/icons'
+import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
 // Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
@@ -114,8 +115,18 @@ export default function DashboardPage() {
   const now = new Date()
   const [startDate, setStartDate] = useState(toLocalISODate(new Date(now.getFullYear(), now.getMonth(), 1)))
   const [endDate, setEndDate] = useState(toLocalISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
+  const [stats, setStats] = useState<typeof MOCK_STATS | null>(null)
 
-  const data = MOCK_STATS
+  // TODO: แทนด้วย Server Action getDashboardStats (ตอนนี้จำลองการโหลดข้อมูล)
+  useEffect(() => {
+    const t = setTimeout(() => setStats(MOCK_STATS), 600)
+    return () => clearTimeout(t)
+  }, [])
+
+  // แสดง loading ระหว่างรอโหลดข้อมูล
+  if (!stats) return <Loader text="โหลดข้อมูลแดชบอร์ด..." />
+
+  const data = stats
   const ts = data.totalSales || 0
   const chCount = data.channelSales.length
   const prCount = data.topProducts.length

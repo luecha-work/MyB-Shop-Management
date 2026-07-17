@@ -16,6 +16,7 @@ import {
   TransactionOutlined,
 } from '@ant-design/icons'
 import { thbFormat } from '@/lib/format'
+import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
 // Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
@@ -123,7 +124,17 @@ export default function POSPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const gridScrollRef = useRef<HTMLDivElement>(null)
 
-  const products = MOCK_PRODUCTS
+  const [isLoading, setIsLoading] = useState(true)
+  const [products, setProducts] = useState<Product[]>([])
+
+  // TODO: แทนด้วย Server Action getProducts (ตอนนี้จำลองการโหลดข้อมูล)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setProducts(MOCK_PRODUCTS)
+      setIsLoading(false)
+    }, 600)
+    return () => clearTimeout(t)
+  }, [])
 
   // 12 รายการ/หน้า (จอเล็ก) หรือ 16 รายการ/หน้า (จอ xl ขึ้นไป) — สลับอัตโนมัติเมื่อขนาดจอเปลี่ยน
   useEffect(() => {
@@ -334,6 +345,9 @@ export default function POSPage() {
         )
       })
     )
+
+  // แสดง loading ระหว่างรอโหลดข้อมูล
+  if (isLoading) return <Loader text="กำลังโหลดรายการสินค้า POS..." />
 
   return (
     <>
@@ -547,7 +561,7 @@ export default function POSPage() {
         styles={{
           header: { display: 'none' },
           body: { padding: 0, display: 'flex', flexDirection: 'column' },
-          content: { borderRadius: '24px 24px 0 0', overflow: 'hidden' },
+          section: { borderRadius: '24px 24px 0 0', overflow: 'hidden' },
         }}
       >
         {/* Drag handle */}

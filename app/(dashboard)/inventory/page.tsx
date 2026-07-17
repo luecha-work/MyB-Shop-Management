@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Table, Tag, Upload } from 'antd'
 import type { TableColumnsType } from 'antd'
 import {
@@ -18,6 +18,7 @@ import {
   AppstoreOutlined,
 } from '@ant-design/icons'
 import { thbFormat, formatNum } from '@/lib/format'
+import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
 // Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action getProducts)
@@ -106,7 +107,18 @@ function NumberField({
 }
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS)
+  const [isLoading, setIsLoading] = useState(true)
+  const [products, setProducts] = useState<Product[]>([])
+
+  // TODO: แทนด้วย Server Action getProducts (ตอนนี้จำลองการโหลดข้อมูล)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setProducts(MOCK_PRODUCTS)
+      setIsLoading(false)
+    }, 600)
+    return () => clearTimeout(t)
+  }, [])
+
   const [filterText, setFilterText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -248,6 +260,9 @@ export default function InventoryPage() {
   }
 
   const deleteBtnActive = selected.size > 0
+  // แสดง loading ระหว่างรอโหลดข้อมูล
+  if (isLoading) return <Loader text="โหลดข้อมูลคลังสินค้า..." />
+
   const detailList = detailModalType === 'low' ? lowItems : detailModalType === 'out' ? outItems : []
 
   const paginationConfig = {

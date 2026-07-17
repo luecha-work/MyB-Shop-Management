@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Checkbox, DatePicker, Empty, Input, Modal, Pagination, Table } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
@@ -11,6 +11,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons'
 import { currentMonthRange, formatNum } from '@/lib/format'
+import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
 // Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
@@ -50,7 +51,17 @@ const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
 
 export default function StockInPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
-  const [allData, setAllData] = useState<StockInRow[]>(() => buildMockStockIn())
+  const [isLoading, setIsLoading] = useState(true)
+  const [allData, setAllData] = useState<StockInRow[]>([])
+
+  // TODO: แทนด้วย Server Action (ตอนนี้จำลองการโหลดข้อมูล)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setAllData(buildMockStockIn())
+      setIsLoading(false)
+    }, 600)
+    return () => clearTimeout(t)
+  }, [])
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
   const [endDate, setEndDate] = useState(monthRange.end)
@@ -111,6 +122,9 @@ export default function StockInPage() {
 
   const selectedRows = allData.filter((r) => selected.has(rowKey(r)))
   const deleteBtnActive = selected.size > 0
+
+  // แสดง loading ระหว่างรอโหลดข้อมูล
+  if (isLoading) return <Loader text="โหลดข้อมูลประวัติการรับเข้าคลัง..." />
 
   const paginationConfig = {
     current: currentPage,

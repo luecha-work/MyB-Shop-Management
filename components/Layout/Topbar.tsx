@@ -18,7 +18,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
           </div>
           <div>
             <h1 className="font-headline-md text-headline-md font-bold text-primary leading-none">My.B</h1>
-            <p className="text-[10px] text-on-surface-variant mt-0.5 leading-none">Admin Management</p>
+            <p className="text-[10px] text-on-surface-variant mt-0.5 leading-none">Shop Management</p>
           </div>
         </div>
 
