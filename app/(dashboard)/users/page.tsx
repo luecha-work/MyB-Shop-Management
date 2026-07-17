@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Empty, Input, Modal, Select, Space, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, ReloadOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, EditOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, ReloadOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
 
 type UserRow = {
@@ -82,6 +82,8 @@ export default function ManageUsersPage() {
   const [resettingUserId, setResettingUserId] = useState('')
   const [resetUser, setResetUser] = useState<UserRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingUserId, setEditingUserId] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [passwordResult, setPasswordResult] = useState<PasswordResult>(null)
   const [form, setForm] = useState<UserForm>(EMPTY_FORM)
@@ -151,6 +153,7 @@ export default function ManageUsersPage() {
   }
 
   const openAddModal = () => {
+    setEditingUserId('')
     setForm({ ...EMPTY_FORM, password: generateClientPassword() })
     setFormErrors(new Set())
     setError('')
@@ -158,8 +161,36 @@ export default function ManageUsersPage() {
     setAddOpen(true)
   }
 
+  const openEditModal = (user: UserRow) => {
+    setEditingUserId(user.id)
+    setForm({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      password: '',
+      roleId: user.roleId,
+      branchId: user.branchId ?? '',
+      status: user.status,
+    })
+    setFormErrors(new Set())
+    setError('')
+    setSuccess('')
+    setEditOpen(true)
+  }
+
+  const closeFormModal = () => {
+    setAddOpen(false)
+    setEditOpen(false)
+    setEditingUserId('')
+    setForm(EMPTY_FORM)
+    setFormErrors(new Set())
+  }
+
   const submitUser = async () => {
-    const required: (keyof UserForm)[] = ['firstName', 'lastName', 'email', 'password', 'roleId']
+    const isEdit = Boolean(editingUserId)
+    const required: (keyof UserForm)[] = isEdit
+      ? ['firstName', 'lastName', 'email', 'roleId']
+      : ['firstName', 'lastName', 'email', 'password', 'roleId']
     const nextErrors = new Set<keyof UserForm>()
     required.forEach((key) => {
       if (!String(form[key] ?? '').trim()) nextErrors.add(key)
@@ -177,10 +208,11 @@ export default function ManageUsersPage() {
     setSuccess('')
 
     try {
+      const isEdit = Boolean(editingUserId)
       const response = await fetch('/api/users', {
-        method: 'POST',
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(isEdit ? { ...form, action: 'update-user', userId: editingUserId } : form),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'บันทึกผู้ใช้ไม่สำเร็จ')
@@ -189,12 +221,18 @@ export default function ManageUsersPage() {
       setForm(EMPTY_FORM)
       setFormErrors(new Set())
       setAddOpen(false)
-      setPasswordResult({
-        title: 'เพิ่มผู้ใช้เรียบร้อยแล้ว',
-        email: form.email,
-        password: data.temporaryPassword || form.password,
-      })
-      setSuccess('เพิ่มผู้ใช้เรียบร้อยแล้ว')
+      setEditOpen(false)
+      setEditingUserId('')
+      if (isEdit) {
+        setSuccess('แก้ไขผู้ใช้เรียบร้อยแล้ว')
+      } else {
+        setPasswordResult({
+          title: 'เพิ่มผู้ใช้เรียบร้อยแล้ว',
+          email: form.email,
+          password: data.temporaryPassword || form.password,
+        })
+        setSuccess('เพิ่มผู้ใช้เรียบร้อยแล้ว')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'บันทึกผู้ใช้ไม่สำเร็จ')
     } finally {
@@ -214,7 +252,7 @@ export default function ManageUsersPage() {
       const response = await fetch('/api/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ action: 'reset-password', userId: user.id }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'reset password ไม่สำเร็จ')
@@ -315,18 +353,28 @@ export default function ManageUsersPage() {
     {
       title: 'จัดการ',
       key: 'actions',
-      width: 150,
+      width: 220,
       align: 'center',
       render: (_, user) => (
-        <Button
-          type="text"
-          icon={<ReloadOutlined />}
-          loading={resettingUserId === user.id}
-          onClick={() => setResetUser(user)}
-          className="text-secondary"
-        >
-          รีเซ็ตรหัสผ่าน
-        </Button>
+        <div className="flex items-center justify-center gap-1">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(user)}
+            className="text-on-surface-variant hover:!text-secondary"
+          >
+            แก้ไข
+          </Button>
+          <Button
+            type="text"
+            icon={<ReloadOutlined />}
+            loading={resettingUserId === user.id}
+            onClick={() => setResetUser(user)}
+            className="text-secondary"
+          >
+            รีเซ็ต
+          </Button>
+        </div>
       ),
     },
   ]
@@ -397,26 +445,28 @@ export default function ManageUsersPage() {
       </div>
 
       <Modal
-        open={addOpen}
-        onCancel={() => setAddOpen(false)}
+        open={addOpen || editOpen}
+        onCancel={closeFormModal}
         centered
         width={640}
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-              <UserAddOutlined className="text-[18px]" />
+              {editOpen ? <EditOutlined className="text-[18px]" /> : <UserAddOutlined className="text-[18px]" />}
             </div>
             <div>
-              <div className="font-headline-sm text-on-surface">เพิ่มผู้ใช้</div>
-              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">ระบบสุ่มรหัสผ่านให้ copy ได้ทันที และจะ hash ก่อนบันทึก</div>
+              <div className="font-headline-sm text-on-surface">{editOpen ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้'}</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">
+                {editOpen ? form.email : 'ระบบสุ่มรหัสผ่านให้ copy ได้ทันที และจะ hash ก่อนบันทึก'}
+              </div>
             </div>
           </div>
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setAddOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
+            <Button block onClick={closeFormModal} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
             <Button block icon={<SaveOutlined />} loading={isSaving} onClick={submitUser} className="ant-btn-secondary-solid h-11">
-              บันทึกผู้ใช้
+              {editOpen ? 'บันทึกการแก้ไข' : 'บันทึกผู้ใช้'}
             </Button>
           </div>
         }
@@ -446,23 +496,25 @@ export default function ManageUsersPage() {
               options={roles.map((role) => ({ label: role.roleName.toUpperCase(), value: role.id }))}
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
-            <Space.Compact block>
-              <Input
-                size="large"
-                readOnly
-                status={formErrors.has('password') ? 'error' : undefined}
-                value={form.password}
-              />
-              <Button size="large" onClick={() => updateField('password', generateClientPassword())}>
-                Generate
-              </Button>
-              <Button size="large" icon={<CopyOutlined />} onClick={copyFormPassword}>
-                Copy
-              </Button>
-            </Space.Compact>
-          </div>
+          {!editOpen && (
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
+              <Space.Compact block>
+                <Input
+                  size="large"
+                  readOnly
+                  status={formErrors.has('password') ? 'error' : undefined}
+                  value={form.password}
+                />
+                <Button size="large" onClick={() => updateField('password', generateClientPassword())}>
+                  Generate
+                </Button>
+                <Button size="large" icon={<CopyOutlined />} onClick={copyFormPassword}>
+                  Copy
+                </Button>
+              </Space.Compact>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>
             <Select

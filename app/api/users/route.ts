@@ -141,7 +141,56 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json()
+    const action = String(body.action ?? 'reset-password')
     const userId = String(body.userId ?? '').trim()
+
+    if (action === 'update-user') {
+      const firstName = String(body.firstName ?? '').trim()
+      const lastName = String(body.lastName ?? '').trim()
+      const email = String(body.email ?? '').trim().toLowerCase()
+      const roleId = String(body.roleId ?? '').trim()
+      const branchId = String(body.branchId ?? '').trim() || null
+      const status = String(body.status ?? 'active').trim() || 'active'
+
+      if (!userId) {
+        return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการแก้ไข' }, { status: 400 })
+      }
+
+      if (!firstName || !lastName || !email || !roleId) {
+        return NextResponse.json({ error: 'กรุณากรอกข้อมูลผู้ใช้ให้ครบถ้วน' }, { status: 400 })
+      }
+
+      const roleResult = await db.query('SELECT role_name FROM roles WHERE id = $1 LIMIT 1', [roleId])
+      const roleName = String(roleResult.rows[0]?.role_name ?? '')
+      if (!roleName) {
+        return NextResponse.json({ error: 'ไม่พบบทบาทผู้ใช้ที่เลือก' }, { status: 400 })
+      }
+      if (roleName === 'staff' && !branchId) {
+        return NextResponse.json({ error: 'ผู้ใช้ STAFF ต้องเลือกสาขาประจำ' }, { status: 400 })
+      }
+
+      const { rows } = await db.query(
+        `
+          UPDATE users
+          SET first_name = $2,
+              last_name = $3,
+              email = $4,
+              role_id = $5,
+              branch_id = $6,
+              status = $7,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+          RETURNING id, first_name, last_name, email, role_id, branch_id, status
+        `,
+        [userId, firstName, lastName, email, roleId, branchId, status],
+      )
+
+      if (!rows[0]) {
+        return NextResponse.json({ error: 'ไม่พบผู้ใช้ที่ต้องการแก้ไข' }, { status: 404 })
+      }
+
+      return NextResponse.json({ user: rows[0] })
+    }
 
     if (!userId) {
       return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการ reset password' }, { status: 400 })
@@ -168,8 +217,12 @@ export async function PATCH(request: NextRequest) {
       temporaryPassword,
     })
   } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '23505') {
+      return NextResponse.json({ error: 'อีเมลนี้มีผู้ใช้งานแล้ว' }, { status: 409 })
+    }
     console.error('PATCH /api/users failed', error)
-    return NextResponse.json({ error: 'Failed to reset user password' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
   }
 }
 
