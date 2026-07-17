@@ -18,7 +18,7 @@ export default function LoginPage() {
           M
         </div>
         <div className="text-center mb-8">
-          <h2 className="font-headline-md text-primary font-bold leading-tight">Login to My.B Shop Management</h2>
+          <h3 className="font-headline-md text-headline-md text-primary font-bold leading-tight">Login to My.B Shop Management</h3>
         </div>
 
         <form action={action} className="space-y-4">
@@ -27,7 +27,6 @@ export default function LoginPage() {
             <Input
               type="email"
               name="email"
-              defaultValue="admin@myb.com"
               required
               prefix={<MailOutlined className="text-outline-variant mr-2" />}
               placeholder="กรอกอีเมลของคุณ"
@@ -40,7 +39,6 @@ export default function LoginPage() {
             <label className="block text-label-md text-on-surface-variant mb-1 font-bold">รหัสผ่าน</label>
             <Input.Password
               name="password"
-              defaultValue="admin123"
               required
               prefix={<LockOutlined className="text-outline-variant mr-2" />}
               placeholder="กรอกรหัสผ่าน"

@@ -5,7 +5,7 @@ DB_PASSWORD ?= Password@1
 DB_PORT ?= 5432
 POSTGRES_IMAGE ?= postgres:16-alpine
 
-.PHONY: help up start stop restart down remove logs ps psql init-db reset
+.PHONY: help up start stop restart down remove logs ps psql init-db seed-owner reset
 
 help:
 	@echo "Available commands:"
@@ -19,6 +19,7 @@ help:
 	@echo "  make ps       Show container status"
 	@echo "  make psql     Open psql shell"
 	@echo "  make init-db  Apply database schema"
+	@echo "  make seed-owner Insert/update local owner login"
 	@echo "  make reset    Remove and recreate PostgreSQL container"
 
 up:
@@ -58,6 +59,9 @@ psql:
 
 init-db:
 	docker exec -i $(CONTAINER_NAME) psql -U $(DB_USER) -d $(DB_NAME) < db/schema.sql
+
+seed-owner:
+	docker exec -i $(CONTAINER_NAME) psql -U $(DB_USER) -d $(DB_NAME) < db/seed-owner.sql
 
 reset:
 	docker rm -f $(CONTAINER_NAME)

@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+UPDATE users
+SET password_hash = crypt('ChangeMe123!', gen_salt('bf'))
+WHERE password_hash IS NULL;
+ALTER TABLE users ALTER COLUMN password_hash SET NOT NULL;
+
 CREATE TABLE IF NOT EXISTS sales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     branch_id UUID NOT NULL REFERENCES branches(id) ON UPDATE CASCADE ON DELETE RESTRICT,

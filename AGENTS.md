@@ -15,7 +15,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **UI Components:** **Ant Design v6** (`antd` + `@ant-design/icons`) — themed via `ConfigProvider` in `components/Providers/AntdProvider.tsx` to preserve the original design (gold `#765a24` accent, black primary, 12px radius, Thai locale + dayjs `th`)
 - **Styling/Layout:** Tailwind CSS v4 (configured in `app/globals.css` using `@theme`) — used for layout, spacing, and design tokens; antd handles interactive components
 - **State Management:** React Hooks (`useState`, `useMemo`, `useActionState`), Next.js Navigation
-- **Authentication:** Custom Cookie-based Dummy Auth (implemented in `lib/actions/auth.ts` and protected via `middleware.ts`). The project intentionally keeps the classic Next.js middleware convention even though Next 16 emits a deprecation warning recommending `proxy.ts`.
+- **Authentication:** Database-backed login in `lib/actions/auth.ts` using PostgreSQL `users.password_hash` with `pgcrypto crypt()`; route protection remains in `middleware.ts`. Login sets `access_token` for 1 hour and `refresh_token` for 24 hours. The project intentionally keeps the classic Next.js middleware convention even though Next 16 emits a deprecation warning recommending `proxy.ts`.
 - **Database:** PostgreSQL 16 via Docker (`Makefile`) and `pg`
 - **Backend/API:** Next.js App Router route handlers under `app/api/*`
 - **Image Storage:** URL/base64 placeholders in UI; durable file storage is still pending
@@ -36,10 +36,11 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `components/Layout/`: `Sidebar` (desktop nav, icon-only at `lg`, expanded 280px at `xl`, light-red logout button pinned at the bottom), `Topbar` (desktop header "My.B / Shop Management" + mobile header), `BottomNav` (mobile).
 - `components/Providers/AntdProvider.tsx`: The single source of antd theming (tokens + per-component overrides). Extend theme HERE, not inline.
 - `components/UI/Loader.tsx`: Full-screen loading overlay (antd `Spin` + message) — shown by every page while data loads.
-- `lib/actions/auth.ts`: login/logout/getSession Server Actions.
+- `lib/actions/auth.ts`: login/logout/getSession Server Actions. Login validates `users.email`, active status, and `password_hash` via PostgreSQL `crypt()`, then stores compact session payloads in `access_token` (1h) and `refresh_token` (24h) cookies.
 - `lib/db.ts`: Shared PostgreSQL connection pool and small DB value helpers. Requires `DATABASE_URL`.
 - `lib/format.ts`: Shared helpers — `thbFormat` (฿ th-TH), `formatNum`, `toLocalISODate`, `currentMonthRange` (default date-range = current month, mirrors original `resetViewState`).
 - `db/schema.sql`: Idempotent PostgreSQL schema for roles, branches, products, users, sales, stock_in, and indexes. The `users` table stores credentials in `password_hash`; never store plain-text passwords.
+- `db/seed-owner.sql`: Local seed for owner login (`owner@myb.com` / `owner123`) using `crypt()`.
 
 ---
 
@@ -54,17 +55,17 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **Loading:** Pages render `<Loader text="..." />` until their API fetch resolves. `dashboard`, `history`, and `stockin` refetch when date filters change.
 - **Design System:** Premium Material-3-like aesthetic — `shadow-card` + `border-outline-variant/80` on cards, header, sidebar, and bottom nav; 12px radius; `interactive-press` for press feedback.
 - **Tailwind v4:** Custom tokens MUST live in `app/globals.css` `@theme` (no `tailwind.config.ts`); custom CSS rules via `@utility`.
+- **Login page:** Keep the auth card width explicit (`width: min(100%, 440px)`) to prevent collapse. Header copy is a single-line `h3` with `text-headline-md`: "Login to My.B Shop Management". Do not show demo account credentials or prefilled dummy credentials.
 
 ---
 
 ## 4. Current Authentication State
 
-The app currently uses a hardcoded, dummy authentication system to facilitate UI development and testing.
+The app uses PostgreSQL-backed authentication.
 - **Roles:** Menus and admin-only sections adapt to `ADMIN` vs `STAFF`. Dashboard menu + History stat cards + Inventory edit buttons are ADMIN-only via the `role-admin-only` class (hidden by `.role-staff` on the layout container).
 - **Middleware:** `middleware.ts` redirects unauthenticated users to `/login`. Keep this classic middleware file unless the user explicitly asks to migrate to `proxy.ts`.
-- **Demo Users:**
-  - Admin: `admin@myb.com` / `admin123`
-  - Staff: `staff@myb.com` / `staff123`
+- **Token lifetime:** `access_token` expires in 1 hour. `refresh_token` expires in 24 hours. Middleware can recreate a missing access token from a valid refresh token.
+- **Local seed user:** run `make seed-owner` after `make init-db` to create/update `owner@myb.com` / `owner123`.
 
 ---
 
@@ -76,9 +77,10 @@ The app currently uses a hardcoded, dummy authentication system to facilitate UI
   - Start Docker Desktop first.
   - `make up` creates the `myb-shop` PostgreSQL container using defaults from `Makefile`.
   - `make init-db` applies `db/schema.sql`.
+  - `make seed-owner` creates/updates the local owner login.
   - `make psql` opens a psql shell.
   - `.env` uses `DATABASE_URL="postgresql://admin:Password%401@localhost:5432/myb-shop-db"` and `DB_SSL="false"` by default.
-- Verify code changes with `npx tsc --noEmit` and `npm run lint`, then hit routes on the dev server with an `auth_session` cookie (URL-encoded JSON `{"role":"ADMIN","name":"...","email":"..."}`).
+- Verify code changes with `npx tsc --noEmit` and `npm run lint`, then hit routes on the dev server with an `access_token` or `refresh_token` cookie containing the session payload.
 - antd v6 emits deprecation warnings in the console — fix them with the v6 API (already done for Drawer `size`/`styles.section`).
 
 ---
