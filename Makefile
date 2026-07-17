@@ -1,7 +1,7 @@
-CONTAINER_NAME ?= shop_postgres
-DB_NAME ?= shop_db
-DB_USER ?= shop_user
-DB_PASSWORD ?= shop_password
+CONTAINER_NAME ?= myb-shop
+DB_NAME ?= myb-shop-db
+DB_USER ?= admin
+DB_PASSWORD ?= Password@1
 DB_PORT ?= 5432
 POSTGRES_IMAGE ?= postgres:16-alpine
 

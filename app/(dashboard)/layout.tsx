@@ -20,8 +20,10 @@ export default async function DashboardLayout({
       {/* Desktop Header (ยาวตลอดจอ) + Mobile Header */}
       <Topbar user={session} />
 
-      {/* Main Layout Container (ต่ำกว่า Header) */}
-      <div className="flex-1 flex flex-row min-h-0 w-full h-full overflow-hidden relative">
+      {/* Main Layout Container (ต่ำกว่า Header) — คลาส role-staff ใช้ซ่อน .role-admin-only ทั้งแอป */}
+      <div
+        className={`flex-1 flex flex-row min-h-0 w-full h-full overflow-hidden relative ${session.role === 'STAFF' ? 'role-staff' : ''}`}
+      >
         <Sidebar userRole={session.role} />
 
         <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">

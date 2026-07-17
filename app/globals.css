@@ -180,3 +180,8 @@ body {
   color: var(--color-on-background);
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ซ่อนส่วนที่เป็นของ ADMIN เมื่อผู้ใช้เป็น STAFF (กลไกเดิมจาก index.html: body.role-staff .role-admin-only) */
+.role-staff .role-admin-only {
+  display: none !important;
+}
