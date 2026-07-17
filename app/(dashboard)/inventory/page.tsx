@@ -59,9 +59,13 @@ const isLowStock = (p: Product) =>
   !isOutOfStock(p) && (p.currentStock <= p.minStock || p.status === 'Low Stock' || p.status === 'เหลือน้อย')
 
 function StatusBadge({ product }: { product: Product }) {
-  if (isOutOfStock(product)) return <Tag color="error" className="rounded-full">สินค้าหมด</Tag>
-  if (isLowStock(product)) return <Tag color="warning" className="rounded-full">เหลือน้อย</Tag>
-  return <Tag color="success" className="rounded-full">พร้อมขาย</Tag>
+  if (isOutOfStock(product)) {
+    return <Tag className="rounded-full border-rose-300 bg-rose-50 !text-rose-700 font-bold">สินค้าหมด</Tag>
+  }
+  if (isLowStock(product)) {
+    return <Tag className="rounded-full border-amber-300 bg-amber-50 !text-amber-700 font-bold">เหลือน้อย</Tag>
+  }
+  return <Tag className="rounded-full border-emerald-300 bg-emerald-50 !text-emerald-700 font-bold">พร้อมขาย</Tag>
 }
 
 const stockClassOf = (p: Product) => {
@@ -149,6 +153,12 @@ export default function InventoryPage() {
   const outItems = useMemo(() => products.filter(isOutOfStock), [products])
 
   const resetSelection = () => setSelected(new Set())
+
+  const applyFilter = (fn: () => void) => {
+    fn()
+    setCurrentPage(1)
+    resetSelection()
+  }
 
   const toggleSelect = (name: string, checked: boolean) => {
     const next = new Set(selected)
@@ -289,9 +299,9 @@ export default function InventoryPage() {
       render: (_, product) => (
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+          <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
           <div>
-            <div className="text-on-surface font-semibold text-body-md">{product.name}</div>
+            <div className="font-semibold text-primary text-body-md">{product.name}</div>
             <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
           </div>
         </div>
@@ -303,7 +313,7 @@ export default function InventoryPage() {
       key: 'currentStock',
       width: 170,
       align: 'right',
-      render: (_, product) => <span className={`font-medium text-body-md ${stockClassOf(product)}`}>{formatNum(product.currentStock)} ชิ้น</span>,
+      render: (_, product) => <span className={`font-bold text-body-md ${stockClassOf(product)}`}>{formatNum(product.currentStock)} ชิ้น</span>,
     },
     {
       title: 'ราคา (เงินสด)',
@@ -311,7 +321,7 @@ export default function InventoryPage() {
       key: 'priceCash',
       width: 150,
       align: 'right',
-      render: (val: number) => <span className="font-bold text-body-md text-on-surface">{thbFormat(val)}</span>,
+      render: (val: number) => <span className="font-bold text-body-md text-secondary">{thbFormat(val)}</span>,
     },
     {
       title: 'สถานะ',
@@ -422,10 +432,10 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* ตารางรายการสินค้า */}
         <div className="flex-initial bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col mb-8 lg:mb-0 lg:min-h-0">
-          <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col sm:flex-row justify-between sm:items-center gap-sm sm:gap-4 bg-surface/30 flex-shrink-0">
-            <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
+          {/* Toolbar: ค้นหา + ปุ่มลบ */}
+          <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-surface/30 flex-shrink-0">
+            <div className="flex items-center justify-between gap-3 w-full xl:w-auto">
               <h3 className="font-headline-sm text-primary flex-shrink-0">รายการสินค้าทั้งหมด</h3>
               <Button
                 danger
@@ -437,14 +447,17 @@ export default function InventoryPage() {
                 {deleteBtnActive ? `ลบ (${selected.size})` : 'ลบ'}
               </Button>
             </div>
-            <Input
-              prefix={<FilterOutlined className="text-on-surface-variant" />}
-              value={filterText}
-              onChange={(e) => { setFilterText(e.target.value); setCurrentPage(1); resetSelection() }}
-              placeholder="ค้นหาสินค้า..."
-              allowClear
-              className="w-full sm:max-w-xs shadow-sm font-body-sm"
-            />
+
+            <div className="flex flex-col lg:flex-row items-center gap-sm w-full xl:w-auto">
+              <Input
+                prefix={<FilterOutlined className="text-on-surface-variant" />}
+                value={filterText}
+                onChange={(e) => applyFilter(() => setFilterText(e.target.value))}
+                placeholder="ค้นหาสินค้า..."
+                allowClear
+                className="w-full lg:w-64 shadow-sm font-body-sm"
+              />
+            </div>
           </div>
 
           {/* Desktop Table (antd) */}
@@ -454,7 +467,7 @@ export default function InventoryPage() {
               columns={columns}
               dataSource={pageItems}
               pagination={paginationConfig}
-              scroll={{ x: 970 }}
+              scroll={{ x: 1180 }}
               rowSelection={{
                 selectedRowKeys: Array.from(selected),
                 onChange: (keys) => setSelected(new Set(keys as string[])),
@@ -471,10 +484,9 @@ export default function InventoryPage() {
               <div className="p-lg text-center text-on-surface-variant">ไม่พบข้อมูลสินค้า</div>
             ) : (
               pageItems.map((product) => (
-                <div key={product.name} className={`bg-surface-container-lowest rounded-xl p-4 shadow-sm border relative flex flex-col gap-2 transition-all duration-200 ${selected.has(product.name) ? 'bg-error/[0.04] border-error/30' : 'border-outline-variant/80'}`}>
+                <article key={product.name} className={`bg-surface-container-lowest hover:border-secondary/50 rounded-xl p-md shadow-sm border border-outline-variant/80 relative flex flex-col gap-2 transition-all duration-200 ${selected.has(product.name) ? 'bg-error/[0.04]' : ''}`}>
                   <div className="flex items-center justify-between">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm flex-shrink-0" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+                    <span className="text-xs font-semibold text-primary truncate pr-2">{product.name}</span>
                     <div className="flex-shrink-0"><StatusBadge product={product} /></div>
                   </div>
                   <div className="flex items-start gap-2">
@@ -485,8 +497,14 @@ export default function InventoryPage() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-on-surface text-body-md break-words">{product.name}</div>
-                      <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
+                      <div className="flex items-start gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm flex-shrink-0" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+                        <div>
+                          <div className="font-medium text-on-surface text-body-md break-words">{product.name}</div>
+                          <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <hr className="border-t border-outline-variant/10 my-1" />
@@ -500,10 +518,10 @@ export default function InventoryPage() {
                       <Button type="text" icon={<EditOutlined className="text-[18px]" />} onClick={() => openEditModalForProduct(product)} className="text-on-surface-variant role-admin-only" />
                     </div>
                   </div>
-                </div>
+                </article>
               ))
             )}
-            {/* Pagination มือถือ */}
+            {/* Pagination มือถือ (ตาราง antd ถูกซ่อนบนมือถือ) */}
             <div className="flex justify-center py-3">
               <Pagination {...paginationConfig} size="small" showTotal={undefined} />
             </div>

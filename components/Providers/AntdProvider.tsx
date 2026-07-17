@@ -81,6 +81,8 @@ export default function AntdProvider({ children }: { children: React.ReactNode }
             cellPaddingBlock: 16,
             cellPaddingInline: 24,
             rowHoverBg: 'rgba(0, 0, 0, 0.02)',
+            rowSelectedBg: 'rgba(186, 26, 26, 0.06)',
+            rowSelectedHoverBg: 'rgba(186, 26, 26, 0.1)',
           },
           Modal: {
             borderRadiusLG: 16,
