@@ -343,8 +343,8 @@ export default function ManageUsersPage() {
 
         {(error || success) && (
           <div className="fixed right-4 top-[88px] z-50 w-[min(420px,calc(100vw-2rem))]">
-            {error && <Alert type="error" showIcon title={error} className="rounded-xl shadow-card" />}
-            {success && <Alert type="success" showIcon title={success} className="rounded-xl shadow-card" />}
+            {error && <Alert title={error} type="error" showIcon className="rounded-xl shadow-card" />}
+            {success && <Alert title={success} type="success" showIcon className="rounded-xl shadow-card" />}
           </div>
         )}
 

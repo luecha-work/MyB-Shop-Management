@@ -358,7 +358,7 @@ export default function InventoryPage() {
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
-        {loadError && <Alert type="error" showIcon title={loadError} className="mb-md" />}
+        {loadError && <Alert title={loadError} type="error" showIcon className="mb-md" />}
 
         {/* Page Header + ปุ่มเพิ่มสินค้า */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 md:mb-xl gap-md flex-shrink-0">
@@ -743,7 +743,7 @@ export default function InventoryPage() {
           </div>
 
           {/* Error message */}
-          {editErrorMsg && <Alert type="error" showIcon title={editErrorMsg} className="rounded-xl" />}
+          {editErrorMsg && <Alert title={editErrorMsg} type="error" showIcon className="rounded-xl" />}
         </div>
       </Modal>
 
@@ -797,7 +797,7 @@ export default function InventoryPage() {
               style={{ resize: 'none' }}
             />
           </div>
-          {stockInError && <Alert type="error" showIcon title={stockInError} className="rounded-xl" />}
+          {stockInError && <Alert title={stockInError} type="error" showIcon className="rounded-xl" />}
         </div>
       </Modal>
     </>

@@ -233,7 +233,7 @@ export default function ManageBranchesPage() {
 
         {error && (
           <div className="fixed right-4 top-[88px] z-50 w-[min(420px,calc(100vw-2rem))]">
-            <Alert type="error" showIcon title={error} className="rounded-xl shadow-card" />
+            <Alert title={error} type="error" showIcon className="rounded-xl shadow-card" />
           </div>
         )}
 
