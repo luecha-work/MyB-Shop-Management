@@ -5,7 +5,7 @@ import { logout } from '@/lib/actions/auth'
 import { useRouter } from 'next/navigation'
 import { Button, Menu, Popover, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
-import { DownOutlined, LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
+import { LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
 
 type BranchOption = {
   id: string
@@ -225,7 +225,6 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
                       {canSelectBranch ? `${user.role} · ${selectedBranchLabel}` : user.role}
                     </span>
                   </div>
-                  <DownOutlined className="text-[12px] text-on-surface-variant" />
                 </div>
               </Button>
             </Popover>

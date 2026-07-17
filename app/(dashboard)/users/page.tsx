@@ -370,7 +370,7 @@ export default function ManageUsersPage() {
             icon={<ReloadOutlined />}
             loading={resettingUserId === user.id}
             onClick={() => setResetUser(user)}
-            className="text-secondary"
+            className="text-error hover:!text-error"
           >
             รีเซ็ต
           </Button>
