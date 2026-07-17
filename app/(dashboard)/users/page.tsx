@@ -88,6 +88,15 @@ export default function ManageUsersPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  useEffect(() => {
+    if (!error && !success) return
+    const timeoutId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+    }, 3000)
+    return () => window.clearTimeout(timeoutId)
+  }, [error, success])
+
   const loadUsers = async () => {
     setError('')
     const response = await fetch('/api/users', { cache: 'no-store' })
@@ -332,8 +341,8 @@ export default function ManageUsersPage() {
           </div>
         </div>
 
-        {error && <Alert type="error" showIcon message={error} className="mb-md rounded-xl" />}
-        {success && <Alert type="success" showIcon message={success} className="mb-md rounded-xl" />}
+        {error && <Alert type="error" showIcon title={error} className="mb-md rounded-xl" />}
+        {success && <Alert type="success" showIcon title={success} className="mb-md rounded-xl" />}
 
         <div className="bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col">
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface/30 flex-shrink-0">

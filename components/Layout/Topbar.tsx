@@ -51,7 +51,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
           {
             key: 'add-branch',
             icon: <ShopOutlined />,
-            label: 'เพิ่มสาขา',
+            label: 'จัดการสาขา',
           },
         ] satisfies Required<MenuProps>['items'])
       : []),
@@ -76,7 +76,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
       return
     }
     if (key === 'add-branch') {
-      router.push('/branches/new')
+      router.push('/branches')
       setDesktopMenuOpen(false)
       setMobileMenuOpen(false)
       return

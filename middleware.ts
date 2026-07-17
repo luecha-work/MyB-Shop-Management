@@ -44,6 +44,7 @@ export function middleware(request: NextRequest) {
   const isAdminRoute =
     request.nextUrl.pathname === '/users' ||
     request.nextUrl.pathname.startsWith('/users/') ||
+    request.nextUrl.pathname === '/branches' ||
     request.nextUrl.pathname.startsWith('/branches')
 
   if (role === 'STAFF' && isAdminRoute) {

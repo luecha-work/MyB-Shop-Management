@@ -75,3 +75,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create branch' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  if (!canManageSettings(sessionFromRequest(request))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const ids: string[] = Array.isArray(body.ids) ? body.ids.map((id: unknown) => String(id)).filter(Boolean) : []
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาที่ต้องการลบ' }, { status: 400 })
+    }
+
+    const { rowCount } = await db.query(
+      `
+        DELETE FROM branches
+        WHERE id = ANY($1::uuid[])
+      `,
+      [ids],
+    )
+
+    return NextResponse.json({ deletedCount: rowCount ?? 0 })
+  } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '23503') {
+      return NextResponse.json({ error: 'ไม่สามารถลบสาขาที่มีผู้ใช้หรือรายการธุรกรรมผูกอยู่ได้' }, { status: 409 })
+    }
+    console.error('DELETE /api/branches failed', error)
+    return NextResponse.json({ error: 'Failed to delete branches' }, { status: 500 })
+  }
+}
