@@ -9,13 +9,17 @@ export default function LoginPage() {
   const [state, action, isPending] = useActionState(login, undefined)
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-surface">
-      <div className="bg-white p-8 rounded-2xl shadow-premium border border-outline-variant/30 text-center max-w-md w-full mx-4">
+    <main className="min-h-screen w-full bg-surface flex items-center justify-center px-4 py-8">
+      <section
+        className="bg-white rounded-2xl shadow-premium border border-outline-variant/30"
+        style={{ width: 'min(100%, 440px)', padding: 32 }}
+      >
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-on-primary font-headline-xl mx-auto mb-6">
           M
         </div>
-        <h1 className="font-headline-xl text-primary font-bold leading-none mb-2">My.B</h1>
-        <p className="text-on-surface-variant font-body-md mb-8">Admin Management Login</p>
+        <div className="text-center mb-8">
+          <h2 className="font-headline-md text-primary font-bold leading-tight">Login to My.B Shop Management</h2>
+        </div>
 
         <form action={action} className="space-y-4">
           <div className="text-left">
@@ -28,9 +32,10 @@ export default function LoginPage() {
               prefix={<MailOutlined className="text-outline-variant mr-2" />}
               placeholder="กรอกอีเมลของคุณ"
               className="font-body-md"
+              size="large"
             />
           </div>
-          
+
           <div className="text-left">
             <label className="block text-label-md text-on-surface-variant mb-1 font-bold">รหัสผ่าน</label>
             <Input.Password
@@ -40,6 +45,7 @@ export default function LoginPage() {
               prefix={<LockOutlined className="text-outline-variant mr-2" />}
               placeholder="กรอกรหัสผ่าน"
               className="font-body-md"
+              size="large"
             />
           </div>
 
@@ -54,21 +60,14 @@ export default function LoginPage() {
             htmlType="submit"
             loading={isPending}
             icon={<LoginOutlined />}
-            className="w-full mt-4 font-bold h-12 text-body-md"
-            style={{ borderRadius: 8 }}
+            className="w-full mt-4 font-bold text-body-md"
+            size="large"
+            style={{ height: 48, borderRadius: 8 }}
           >
             เข้าสู่ระบบ
           </Button>
         </form>
-
-        <div className="mt-8 text-left bg-surface-container-low p-4 rounded-xl border border-surface-container-highest">
-          <h3 className="font-label-md font-bold text-on-surface-variant mb-2">บัญชีทดสอบ (Demo)</h3>
-          <div className="text-body-sm text-on-surface-variant space-y-1">
-            <p><span className="font-bold">Admin:</span> admin@myb.com / admin123</p>
-            <p><span className="font-bold">Staff:</span> staff@myb.com / staff123</p>
-          </div>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
