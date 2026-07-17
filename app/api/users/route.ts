@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { db } from '@/lib/db'
 import { canManageSettings, decodeSessionToken } from '@/lib/auth/session'
 
@@ -11,8 +12,15 @@ const sessionFromRequest = (request: NextRequest) =>
       request.cookies.get('auth_session')?.value,
   )
 
+const generateTemporaryPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'
+  const bytes = randomBytes(14)
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')
+}
+
 export async function GET(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  const session = sessionFromRequest(request)
+  if (!canManageSettings(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -57,7 +65,9 @@ export async function GET(request: NextRequest) {
         branchId: row.branch_id,
         branchCode: row.branch_code || '',
         branchName: row.branch_name || '',
+        isCurrentUser: row.id === session?.userId,
       })),
+      currentUserId: session?.userId,
       roles: roles.rows.map((row) => ({
         id: row.id,
         roleName: row.role_name,
@@ -85,16 +95,13 @@ export async function POST(request: NextRequest) {
     const firstName = String(body.firstName ?? '').trim()
     const lastName = String(body.lastName ?? '').trim()
     const email = String(body.email ?? '').trim().toLowerCase()
-    const password = String(body.password ?? '')
+    const suppliedPassword = String(body.password ?? '').trim()
     const roleId = String(body.roleId ?? '').trim()
     const branchId = String(body.branchId ?? '').trim() || null
     const status = String(body.status ?? 'active').trim() || 'active'
 
-    if (!firstName || !lastName || !email || !password || !roleId) {
+    if (!firstName || !lastName || !email || !roleId) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลผู้ใช้ให้ครบถ้วน' }, { status: 400 })
-    }
-    if (password.length < 8) {
-      return NextResponse.json({ error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' }, { status: 400 })
     }
 
     const roleResult = await db.query('SELECT role_name FROM roles WHERE id = $1 LIMIT 1', [roleId])
@@ -106,16 +113,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ผู้ใช้ STAFF ต้องเลือกสาขาประจำ' }, { status: 400 })
     }
 
+    const temporaryPassword = suppliedPassword || generateTemporaryPassword()
     const { rows } = await db.query(
       `
         INSERT INTO users (first_name, last_name, email, password_hash, role_id, branch_id, status)
         VALUES ($1, $2, $3, crypt($4, gen_salt('bf')), $5, $6, $7)
         RETURNING id, first_name, last_name, email, role_id, branch_id, status
       `,
-      [firstName, lastName, email, password, roleId, branchId, status],
+      [firstName, lastName, email, temporaryPassword, roleId, branchId, status],
     )
 
-    return NextResponse.json({ user: rows[0] }, { status: 201 })
+    return NextResponse.json({ user: rows[0], temporaryPassword }, { status: 201 })
   } catch (error) {
     const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
     if (code === '23505') {
@@ -123,6 +131,45 @@ export async function POST(request: NextRequest) {
     }
     console.error('POST /api/users failed', error)
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!canManageSettings(sessionFromRequest(request))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const userId = String(body.userId ?? '').trim()
+
+    if (!userId) {
+      return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการ reset password' }, { status: 400 })
+    }
+
+    const temporaryPassword = generateTemporaryPassword()
+    const { rows } = await db.query(
+      `
+        UPDATE users
+        SET password_hash = crypt($2, gen_salt('bf')),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING id, email, first_name, last_name
+      `,
+      [userId, temporaryPassword],
+    )
+
+    if (!rows[0]) {
+      return NextResponse.json({ error: 'ไม่พบผู้ใช้ที่ต้องการ reset password' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      user: rows[0],
+      temporaryPassword,
+    })
+  } catch (error) {
+    console.error('PATCH /api/users failed', error)
+    return NextResponse.json({ error: 'Failed to reset user password' }, { status: 500 })
   }
 }
 
@@ -134,9 +181,13 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const ids = Array.isArray(body.ids) ? body.ids.map((id: unknown) => String(id)).filter(Boolean) : []
+    const ids: string[] = Array.isArray(body.ids) ? body.ids.map((id: unknown) => String(id)).filter(Boolean) : []
 
-    if (ids.length === 0) {
+    const targetIds = ids.filter((id: string) => id !== session?.userId)
+    if (targetIds.length === 0) {
+      if (ids.includes(session?.userId ?? '')) {
+        return NextResponse.json({ error: 'ไม่สามารถลบบัญชีของตัวเองได้' }, { status: 400 })
+      }
       return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการลบ' }, { status: 400 })
     }
 
@@ -144,12 +195,14 @@ export async function DELETE(request: NextRequest) {
       `
         DELETE FROM users
         WHERE id = ANY($1::uuid[])
-          AND id <> $2::uuid
       `,
-      [ids, session?.userId],
+      [targetIds],
     )
 
-    return NextResponse.json({ deletedCount: rowCount ?? 0 })
+    return NextResponse.json({
+      deletedCount: rowCount ?? 0,
+      skippedSelf: targetIds.length !== ids.length,
+    })
   } catch (error) {
     console.error('DELETE /api/users failed', error)
     return NextResponse.json({ error: 'Failed to delete users' }, { status: 500 })

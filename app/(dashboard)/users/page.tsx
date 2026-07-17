@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Empty, Input, Modal, Select, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { DeleteOutlined, ExclamationCircleOutlined, PlusOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
 
 type UserRow = {
@@ -18,6 +18,7 @@ type UserRow = {
   branchId: string | null
   branchCode: string
   branchName: string
+  isCurrentUser: boolean
 }
 
 type RoleOption = {
@@ -52,9 +53,22 @@ const EMPTY_FORM: UserForm = {
   status: 'active',
 }
 
+type PasswordResult = {
+  title: string
+  email: string
+  password: string
+} | null
+
 const statusTag = (status: string) => {
   if (status === 'active') return <Tag className="rounded-full border-emerald-300 bg-emerald-50 !text-emerald-700 font-bold">Active</Tag>
   return <Tag className="rounded-full border-slate-300 bg-slate-50 !text-slate-600 font-bold">Inactive</Tag>
+}
+
+const generateClientPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'
+  const bytes = new Uint8Array(14)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')
 }
 
 export default function ManageUsersPage() {
@@ -65,8 +79,10 @@ export default function ManageUsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [resettingUserId, setResettingUserId] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [passwordResult, setPasswordResult] = useState<PasswordResult>(null)
   const [form, setForm] = useState<UserForm>(EMPTY_FORM)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -118,7 +134,7 @@ export default function ManageUsersPage() {
   }
 
   const openAddModal = () => {
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, password: generateClientPassword() })
     setError('')
     setSuccess('')
     setAddOpen(true)
@@ -141,11 +157,62 @@ export default function ManageUsersPage() {
       await loadUsers()
       setForm(EMPTY_FORM)
       setAddOpen(false)
+      setPasswordResult({
+        title: 'เพิ่มผู้ใช้เรียบร้อยแล้ว',
+        email: form.email,
+        password: data.temporaryPassword || form.password,
+      })
       setSuccess('เพิ่มผู้ใช้เรียบร้อยแล้ว')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'บันทึกผู้ใช้ไม่สำเร็จ')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const resetPassword = async (user: UserRow) => {
+    setResettingUserId(user.id)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'reset password ไม่สำเร็จ')
+
+      setPasswordResult({
+        title: 'Reset password เรียบร้อยแล้ว',
+        email: user.email,
+        password: data.temporaryPassword,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'reset password ไม่สำเร็จ')
+    } finally {
+      setResettingUserId('')
+    }
+  }
+
+  const copyPassword = async () => {
+    if (!passwordResult?.password) return
+    try {
+      await navigator.clipboard.writeText(passwordResult.password)
+      setSuccess('คัดลอกรหัสผ่านแล้ว')
+    } catch {
+      setError('คัดลอกรหัสผ่านไม่สำเร็จ')
+    }
+  }
+
+  const copyFormPassword = async () => {
+    if (!form.password) return
+    try {
+      await navigator.clipboard.writeText(form.password)
+      setSuccess('คัดลอกรหัสผ่านแล้ว')
+    } catch {
+      setError('คัดลอกรหัสผ่านไม่สำเร็จ')
     }
   }
 
@@ -209,6 +276,23 @@ export default function ManageUsersPage() {
       align: 'center',
       render: (status: string) => statusTag(status),
     },
+    {
+      title: 'จัดการ',
+      key: 'actions',
+      width: 150,
+      align: 'center',
+      render: (_, user) => (
+        <Button
+          type="text"
+          icon={<KeyOutlined />}
+          loading={resettingUserId === user.id}
+          onClick={() => resetPassword(user)}
+          className="text-secondary"
+        >
+          Reset
+        </Button>
+      ),
+    },
   ]
 
   if (isLoading) return <Loader text="โหลดข้อมูลผู้ใช้..." />
@@ -262,6 +346,10 @@ export default function ManageUsersPage() {
               selectedRowKeys: Array.from(selected),
               onChange: (keys) => setSelected(new Set(keys as string[])),
               columnWidth: 50,
+              getCheckboxProps: (user) => ({
+                disabled: user.isCurrentUser,
+                title: user.isCurrentUser ? 'ไม่สามารถลบบัญชีของตัวเองได้' : undefined,
+              }),
             }}
             locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลผู้ใช้" /> }}
           />
@@ -280,7 +368,7 @@ export default function ManageUsersPage() {
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">เพิ่มผู้ใช้</div>
-              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">รหัสผ่านจะถูก hash ก่อนจัดเก็บลงฐานข้อมูล</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">ระบบสุ่มรหัสผ่านให้ copy ได้ทันที และจะ hash ก่อนบันทึก</div>
             </div>
           </div>
         }
@@ -307,10 +395,6 @@ export default function ManageUsersPage() {
             <Input size="large" type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} placeholder="user@example.com" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
-            <Input.Password size="large" value={form.password} onChange={(event) => updateField('password', event.target.value)} placeholder="อย่างน้อย 8 ตัวอักษร" />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">บทบาท</label>
             <Select
               size="large"
@@ -319,6 +403,24 @@ export default function ManageUsersPage() {
               placeholder="เลือกบทบาท"
               className="w-full"
               options={roles.map((role) => ({ label: role.roleName.toUpperCase(), value: role.id }))}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
+            <Input
+              size="large"
+              readOnly
+              value={form.password}
+              addonAfter={
+                <div className="flex items-center gap-1">
+                  <Button type="link" size="small" onClick={() => updateField('password', generateClientPassword())}>
+                    Generate
+                  </Button>
+                  <Button type="link" size="small" icon={<CopyOutlined />} onClick={copyFormPassword}>
+                    Copy
+                  </Button>
+                </div>
+              }
             />
           </div>
           <div>
@@ -349,6 +451,42 @@ export default function ManageUsersPage() {
               ]}
             />
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!passwordResult}
+        onCancel={() => setPasswordResult(null)}
+        centered
+        width={460}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary">
+              <KeyOutlined className="text-[20px]" />
+            </div>
+            <div>
+              <div className="font-headline-sm text-on-surface">{passwordResult?.title}</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{passwordResult?.email}</div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setPasswordResult(null)} className="h-11">ปิด</Button>
+            <Button block icon={<CopyOutlined />} onClick={copyPassword} className="ant-btn-secondary-solid h-11">
+              Copy password
+            </Button>
+          </div>
+        }
+      >
+        <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+          <div className="text-xs font-semibold text-on-surface-variant mb-2">Temporary password</div>
+          <div className="font-label-md text-base text-primary break-all bg-white border border-outline-variant/50 rounded-lg p-3">
+            {passwordResult?.password}
+          </div>
+          <p className="text-xs text-on-surface-variant mt-3">
+            แสดงรหัสผ่านครั้งนี้ครั้งเดียว กรุณา copy และส่งให้ผู้ใช้ผ่านช่องทางที่ปลอดภัย
+          </p>
         </div>
       </Modal>
 
