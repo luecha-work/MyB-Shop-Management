@@ -341,8 +341,12 @@ export default function ManageUsersPage() {
           </div>
         </div>
 
-        {error && <Alert type="error" showIcon title={error} className="mb-md rounded-xl" />}
-        {success && <Alert type="success" showIcon title={success} className="mb-md rounded-xl" />}
+        {(error || success) && (
+          <div className="fixed right-4 top-[88px] z-50 w-[min(420px,calc(100vw-2rem))]">
+            {error && <Alert type="error" showIcon title={error} className="rounded-xl shadow-card" />}
+            {success && <Alert type="success" showIcon title={success} className="rounded-xl shadow-card" />}
+          </div>
+        )}
 
         <div className="bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col">
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface/30 flex-shrink-0">
