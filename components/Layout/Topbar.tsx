@@ -116,8 +116,12 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
     {
       key: 'logout',
       danger: true,
-      icon: <LogoutOutlined />,
-      label: <span className="font-semibold text-error">ออกจากระบบ</span>,
+      label: (
+        <span className="flex w-full items-center justify-center gap-2 font-semibold text-error">
+          <LogoutOutlined />
+          ออกจากระบบ
+        </span>
+      ),
     },
   ]
 

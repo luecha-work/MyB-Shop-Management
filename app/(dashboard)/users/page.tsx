@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Empty, Input, Modal, Select, Table, Tag } from 'antd'
+import { Alert, Button, Empty, Input, Modal, Select, Space, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
@@ -342,7 +342,7 @@ export default function ManageUsersPage() {
         </div>
 
         {(error || success) && (
-          <div className="fixed right-4 top-[88px] z-50 w-[min(420px,calc(100vw-2rem))]">
+          <div className="fixed right-4 top-[88px] z-[1200] w-[min(420px,calc(100vw-2rem))]">
             {error && <Alert title={error} type="error" showIcon className="rounded-xl shadow-card" />}
             {success && <Alert title={success} type="success" showIcon className="rounded-xl shadow-card" />}
           </div>
@@ -443,22 +443,20 @@ export default function ManageUsersPage() {
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
-            <Input
-              size="large"
-              readOnly
-              status={formErrors.has('password') ? 'error' : undefined}
-              value={form.password}
-              addonAfter={
-                <div className="flex items-center gap-1">
-                  <Button type="link" size="small" onClick={() => updateField('password', generateClientPassword())}>
-                    Generate
-                  </Button>
-                  <Button type="link" size="small" icon={<CopyOutlined />} onClick={copyFormPassword}>
-                    Copy
-                  </Button>
-                </div>
-              }
-            />
+            <Space.Compact block>
+              <Input
+                size="large"
+                readOnly
+                status={formErrors.has('password') ? 'error' : undefined}
+                value={form.password}
+              />
+              <Button size="large" onClick={() => updateField('password', generateClientPassword())}>
+                Generate
+              </Button>
+              <Button size="large" icon={<CopyOutlined />} onClick={copyFormPassword}>
+                Copy
+              </Button>
+            </Space.Compact>
           </div>
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>

@@ -316,7 +316,7 @@ export default function ManageBranchesPage() {
         </div>
 
         {(error || success) && (
-          <div className="fixed right-4 top-[88px] z-50 w-[min(420px,calc(100vw-2rem))]">
+          <div className="fixed right-4 top-[88px] z-[1200] w-[min(420px,calc(100vw-2rem))]">
             {error && <Alert title={error} type="error" showIcon className="rounded-xl shadow-card" />}
             {success && <Alert title={success} type="success" showIcon className="rounded-xl shadow-card" />}
           </div>
