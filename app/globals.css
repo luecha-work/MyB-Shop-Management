@@ -64,6 +64,11 @@
   --spacing-container-max: 1280px;
   --spacing-margin-mobile: 16px;
   --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-base: 4px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
   --spacing-gutter: 16px;
   --spacing-margin-desktop: 32px;
 
@@ -124,6 +129,22 @@
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 @utility no-scrollbar {

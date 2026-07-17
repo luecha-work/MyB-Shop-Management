@@ -16,18 +16,22 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex-1 flex flex-row min-h-0 w-full h-full overflow-hidden relative">
-      <Sidebar userRole={session.role} />
+    <>
+      {/* Desktop Header (ยาวตลอดจอ) + Mobile Header */}
+      <Topbar user={session} />
 
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
-        <Topbar user={session} />
-        
-        <main className="flex-1 flex flex-col overflow-hidden bg-background relative z-10">
-          {children}
-        </main>
+      {/* Main Layout Container (ต่ำกว่า Header) */}
+      <div className="flex-1 flex flex-row min-h-0 w-full h-full overflow-hidden relative">
+        <Sidebar userRole={session.role} />
+
+        <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
+          <main className="flex-1 flex flex-col overflow-hidden bg-background">
+            {children}
+          </main>
+        </div>
       </div>
 
       <BottomNav userRole={session.role} />
-    </div>
+    </>
   )
 }
