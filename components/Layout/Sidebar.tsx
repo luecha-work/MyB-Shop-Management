@@ -26,7 +26,7 @@ export default function Sidebar({ userRole }: { userRole: string }) {
   ]
 
   return (
-    <nav className="hidden lg:flex flex-col bg-surface h-full w-[72px] xl:w-[280px] border-r border-surface-container py-md z-20 shadow-sm transition-all duration-300 flex-shrink-0">
+    <nav className="hidden lg:flex flex-col bg-surface h-full w-[72px] xl:w-[280px] border-r border-outline-variant/80 py-md z-20 shadow-card transition-all duration-300 flex-shrink-0">
       <ul className="flex flex-col gap-sm px-2 xl:px-md flex-1">
         {menuItems.map((item) => {
           if (item.adminOnly && isStaff) return null

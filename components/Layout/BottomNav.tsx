@@ -23,7 +23,7 @@ export default function BottomNav({ userRole }: { userRole: string }) {
   ]
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 w-full z-40 flex justify-around items-center px-4 py-3 bg-surface/90 backdrop-blur-xl rounded-t-xl border-t border-outline-variant/30 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+    <nav className="lg:hidden fixed bottom-0 left-0 w-full z-40 flex justify-around items-center px-4 py-3 bg-surface/90 backdrop-blur-xl rounded-t-xl border-t border-outline-variant/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
       {navItems.map((item) => {
         if (item.adminOnly && isStaff) return null
 

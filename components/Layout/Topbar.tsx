@@ -10,7 +10,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
   return (
     <>
       {/* Desktop Header (ยาวตลอดจอ และโลโก้ชิดซ้าย) */}
-      <header className="hidden lg:flex justify-between items-center h-[72px] px-margin-desktop w-full bg-surface border-b border-surface-container shadow-sm z-30 flex-shrink-0">
+      <header className="hidden lg:flex justify-between items-center h-[72px] px-margin-desktop w-full bg-surface border-b border-outline-variant/80 shadow-card z-30 flex-shrink-0">
         {/* Logo / Branding */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary font-headline-md flex-shrink-0">
@@ -39,7 +39,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
       </header>
 
       {/* Mobile Header (แสดงเฉพาะบน Mobile) */}
-      <header className="lg:hidden sticky top-0 z-40 bg-surface/90 backdrop-blur-md px-margin-mobile py-4 border-b border-outline-variant/30 flex justify-between items-center shadow-sm">
+      <header className="lg:hidden sticky top-0 z-40 bg-surface/90 backdrop-blur-md px-margin-mobile py-4 border-b border-outline-variant/80 flex justify-between items-center shadow-card">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary font-bold text-sm">M</div>
           <span className="font-bold text-lg text-primary tracking-tight">My.B</span>
