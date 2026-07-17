@@ -38,6 +38,7 @@ type Product = {
 }
 
 const FALLBACK_IMG = 'https://placehold.co/400x400/eceef0/7c839b?text=No+Image'
+const productImageSrc = (image: string) => image.trim() || FALLBACK_IMG
 
 // สถานะสินค้า (logic เดิมจาก updateInventoryUI)
 const isOutOfStock = (p: Product) => p.currentStock <= 0 || p.status === 'Out of Stock' || p.status === 'สินค้าหมด'
@@ -298,7 +299,7 @@ export default function InventoryPage() {
       render: (_, product) => (
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+          <img src={productImageSrc(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
           <div>
             <div className="font-semibold text-primary text-body-md">{product.name}</div>
             <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
@@ -500,7 +501,7 @@ export default function InventoryPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm flex-shrink-0" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+                        <img src={productImageSrc(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm flex-shrink-0" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
                         <div>
                           <div className="font-medium text-on-surface text-body-md break-words">{product.name}</div>
                           <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
@@ -620,7 +621,7 @@ export default function InventoryPage() {
                     <td className="py-3.5 pr-2">
                       <div className="flex items-center gap-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+                        <img src={productImageSrc(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
                         <div>
                           <div className="text-on-surface font-semibold text-body-md">{product.name}</div>
                           <div className="text-xs text-on-surface-variant mt-0.5">ราคา: <span className="font-medium text-secondary">{thbFormat(product.priceCash)}</span></div>

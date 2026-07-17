@@ -43,6 +43,7 @@ type CartItem = {
 }
 
 const FALLBACK_IMG = 'https://placehold.co/400x400/eceef0/7c839b?text=No+Image'
+const productImageSrc = (image: string) => image.trim() || FALLBACK_IMG
 
 // ==========================================
 // จัดกลุ่มตัวอักษรสำหรับหน้าขาย POS (logic เดิมจาก script.html)
@@ -412,7 +413,7 @@ export default function POSPage() {
                           <img
                             alt={product.name}
                             className="w-full h-full object-cover grayscale"
-                            src={product.image}
+                            src={productImageSrc(product.image)}
                             onError={(e) => { e.currentTarget.src = FALLBACK_IMG }}
                           />
                           <div className="absolute top-xs left-xs bg-error-container/90 backdrop-blur-sm px-1 md:px-2 py-0.5 rounded text-[8px] md:text-[10px] font-label-sm text-on-error-container font-bold">หมด</div>
@@ -435,7 +436,7 @@ export default function POSPage() {
                         <img
                           alt={product.name}
                           className="w-full h-full object-cover"
-                          src={product.image}
+                          src={productImageSrc(product.image)}
                           onError={(e) => { e.currentTarget.src = FALLBACK_IMG }}
                         />
                         <div className="absolute top-xs left-xs bg-secondary-container/80 backdrop-blur-sm px-1 md:px-2 py-0.5 rounded text-[8px] md:text-[10px] font-label-sm text-secondary font-bold">

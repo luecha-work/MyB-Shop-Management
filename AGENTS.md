@@ -63,6 +63,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **Design System:** Premium Material-3-like aesthetic — `shadow-card` + `border-outline-variant/80` on cards, header, sidebar, and bottom nav; 12px radius; `interactive-press` for press feedback.
 - **Tailwind v4:** Custom tokens MUST live in `app/globals.css` `@theme` (no `tailwind.config.ts`); custom CSS rules via `@utility`.
 - **Login page:** Keep the auth card width explicit (`width: min(100%, 440px)`) to prevent collapse. Header copy is a single-line `h3` with `text-headline-md`: "Login to My.B Shop Management". Do not show demo account credentials or prefilled dummy credentials.
+- **Images:** Never pass an empty string to `<img src>`. Product image rendering should fall back to `FALLBACK_IMG` before render, not only in `onError`.
 
 ---
 
