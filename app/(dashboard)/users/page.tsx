@@ -1,0 +1,394 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { Alert, Button, Empty, Input, Modal, Select, Table, Tag } from 'antd'
+import type { TableColumnsType } from 'antd'
+import { DeleteOutlined, ExclamationCircleOutlined, PlusOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
+import { Loader } from '@/components/UI/Loader'
+
+type UserRow = {
+  id: string
+  firstName: string
+  lastName: string
+  name: string
+  email: string
+  status: string
+  roleId: string
+  roleName: string
+  branchId: string | null
+  branchCode: string
+  branchName: string
+}
+
+type RoleOption = {
+  id: string
+  roleName: string
+  description: string
+}
+
+type BranchOption = {
+  id: string
+  branchCode: string
+  branchName: string
+}
+
+type UserForm = {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  roleId: string
+  branchId: string
+  status: string
+}
+
+const EMPTY_FORM: UserForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  roleId: '',
+  branchId: '',
+  status: 'active',
+}
+
+const statusTag = (status: string) => {
+  if (status === 'active') return <Tag className="rounded-full border-emerald-300 bg-emerald-50 !text-emerald-700 font-bold">Active</Tag>
+  return <Tag className="rounded-full border-slate-300 bg-slate-50 !text-slate-600 font-bold">Inactive</Tag>
+}
+
+export default function ManageUsersPage() {
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [roles, setRoles] = useState<RoleOption[]>([])
+  const [branches, setBranches] = useState<BranchOption[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [form, setForm] = useState<UserForm>(EMPTY_FORM)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const loadUsers = async () => {
+    setError('')
+    const response = await fetch('/api/users', { cache: 'no-store' })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ')
+    setUsers(data.users)
+    setRoles(data.roles)
+    setBranches(data.branches)
+  }
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/users', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ')
+        return data as { users: UserRow[]; roles: RoleOption[]; branches: BranchOption[] }
+      })
+      .then((data) => {
+        if (!active) return
+        setUsers(data.users)
+        setRoles(data.roles)
+        setBranches(data.branches)
+      })
+      .catch((err) => {
+        console.error(err)
+        if (active) setError(err instanceof Error ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ')
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+
+    return () => { active = false }
+  }, [])
+
+  const selectedRole = useMemo(
+    () => roles.find((role) => role.id === form.roleId)?.roleName ?? '',
+    [roles, form.roleId],
+  )
+  const isStaff = selectedRole === 'staff'
+  const selectedUsers = users.filter((user) => selected.has(user.id))
+
+  const updateField = (key: keyof UserForm, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  const openAddModal = () => {
+    setForm(EMPTY_FORM)
+    setError('')
+    setSuccess('')
+    setAddOpen(true)
+  }
+
+  const submitUser = async () => {
+    setIsSaving(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'บันทึกผู้ใช้ไม่สำเร็จ')
+
+      await loadUsers()
+      setForm(EMPTY_FORM)
+      setAddOpen(false)
+      setSuccess('เพิ่มผู้ใช้เรียบร้อยแล้ว')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'บันทึกผู้ใช้ไม่สำเร็จ')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const executeDelete = async () => {
+    setIsDeleting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selected) }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'ลบผู้ใช้ไม่สำเร็จ')
+
+      await loadUsers()
+      setSelected(new Set())
+      setDeleteOpen(false)
+      setSuccess(`ลบผู้ใช้แล้ว ${data.deletedCount ?? 0} รายการ`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ลบผู้ใช้ไม่สำเร็จ')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const columns: TableColumnsType<UserRow> = [
+    {
+      title: 'ผู้ใช้',
+      dataIndex: 'name',
+      key: 'name',
+      width: 260,
+      render: (_, user) => (
+        <div>
+          <div className="font-semibold text-primary text-body-md">{user.name}</div>
+          <div className="text-xs text-on-surface-variant mt-0.5 break-all">{user.email}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'บทบาท',
+      dataIndex: 'roleName',
+      key: 'roleName',
+      width: 120,
+      render: (roleName: string) => <span className="font-bold text-secondary">{roleName.toUpperCase()}</span>,
+    },
+    {
+      title: 'สาขา',
+      dataIndex: 'branchName',
+      key: 'branchName',
+      width: 220,
+      render: (_, user) => user.branchName ? `${user.branchName} (${user.branchCode})` : 'ทุกสาขา',
+    },
+    {
+      title: 'สถานะ',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      align: 'center',
+      render: (status: string) => statusTag(status),
+    },
+  ]
+
+  if (isLoading) return <Loader text="โหลดข้อมูลผู้ใช้..." />
+
+  return (
+    <>
+      <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
+        <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl flex-shrink-0">
+          <div className="flex items-stretch gap-4">
+            <div className="w-[6px] bg-gradient-to-b from-secondary to-secondary/30 rounded-full flex-shrink-0 shadow-[0_2px_8px_rgba(118,90,36,0.2)]"></div>
+            <div>
+              <h2 className="font-headline-xl text-headline-xl text-primary font-bold tracking-tight mb-xs">จัดการ user</h2>
+              <p className="font-body-lg text-body-lg text-on-surface-variant mt-0.5">รายชื่อผู้ใช้ทั้งหมดและการจัดการสิทธิ์</p>
+            </div>
+          </div>
+        </div>
+
+        {error && <Alert type="error" showIcon message={error} className="mb-md rounded-xl" />}
+        {success && <Alert type="success" showIcon message={success} className="mb-md rounded-xl" />}
+
+        <div className="bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col">
+          <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface/30 flex-shrink-0">
+            <h3 className="font-headline-sm text-primary flex-shrink-0">รายชื่อผู้ใช้</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                danger
+                disabled={selected.size === 0}
+                icon={<DeleteOutlined />}
+                onClick={() => setDeleteOpen(true)}
+              >
+                {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                เพิ่มผู้ใช้
+              </Button>
+            </div>
+          </div>
+
+          <Table<UserRow>
+            rowKey="id"
+            columns={columns}
+            dataSource={users}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: [10, 15, 20, 25, 30],
+              showTotal: (total, range) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
+            }}
+            scroll={{ x: 900 }}
+            rowSelection={{
+              selectedRowKeys: Array.from(selected),
+              onChange: (keys) => setSelected(new Set(keys as string[])),
+              columnWidth: 50,
+            }}
+            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลผู้ใช้" /> }}
+          />
+        </div>
+      </div>
+
+      <Modal
+        open={addOpen}
+        onCancel={() => setAddOpen(false)}
+        centered
+        width={640}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
+              <UserAddOutlined className="text-[18px]" />
+            </div>
+            <div>
+              <div className="font-headline-sm text-on-surface">เพิ่มผู้ใช้</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">รหัสผ่านจะถูก hash ก่อนจัดเก็บลงฐานข้อมูล</div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setAddOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button block icon={<SaveOutlined />} loading={isSaving} onClick={submitUser} className="ant-btn-secondary-solid h-11">
+              บันทึกผู้ใช้
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-1">
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ชื่อ</label>
+            <Input size="large" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">นามสกุล</label>
+            <Input size="large" value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">อีเมล</label>
+            <Input size="large" type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} placeholder="user@example.com" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
+            <Input.Password size="large" value={form.password} onChange={(event) => updateField('password', event.target.value)} placeholder="อย่างน้อย 8 ตัวอักษร" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">บทบาท</label>
+            <Select
+              size="large"
+              value={form.roleId || undefined}
+              onChange={(value) => updateField('roleId', value)}
+              placeholder="เลือกบทบาท"
+              className="w-full"
+              options={roles.map((role) => ({ label: role.roleName.toUpperCase(), value: role.id }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>
+            <Select
+              size="large"
+              value={form.branchId || undefined}
+              onChange={(value) => updateField('branchId', value)}
+              placeholder={isStaff ? 'เลือกสาขาสำหรับ STAFF' : 'ไม่ระบุ = ทุกสาขา'}
+              allowClear
+              className="w-full"
+              options={branches.map((branch) => ({
+                label: `${branch.branchName} (${branch.branchCode})`,
+                value: branch.id,
+              }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สถานะ</label>
+            <Select
+              size="large"
+              value={form.status}
+              onChange={(value) => updateField('status', value)}
+              className="w-full"
+              options={[
+                { label: 'Active', value: 'active' },
+                { label: 'Inactive', value: 'inactive' },
+              ]}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onCancel={() => setDeleteOpen(false)}
+        centered
+        width={420}
+        closable={false}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
+              <ExclamationCircleOutlined className="text-[22px]" />
+            </div>
+            <div>
+              <div className="font-headline-sm text-on-surface">ยืนยันการลบผู้ใช้</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">ระบบจะไม่ลบบัญชีที่กำลังใช้งานอยู่</div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setDeleteOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
+              ยืนยันการลบ
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-on-surface-variant mb-3">
+          ต้องการลบผู้ใช้ <span className="font-bold text-error">{selected.size} รายการ</span> ออกจากระบบ?
+        </p>
+        <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
+          {selectedUsers.map((user) => (
+            <li key={user.id} className="text-sm text-on-surface">
+              <span className="font-semibold">{user.name}</span> <span className="text-on-surface-variant">({user.email})</span>
+            </li>
+          ))}
+        </ul>
+      </Modal>
+    </>
+  )
+}

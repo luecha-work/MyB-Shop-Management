@@ -2,15 +2,18 @@
 
 import { useMemo, useState } from 'react'
 import { logout } from '@/lib/actions/auth'
+import { useRouter } from 'next/navigation'
 import { Button, Menu, Popover } from 'antd'
 import type { MenuProps } from 'antd'
-import { DownOutlined, LogoutOutlined, ShopOutlined, UserOutlined } from '@ant-design/icons'
+import { DownOutlined, LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
 
 export default function Topbar({ user }: { user: { name: string, role: string, email: string } }) {
+  const router = useRouter()
   const userInitial = user.name ? user.name.charAt(0).toUpperCase() : 'U'
   const normalizedRole = user.role.toUpperCase()
   const isAdmin = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
   const canSelectBranch = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
+  const canManageUsersAndBranches = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
   const branches = useMemo(() => ['ทุกสาขา', 'สาขาหลัก', 'สาขา 2'], [])
   const [selectedBranch, setSelectedBranch] = useState(branches[0])
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
@@ -37,6 +40,21 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
           },
         ] satisfies Required<MenuProps>['items'])
       : []),
+    ...(canManageUsersAndBranches
+      ? ([
+          { type: 'divider' as const },
+          {
+            key: 'add-user',
+            icon: <UserAddOutlined />,
+            label: 'จัดการ user',
+          },
+          {
+            key: 'add-branch',
+            icon: <ShopOutlined />,
+            label: 'เพิ่มสาขา',
+          },
+        ] satisfies Required<MenuProps>['items'])
+      : []),
     { type: 'divider' },
     {
       key: 'logout',
@@ -49,6 +67,18 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
   const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (key === 'logout') {
       logout()
+      return
+    }
+    if (key === 'add-user') {
+      router.push('/users')
+      setDesktopMenuOpen(false)
+      setMobileMenuOpen(false)
+      return
+    }
+    if (key === 'add-branch') {
+      router.push('/branches/new')
+      setDesktopMenuOpen(false)
+      setMobileMenuOpen(false)
       return
     }
     if (key.startsWith('branch:')) {

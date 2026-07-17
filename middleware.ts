@@ -40,6 +40,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  const role = authCookie ? readSessionRole(authCookie.value) : null
+  const isAdminRoute =
+    request.nextUrl.pathname === '/users' ||
+    request.nextUrl.pathname.startsWith('/users/') ||
+    request.nextUrl.pathname.startsWith('/branches')
+
+  if (role === 'STAFF' && isAdminRoute) {
+    return applyAccessRefresh(NextResponse.redirect(new URL('/pos', request.url)))
+  }
+
   if (authCookie && isAuthPage) {
     return applyAccessRefresh(NextResponse.redirect(new URL(authenticatedHome(), request.url)))
   }

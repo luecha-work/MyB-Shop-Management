@@ -10,7 +10,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 
 ## 1. Project Architecture & Tech Stack
 
-- **Framework:** Next.js 16 (App Router, Webpack dev server) + React 19
+- **Framework:** Next.js 16 (App Router, Turbopack default dev server) + React 19
 - **Language:** TypeScript
 - **UI Components:** **Ant Design v6** (`antd` + `@ant-design/icons`) — themed via `ConfigProvider` in `components/Providers/AntdProvider.tsx` to preserve the original design (gold `#765a24` accent, black primary, 12px radius, Thai locale + dayjs `th`)
 - **Styling/Layout:** Tailwind CSS v4 (configured in `app/globals.css` using `@theme`) — used for layout, spacing, and design tokens; antd handles interactive components
@@ -33,7 +33,11 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `app/api/dashboard/route.ts`: Dashboard summary API backed by PostgreSQL `sales`.
 - `app/api/sales-history/route.ts`: Sales history API backed by PostgreSQL `sales`.
 - `app/api/stock-in/route.ts`: Stock-in history API backed by PostgreSQL `stock_in`.
-- `components/Layout/`: `Sidebar` (desktop nav, icon-only at `lg`, expanded 280px at `xl`, light-red logout button pinned at the bottom), `Topbar` (desktop header "My.B / Shop Management" + mobile header), `BottomNav` (mobile).
+- `app/api/users/route.ts`: Admin/owner-only user list + form metadata + create/delete user API. Passwords are stored with `crypt($password, gen_salt('bf'))`.
+- `app/api/branches/route.ts`: Admin/owner-only branch list + create-branch API.
+- `app/(dashboard)/users/page.tsx`: Manage-user page with table, add-user modal, and delete selected users.
+- `app/(dashboard)/branches/new/page.tsx`: Add-branch form.
+- `components/Layout/`: `Sidebar` (desktop primary nav, icon-only at `lg`, expanded 280px at `xl`), `Topbar` (desktop header "My.B / Shop Management" + mobile header + profile menu), `BottomNav` (mobile).
 - `components/Providers/AntdProvider.tsx`: The single source of antd theming (tokens + per-component overrides). Extend theme HERE, not inline.
 - `components/UI/Loader.tsx`: Full-screen loading overlay (antd `Spin` + message) — shown by every page while data loads.
 - `lib/actions/auth.ts`: login/logout/getSession Server Actions. Login validates `users.email`, active status, and `password_hash` via PostgreSQL `crypt()`, then stores compact session payloads in `access_token` (1h) and `refresh_token` (24h) cookies.
@@ -64,6 +68,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 The app uses PostgreSQL-backed authentication.
 - **Roles:** Menus and admin-only sections adapt to `ADMIN` vs `STAFF`. Dashboard menu + History stat cards + Inventory edit buttons are ADMIN-only via the `role-admin-only` class (hidden by `.role-staff` on the layout container).
 - **Middleware:** `middleware.ts` redirects unauthenticated users to `/login`. Keep this classic middleware file unless the user explicitly asks to migrate to `proxy.ts`.
+- **Admin-only pages:** `/users*` and `/branches/*` are blocked for `STAFF` by middleware. Entry points live in the Topbar profile menu and are shown only to `OWNER` and `ADMIN`, not in Sidebar/BottomNav. The user menu label is "จัดการ user" and opens `/users`.
 - **Token lifetime:** `access_token` expires in 1 hour. `refresh_token` expires in 24 hours. Middleware can recreate a missing access token from a valid refresh token.
 - **Local seed user:** run `make seed-owner` after `make init-db` to create/update `owner@myb.com` / `owner123`.
 
@@ -72,7 +77,7 @@ The app uses PostgreSQL-backed authentication.
 ## 5. Dev Workflow Gotchas
 
 - **NEVER run `npm run build` while `npm run dev` is running** — the production artifacts corrupt `.next` and every route 404s. Fix: stop dev → delete `.next` → restart.
-- `npm run dev` MUST stay as `next dev --webpack`. Next 16/Turbopack has produced internal HMR panic errors in this project (`TurbopackInternalError: Cell ... no longer exists`), so do not switch dev back to plain `next dev` or Turbopack unless that issue is explicitly retested and resolved.
+- `npm run dev` currently uses the standard `next dev`, which starts Turbopack in Next 16. If Turbopack HMR panics (`TurbopackInternalError: Cell ... no longer exists`), stop dev and run `npx next dev --webpack` as a temporary workaround.
 - PostgreSQL local workflow:
   - Start Docker Desktop first.
   - `make up` creates the `myb-shop` PostgreSQL container using defaults from `Makefile`.

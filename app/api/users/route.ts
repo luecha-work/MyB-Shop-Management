@@ -17,7 +17,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [roles, branches] = await Promise.all([
+    const [users, roles, branches] = await Promise.all([
+      db.query(`
+        SELECT
+          u.id,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.status,
+          u.branch_id,
+          b.branch_code,
+          b.branch_name,
+          r.id AS role_id,
+          r.role_name
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        LEFT JOIN branches b ON b.id = u.branch_id
+        ORDER BY u.created_at DESC, u.first_name ASC
+      `),
       db.query('SELECT id, role_name, description FROM roles ORDER BY role_name ASC'),
       db.query(`
         SELECT id, branch_code, branch_name
@@ -28,6 +45,19 @@ export async function GET(request: NextRequest) {
     ])
 
     return NextResponse.json({
+      users: users.rows.map((row) => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        name: `${row.first_name} ${row.last_name}`.trim(),
+        email: row.email,
+        status: row.status,
+        roleId: row.role_id,
+        roleName: row.role_name,
+        branchId: row.branch_id,
+        branchCode: row.branch_code || '',
+        branchName: row.branch_name || '',
+      })),
       roles: roles.rows.map((row) => ({
         id: row.id,
         roleName: row.role_name,
@@ -93,5 +123,35 @@ export async function POST(request: NextRequest) {
     }
     console.error('POST /api/users failed', error)
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = sessionFromRequest(request)
+  if (!canManageSettings(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const ids = Array.isArray(body.ids) ? body.ids.map((id: unknown) => String(id)).filter(Boolean) : []
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการลบ' }, { status: 400 })
+    }
+
+    const { rowCount } = await db.query(
+      `
+        DELETE FROM users
+        WHERE id = ANY($1::uuid[])
+          AND id <> $2::uuid
+      `,
+      [ids, session?.userId],
+    )
+
+    return NextResponse.json({ deletedCount: rowCount ?? 0 })
+  } catch (error) {
+    console.error('DELETE /api/users failed', error)
+    return NextResponse.json({ error: 'Failed to delete users' }, { status: 500 })
   }
 }
