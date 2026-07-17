@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Empty, Input, Modal, Select, Space, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, ReloadOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
 
 type UserRow = {
@@ -80,6 +80,7 @@ export default function ManageUsersPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [resettingUserId, setResettingUserId] = useState('')
+  const [resetUser, setResetUser] = useState<UserRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [passwordResult, setPasswordResult] = useState<PasswordResult>(null)
@@ -201,7 +202,10 @@ export default function ManageUsersPage() {
     }
   }
 
-  const resetPassword = async (user: UserRow) => {
+  const resetPassword = async () => {
+    if (!resetUser) return
+
+    const user = resetUser
     setResettingUserId(user.id)
     setError('')
     setSuccess('')
@@ -220,6 +224,7 @@ export default function ManageUsersPage() {
         email: user.email,
         password: data.temporaryPassword,
       })
+      setResetUser(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'reset password ไม่สำเร็จ')
     } finally {
@@ -315,12 +320,12 @@ export default function ManageUsersPage() {
       render: (_, user) => (
         <Button
           type="text"
-          icon={<KeyOutlined />}
+          icon={<ReloadOutlined />}
           loading={resettingUserId === user.id}
-          onClick={() => resetPassword(user)}
+          onClick={() => setResetUser(user)}
           className="text-secondary"
         >
-          Reset
+          รีเซ็ตรหัสผ่าน
         </Button>
       ),
     },
@@ -524,6 +529,37 @@ export default function ManageUsersPage() {
             แสดงรหัสผ่านครั้งนี้ครั้งเดียว กรุณา copy และส่งให้ผู้ใช้ผ่านช่องทางที่ปลอดภัย
           </p>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!resetUser}
+        onCancel={() => setResetUser(null)}
+        centered
+        width={420}
+        closable={false}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary flex-shrink-0">
+              <ReloadOutlined className="text-[22px]" />
+            </div>
+            <div>
+              <div className="font-headline-sm text-on-surface">รีเซ็ตรหัสผ่าน</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{resetUser?.email}</div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setResetUser(null)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
+            <Button block icon={<KeyOutlined />} loading={!!resetUser && resettingUserId === resetUser.id} onClick={resetPassword} className="ant-btn-secondary-solid h-11">
+              สร้างรหัสผ่านใหม่
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-on-surface-variant">
+          ระบบจะสร้างรหัสผ่านใหม่ให้ผู้ใช้นี้ และแสดงรหัสผ่านให้ copy ได้ครั้งเดียว
+        </p>
       </Modal>
 
       <Modal
