@@ -1,11 +1,16 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { useRouter } from 'next/navigation'
 import { Button, Menu, Popover } from 'antd'
 import type { MenuProps } from 'antd'
 import { DownOutlined, LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
+
+type BranchOption = {
+  id: string
+  branchName: string
+}
 
 export default function Topbar({ user }: { user: { name: string, role: string, email: string } }) {
   const router = useRouter()
@@ -14,11 +19,49 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
   const isAdmin = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
   const canSelectBranch = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
   const canManageUsersAndBranches = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
-  const branches = useMemo(() => ['ทุกสาขา', 'สาขาหลัก', 'สาขา 2'], [])
-  const [selectedBranch, setSelectedBranch] = useState(branches[0])
+  const [branches, setBranches] = useState<BranchOption[]>([])
+  const [selectedBranch, setSelectedBranch] = useState('all')
+  const [selectedBranchLabel, setSelectedBranchLabel] = useState('ทุกสาขา')
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openMenuKeys, setOpenMenuKeys] = useState<string[]>([])
+
+  const handleDesktopMenuOpenChange = (open: boolean) => {
+    if (!open) setOpenMenuKeys([])
+    setDesktopMenuOpen(open)
+  }
+
+  const handleMobileMenuOpenChange = (open: boolean) => {
+    if (!open) setOpenMenuKeys([])
+    setMobileMenuOpen(open)
+  }
+
+  const closeUserMenu = () => {
+    setOpenMenuKeys([])
+    setDesktopMenuOpen(false)
+    setMobileMenuOpen(false)
+  }
+
+  useEffect(() => {
+    if (!canSelectBranch) return
+
+    let active = true
+    fetch('/api/branches', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลสาขาไม่สำเร็จ')
+        return data as { branches: BranchOption[] }
+      })
+      .then((data) => {
+        if (active) setBranches(data.branches)
+      })
+      .catch((error) => {
+        console.error(error)
+        if (active) setBranches([])
+      })
+
+    return () => { active = false }
+  }, [canSelectBranch])
 
   const userMenuItems: Required<MenuProps>['items'] = [
     {
@@ -33,10 +76,16 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             key: 'branches',
             icon: <ShopOutlined />,
             label: 'เลือกดูสาขา',
-            children: branches.map((branch) => ({
-              key: `branch:${branch}`,
-              label: branch,
-            })),
+            children: [
+              {
+                key: 'branch:all',
+                label: 'ทุกสาขา',
+              },
+              ...branches.map((branch) => ({
+                key: `branch:${branch.id}`,
+                label: branch.branchName,
+              })),
+            ],
           },
         ] satisfies Required<MenuProps>['items'])
       : []),
@@ -66,34 +115,40 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
 
   const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (key === 'logout') {
+      closeUserMenu()
       logout()
+      return
+    }
+    if (key === 'profile') {
+      closeUserMenu()
       return
     }
     if (key === 'add-user') {
       router.push('/users')
-      setDesktopMenuOpen(false)
-      setMobileMenuOpen(false)
+      closeUserMenu()
       return
     }
     if (key === 'add-branch') {
       router.push('/branches')
-      setDesktopMenuOpen(false)
-      setMobileMenuOpen(false)
+      closeUserMenu()
       return
     }
     if (key.startsWith('branch:')) {
-      setSelectedBranch(key.replace('branch:', ''))
-      setDesktopMenuOpen(false)
-      setMobileMenuOpen(false)
+      const branchId = key.replace('branch:', '')
+      const branchLabel = branchId === 'all'
+        ? 'ทุกสาขา'
+        : branches.find((branch) => branch.id === branchId)?.branchName ?? 'ทุกสาขา'
+      setSelectedBranch(branchId)
+      setSelectedBranchLabel(branchLabel)
+      closeUserMenu()
     }
   }
 
   const userMenu = (
-    <div className="profile-menu-popover w-64 rounded-xl bg-surface">
+    <div className="profile-menu-popover w-64 rounded-xl bg-surface" onMouseLeave={closeUserMenu}>
       <div className="px-3 py-2">
-        <div className="font-body-md font-semibold text-on-surface">{user.name}</div>
-        <div className="text-xs text-on-surface-variant mt-0.5 break-all">{user.email}</div>
-        <div className="text-[10px] text-secondary font-bold mt-1">{user.role}</div>
+        <div className="text-sm font-semibold text-on-surface break-all">{user.email}</div>
+        <div className="text-xs text-secondary font-bold mt-1">{user.role}</div>
       </div>
       <div className="h-px bg-outline-variant/40 my-1" />
       <Menu
@@ -133,7 +188,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             trigger="click"
             placement="bottomRight"
             open={desktopMenuOpen}
-            onOpenChange={setDesktopMenuOpen}
+            onOpenChange={handleDesktopMenuOpenChange}
             styles={{ content: { padding: 0, borderRadius: 12 } }}
           >
             <Button type="text" className="h-auto px-2 py-1.5">
@@ -146,7 +201,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
                 <div className="flex flex-col items-start">
                   <span className="font-body-md font-medium leading-none">{user.name}</span>
                   <span className="text-[10px] text-secondary font-bold leading-none mt-1">
-                    {canSelectBranch ? `${user.role} · ${selectedBranch}` : user.role}
+                    {canSelectBranch ? `${user.role} · ${selectedBranchLabel}` : user.role}
                   </span>
                 </div>
                 <DownOutlined className="text-[12px] text-on-surface-variant" />
@@ -168,7 +223,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             trigger="click"
             placement="bottomRight"
             open={mobileMenuOpen}
-            onOpenChange={setMobileMenuOpen}
+            onOpenChange={handleMobileMenuOpenChange}
             styles={{ content: { padding: 0, borderRadius: 12 } }}
           >
             <button

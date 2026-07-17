@@ -37,7 +37,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `app/api/branches/route.ts`: Admin/owner-only branch list with assigned users/roles, single-branch detail via `?id=...`, and create/edit/delete branch API.
 - `app/(dashboard)/users/page.tsx`: Manage-user page with table, add-user modal, reset-password action, copy temporary-password modal, and delete selected users. Users cannot delete themselves.
 - `app/(dashboard)/branches/page.tsx`: Manage-branch page with table, view/edit actions, add/edit branch modal, detail modal showing assigned users/roles, and delete selected branches. Success/error operation feedback uses floating antd `Alert` components at the top-right under the app header and auto-dismisses.
-- `components/Layout/`: `Sidebar` (desktop primary nav, icon-only at `lg`, expanded 280px at `xl`), `Topbar` (desktop header "My.B / Shop Management" + mobile header + profile menu), `BottomNav` (mobile).
+- `components/Layout/`: `Sidebar` (desktop primary nav, icon-only at `lg`, expanded 280px at `xl`), `Topbar` (desktop header "My.B / Shop Management" + mobile header + profile menu with branch selector loaded from `/api/branches`), `BottomNav` (mobile).
 - `components/Providers/AntdProvider.tsx`: The single source of antd theming (tokens + per-component overrides). Extend theme HERE, not inline.
 - `components/UI/Loader.tsx`: Full-screen loading overlay (antd `Spin` + message) — shown by every page while data loads.
 - `lib/actions/auth.ts`: login/logout/getSession Server Actions. Login validates `users.email`, active status, and `password_hash` via PostgreSQL `crypt()`, then stores compact session payloads in `access_token` (1h) and `refresh_token` (24h) cookies.
