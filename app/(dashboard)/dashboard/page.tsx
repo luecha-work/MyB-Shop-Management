@@ -1,6 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import { DatePicker } from 'antd'
+import dayjs from 'dayjs'
+import {
+  DollarOutlined,
+  ShoppingCartOutlined,
+  WalletOutlined,
+  AccountBookOutlined,
+  ShopOutlined,
+  RiseOutlined,
+  FallOutlined,
+  ProfileOutlined,
+} from '@ant-design/icons'
 
 // ==========================================
 // Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
@@ -77,18 +89,18 @@ function RankBadge({ rank }: { rank: number }) {
 function StatCard({
   icon, iconBg, iconColor, badgeIcon, badgeText, badgeClass, label, value, sub,
 }: {
-  icon: string; iconBg: string; iconColor: string
-  badgeIcon: string; badgeText: string; badgeClass: string
+  icon: React.ReactNode; iconBg: string; iconColor: string
+  badgeIcon: React.ReactNode; badgeText: string; badgeClass: string
   label: string; value: string; sub: string
 }) {
   return (
     <div className="bg-white p-5 rounded-xl shadow-card border border-outline-variant/80 flex flex-col">
       <div className="flex justify-between items-start mb-6">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: iconBg, color: iconColor }}>
-          <span className="material-symbols-outlined text-[24px]">{icon}</span>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-[24px]" style={{ backgroundColor: iconBg, color: iconColor }}>
+          {icon}
         </div>
-        <div className={`${badgeClass} px-2.5 py-1 rounded-full font-label-sm font-bold flex items-center gap-0.5`}>
-          <span className="material-symbols-outlined text-[14px]">{badgeIcon}</span> {badgeText}
+        <div className={`${badgeClass} px-2.5 py-1 rounded-full font-label-sm font-bold flex items-center gap-1`}>
+          <span className="text-[13px] flex items-center">{badgeIcon}</span> {badgeText}
         </div>
       </div>
       <div className="font-body-md text-on-surface-variant mb-1 font-medium">{label}</div>
@@ -136,22 +148,24 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white p-3 md:p-4 rounded-xl border border-outline-variant/80 shadow-card w-full lg:w-auto">
           <div className="flex items-center gap-3 justify-start flex-1 lg:flex-initial">
             <label htmlFor="dash-start-date" className="w-[70px] flex-shrink-0 font-body-md font-bold text-on-surface-variant whitespace-nowrap">เริ่มต้น:</label>
-            <input
+            <DatePicker
               id="dash-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-11 px-4 rounded-xl border border-outline-variant bg-surface-container-low focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md text-on-surface flex-1 lg:flex-initial lg:w-[170px] cursor-pointer"
+              value={startDate ? dayjs(startDate) : null}
+              onChange={(d) => setStartDate(d ? d.format('YYYY-MM-DD') : '')}
+              format="DD/MM/YYYY"
+              allowClear={false}
+              className="h-11 flex-1 lg:flex-initial lg:w-[170px] bg-surface-container-low"
             />
           </div>
           <div className="flex items-center gap-3 justify-start flex-1 lg:flex-initial">
             <label htmlFor="dash-end-date" className="w-[70px] flex-shrink-0 font-body-md font-bold text-on-surface-variant whitespace-nowrap">สิ้นสุด:</label>
-            <input
+            <DatePicker
               id="dash-end-date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-11 px-4 rounded-xl border border-outline-variant bg-surface-container-low focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md text-on-surface flex-1 lg:flex-initial lg:w-[170px] cursor-pointer"
+              value={endDate ? dayjs(endDate) : null}
+              onChange={(d) => setEndDate(d ? d.format('YYYY-MM-DD') : '')}
+              format="DD/MM/YYYY"
+              allowClear={false}
+              className="h-11 flex-1 lg:flex-initial lg:w-[170px] bg-surface-container-low"
             />
           </div>
         </div>
@@ -160,24 +174,24 @@ export default function DashboardPage() {
       {/* Bento Grid: Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-6">
         <StatCard
-          icon="payments" iconBg="#e6f0ff" iconColor="#4b96ff"
-          badgeIcon="storefront" badgeText={`${chCount} ช่องทาง`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
+          icon={<DollarOutlined />} iconBg="#e6f0ff" iconColor="#4b96ff"
+          badgeIcon={<ShopOutlined />} badgeText={`${chCount} ช่องทาง`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
           label="ยอดขายรวม" value={thbFormat(data.totalSales)}
           sub={chCount > 0 ? 'จากทุกช่องทาง' : 'ยังไม่มียอดขาย'}
         />
         <StatCard
-          icon="shopping_cart" iconBg="#e6f4ea" iconColor="#1e8e3e"
-          badgeIcon="trending_up" badgeText={`${revenueRate.toFixed(1)}%`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
+          icon={<ShoppingCartOutlined />} iconBg="#e6f4ea" iconColor="#1e8e3e"
+          badgeIcon={<RiseOutlined />} badgeText={`${revenueRate.toFixed(1)}%`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
           label="รายได้สุทธิ" value={thbFormat(data.netRevenue)} sub="หลังหักค่า GP"
         />
         <StatCard
-          icon="monetization_on" iconBg="#f3e8ff" iconColor="#a855f7"
-          badgeIcon="receipt_long" badgeText={`${costRate.toFixed(1)}%`} badgeClass="bg-[#f3e8ff] text-[#a855f7]"
+          icon={<WalletOutlined />} iconBg="#f3e8ff" iconColor="#a855f7"
+          badgeIcon={<ProfileOutlined />} badgeText={`${costRate.toFixed(1)}%`} badgeClass="bg-[#f3e8ff] text-[#a855f7]"
           label="ต้นทุน" value={thbFormat(data.totalCost)} sub="ของยอดขายรวม"
         />
         <StatCard
-          icon="savings" iconBg="#ffedd5" iconColor="#f97316"
-          badgeIcon={isProfitPositive ? 'trending_up' : 'trending_down'}
+          icon={<AccountBookOutlined />} iconBg="#ffedd5" iconColor="#f97316"
+          badgeIcon={isProfitPositive ? <RiseOutlined /> : <FallOutlined />}
           badgeText={`${profitMargin.toFixed(1)}%`}
           badgeClass={isProfitPositive ? 'bg-[#e6f4ea] text-[#1e8e3e]' : 'bg-[#fdeded] text-[#ba1a1a]'}
           label="กำไรสุทธิ" value={thbFormat(data.netProfit)} sub={ts > 0 ? 'กำไรขั้นต้น' : '-'}

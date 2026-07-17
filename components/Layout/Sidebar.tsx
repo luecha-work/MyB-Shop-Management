@@ -2,17 +2,27 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Button } from 'antd'
+import {
+  DashboardOutlined,
+  TransactionOutlined,
+  HistoryOutlined,
+  AppstoreOutlined,
+  InboxOutlined,
+  LogoutOutlined,
+} from '@ant-design/icons'
+import { logout } from '@/lib/actions/auth'
 
 export default function Sidebar({ userRole }: { userRole: string }) {
   const pathname = usePathname()
   const isStaff = userRole === 'STAFF'
 
   const menuItems = [
-    { href: '/dashboard', icon: 'dashboard', label: 'แดชบอร์ด', adminOnly: true },
-    { href: '/pos', icon: 'point_of_sale', label: 'ขาย (POS)', adminOnly: false },
-    { href: '/history', icon: 'history', label: 'ประวัติการขาย', adminOnly: false },
-    { href: '/inventory', icon: 'inventory_2', label: 'คลังสินค้า', adminOnly: false },
-    { href: '/stockin', icon: 'inventory', label: 'บันทึกรับเข้าคลัง', adminOnly: false },
+    { href: '/dashboard', icon: <DashboardOutlined className="text-[22px]" />, label: 'แดชบอร์ด', adminOnly: true },
+    { href: '/pos', icon: <TransactionOutlined className="text-[22px]" />, label: 'ขาย (POS)', adminOnly: false },
+    { href: '/history', icon: <HistoryOutlined className="text-[22px]" />, label: 'ประวัติการขาย', adminOnly: false },
+    { href: '/inventory', icon: <AppstoreOutlined className="text-[22px]" />, label: 'คลังสินค้า', adminOnly: false },
+    { href: '/stockin', icon: <InboxOutlined className="text-[22px]" />, label: 'บันทึกรับเข้าคลัง', adminOnly: false },
   ]
 
   return (
@@ -32,13 +42,28 @@ export default function Sidebar({ userRole }: { userRole: string }) {
                     : 'flex items-center justify-center xl:justify-start gap-md px-3 xl:px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors'
                 }
               >
-                <span className={`material-symbols-outlined ${isActive ? 'filled' : ''}`}>{item.icon}</span>
+                {item.icon}
                 <span className="font-body-md hidden xl:block">{item.label}</span>
               </Link>
             </li>
           )
         })}
       </ul>
+
+      {/* ปุ่มออกจากระบบ — ล่างสุดของ Sidebar (แดงอ่อน) */}
+      <div className="px-2 xl:px-md mt-auto pt-md border-t border-outline-variant/30">
+        <Button
+          color="danger"
+          variant="filled"
+          block
+          icon={<LogoutOutlined className="text-[18px]" />}
+          onClick={() => logout()}
+          title="ออกจากระบบ"
+          className="h-11 font-body-md"
+        >
+          <span className="hidden xl:inline">ออกจากระบบ</span>
+        </Button>
+      </div>
     </nav>
   )
 }

@@ -1,7 +1,24 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import TablePagination from '@/components/UI/TablePagination'
+import { Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox } from 'antd'
+import type { TableColumnsType } from 'antd'
+import dayjs from 'dayjs'
+import {
+  AccountBookOutlined,
+  BarChartOutlined,
+  CarOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined,
+  DollarOutlined,
+  ExclamationCircleOutlined,
+  FallOutlined,
+  FilterOutlined,
+  ProfileOutlined,
+  RiseOutlined,
+  RocketOutlined,
+  SwapRightOutlined,
+} from '@ant-design/icons'
 import { thbFormat, currentMonthRange } from '@/lib/format'
 
 // ==========================================
@@ -70,20 +87,20 @@ function ChannelBadge({ channel }: { channel: string }) {
   if (channel === 'Grab') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-        <span className="material-symbols-outlined text-[16px]">delivery_dining</span> Grab
+        <CarOutlined className="text-[14px]" /> Grab
       </span>
     )
   }
   if (channel === 'LINE MAN') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-500/10 text-teal-600 border border-teal-500/20">
-        <span className="material-symbols-outlined text-[16px]">moped</span> LINE MAN
+        <RocketOutlined className="text-[14px]" /> LINE MAN
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-500/10 text-slate-700 border border-slate-500/20">
-      <span className="material-symbols-outlined text-[16px]">payments</span> หน้าร้าน
+      <DollarOutlined className="text-[14px]" /> หน้าร้าน
     </span>
   )
 }
@@ -91,32 +108,33 @@ function ChannelBadge({ channel }: { channel: string }) {
 // Badge อัตรากำไร — เขียว ≥15% / เหลือง ≥5% / แดงต่ำกว่านั้น
 function MarginBadge({ totalSales, netProfit, size = 'md' }: { totalSales: number; netProfit: number; size?: 'md' | 'sm' }) {
   const margin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0
-  let colorClass: string, icon: string
-  if (margin >= 15) { colorClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'; icon = 'trending_up' }
-  else if (margin >= 5) { colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20'; icon = 'trending_flat' }
-  else { colorClass = 'bg-rose-500/10 text-rose-600 border-rose-500/20'; icon = 'trending_down' }
+  let colorClass: string
+  let icon: React.ReactNode
+  if (margin >= 15) { colorClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'; icon = <RiseOutlined /> }
+  else if (margin >= 5) { colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20'; icon = <SwapRightOutlined /> }
+  else { colorClass = 'bg-rose-500/10 text-rose-600 border-rose-500/20'; icon = <FallOutlined /> }
 
   if (size === 'sm') {
     return (
       <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${colorClass}`}>
-        <span className="material-symbols-outlined text-[12px]">{icon}</span>{margin.toFixed(1)}%
+        <span className="text-[11px] flex items-center">{icon}</span>{margin.toFixed(1)}%
       </span>
     )
   }
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${colorClass}`}>
-      <span className="material-symbols-outlined text-[14px]">{icon}</span>{margin.toFixed(1)}%
+      <span className="text-[13px] flex items-center">{icon}</span>{margin.toFixed(1)}%
     </span>
   )
 }
 
 // การ์ดสรุปสถิติด้านบน (ADMIN เท่านั้น)
-function StatCard({ icon, iconBg, iconColor, label, value }: { icon: string; iconBg: string; iconColor: string; label: string; value: string }) {
+function StatCard({ icon, iconBg, iconColor, label, value }: { icon: React.ReactNode; iconBg: string; iconColor: string; label: string; value: string }) {
   return (
     <div className="bg-white p-4 lg:p-5 rounded-xl shadow-card border border-outline-variant/80 flex flex-col justify-between min-h-[140px] lg:min-h-0">
       <div className="flex justify-between items-center mb-4 lg:mb-6">
-        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: iconBg, color: iconColor }}>
-          <span className="material-symbols-outlined text-[20px] lg:text-[24px]">{icon}</span>
+        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-[20px] lg:text-[24px]" style={{ backgroundColor: iconBg, color: iconColor }}>
+          {icon}
         </div>
       </div>
       <div>
@@ -126,6 +144,8 @@ function StatCard({ icon, iconBg, iconColor, label, value }: { icon: string; ico
     </div>
   )
 }
+
+const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
 
 export default function HistoryPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
@@ -274,6 +294,80 @@ export default function HistoryPage() {
 
   const deleteBtnActive = selected.size > 0
 
+  const paginationConfig = {
+    current: currentPage,
+    pageSize: itemsPerPage,
+    total: filtered.length,
+    showSizeChanger: true,
+    pageSizeOptions: PAGE_SIZE_OPTIONS,
+    showTotal: (total: number, range: [number, number]) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
+    onChange: (page: number, pageSize: number) => {
+      setCurrentPage(pageSize !== itemsPerPage ? 1 : page)
+      setItemsPerPage(pageSize)
+      resetSelection()
+    },
+  }
+
+  // ตาราง Desktop (antd Table)
+  const columns: TableColumnsType<OrderGroup> = [
+    {
+      title: 'รหัสรายการ / วัน-เวลา',
+      dataIndex: 'orderId',
+      key: 'orderId',
+      width: 220,
+      render: (val: string, record) => (
+        <div>
+          <div className="font-semibold text-primary text-body-md">{val}</div>
+          <div className="text-xs text-on-surface-variant mt-0.5">{formatOrderDate(record.date)}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'รายการสินค้า',
+      key: 'items',
+      width: 430,
+      render: (_, record) =>
+        record.items.length === 0 ? '-' : (
+          <span className="font-semibold text-on-surface text-body-md">
+            {record.items[0].productName} <span className="text-xs font-medium text-on-surface-variant/80 ml-1">x{record.items[0].qty}</span>
+            {record.items.length > 1 && (
+              <span className="text-xs font-semibold text-secondary ml-1.5">(และอีก {record.items.length - 1} รายการ)</span>
+            )}
+          </span>
+        ),
+    },
+    {
+      title: 'ช่องทางการขาย',
+      dataIndex: 'channel',
+      key: 'channel',
+      width: 150,
+      render: (val: string) => <ChannelBadge channel={val} />,
+    },
+    {
+      title: 'ยอดขายสุทธิ',
+      dataIndex: 'totalSales',
+      key: 'totalSales',
+      width: 130,
+      align: 'right',
+      render: (val: number) => <span className="font-bold text-body-md text-secondary">{thbFormat(val)}</span>,
+    },
+    {
+      title: 'อัตรากำไร',
+      key: 'margin',
+      width: 120,
+      align: 'center',
+      render: (_, record) => <MarginBadge totalSales={record.totalSales} netProfit={record.netProfit} />,
+    },
+    {
+      title: 'หมายเหตุ',
+      dataIndex: 'note',
+      key: 'note',
+      width: 130,
+      ellipsis: true,
+      render: (val: string) => <span className="text-on-surface-variant" title={val || ''}>{val || '-'}</span>,
+    },
+  ]
+
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
@@ -290,128 +384,86 @@ export default function HistoryPage() {
 
         {/* การ์ดสรุปสถิติ (ADMIN เท่านั้น) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-sm lg:gap-lg mb-lg lg:mb-xl flex-shrink-0 role-admin-only">
-          <StatCard icon="payments" iconBg="#e6f0ff" iconColor="#4b96ff" label="ยอดขายทั้งหมด" value={thbFormat(stats.totalSales)} />
-          <StatCard icon="receipt_long" iconBg="#f3e8ff" iconColor="#a855f7" label="ออเดอร์ทั้งหมด" value={`${stats.ordersCount.toLocaleString('th-TH')} รายการ`} />
-          <StatCard icon="savings" iconBg="#e6f4ea" iconColor="#1e8e3e" label="กำไรสุทธิ" value={thbFormat(stats.totalProfit)} />
-          <StatCard icon="analytics" iconBg="#ffedd5" iconColor="#f97316" label="เฉลี่ยต่อออเดอร์" value={thbFormat(stats.avgSales)} />
+          <StatCard icon={<DollarOutlined />} iconBg="#e6f0ff" iconColor="#4b96ff" label="ยอดขายทั้งหมด" value={thbFormat(stats.totalSales)} />
+          <StatCard icon={<ProfileOutlined />} iconBg="#f3e8ff" iconColor="#a855f7" label="ออเดอร์ทั้งหมด" value={`${stats.ordersCount.toLocaleString('th-TH')} รายการ`} />
+          <StatCard icon={<AccountBookOutlined />} iconBg="#e6f4ea" iconColor="#1e8e3e" label="กำไรสุทธิ" value={thbFormat(stats.totalProfit)} />
+          <StatCard icon={<BarChartOutlined />} iconBg="#ffedd5" iconColor="#f97316" label="เฉลี่ยต่อออเดอร์" value={thbFormat(stats.avgSales)} />
         </div>
 
-        <div className="flex-initial bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col mb-8 lg:mb-0 lg:overflow-hidden lg:min-h-0">
-          {/* Toolbar: ค้นหา + ช่วงวันที่ */}
+        <div className="flex-initial bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col mb-8 lg:mb-0 lg:min-h-0">
+          {/* Toolbar: ค้นหา + ช่วงวันที่ + ปุ่มลบ */}
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-surface/30 flex-shrink-0">
-            <div className="flex items-center justify-between w-full xl:w-auto">
+            <div className="flex items-center justify-between gap-3 w-full xl:w-auto">
               <h3 className="font-headline-sm text-primary flex-shrink-0">รายการล่าสุด</h3>
-              {/* Mobile Delete Button */}
-              <button
-                onClick={confirmDeleteSelected}
+              <Button
+                danger
                 disabled={!deleteBtnActive}
-                className={`lg:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-all bg-rose-500/10 text-error ${deleteBtnActive ? 'opacity-100 cursor-pointer hover:bg-rose-500/20' : 'opacity-30 cursor-not-allowed'}`}
+                onClick={confirmDeleteSelected}
+                icon={<DeleteOutlined />}
                 title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
               >
-                <span className="material-symbols-outlined text-[22px]">delete</span>
-              </button>
+                {deleteBtnActive ? `ลบ (${selected.size})` : 'ลบ'}
+              </Button>
             </div>
             <div className="flex flex-col lg:flex-row items-center gap-sm w-full xl:w-auto">
-              <div className="relative w-full lg:w-64">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px] pointer-events-none">filter_list</span>
-                <input
-                  type="text"
-                  value={filterText}
-                  onChange={(e) => applyFilter(() => setFilterText(e.target.value))}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-sm text-on-surface placeholder:text-on-surface-variant/60 transition-all shadow-sm"
-                  placeholder="ค้นหารหัสออเดอร์ หรือ สินค้า..."
-                />
-              </div>
+              <Input
+                prefix={<FilterOutlined className="text-on-surface-variant" />}
+                value={filterText}
+                onChange={(e) => applyFilter(() => setFilterText(e.target.value))}
+                placeholder="ค้นหารหัสออเดอร์ หรือ สินค้า..."
+                allowClear
+                className="w-full lg:w-64 shadow-sm font-body-sm"
+              />
               <div className="hidden lg:block h-6 w-px bg-outline-variant/50 mx-xs"></div>
               <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
                 <div className="flex items-center lg:justify-start gap-2 w-full lg:w-auto">
                   <label htmlFor="hist-start-date" className="w-[60px] flex-shrink-0 font-body-sm font-semibold text-on-surface-variant whitespace-nowrap">เริ่มต้น:</label>
-                  <input
+                  <DatePicker
                     id="hist-start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => applyFilter(() => setStartDate(e.target.value))}
-                    className="h-10 px-3 rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-sm text-on-surface flex-1 lg:w-[170px] shadow-sm"
+                    value={startDate ? dayjs(startDate) : null}
+                    onChange={(d) => applyFilter(() => setStartDate(d ? d.format('YYYY-MM-DD') : ''))}
+                    format="DD/MM/YYYY"
+                    className="flex-1 lg:w-[170px] shadow-sm"
                   />
                 </div>
                 <div className="flex items-center lg:justify-start gap-2 w-full lg:w-auto">
                   <label htmlFor="hist-end-date" className="w-[60px] flex-shrink-0 font-body-sm font-semibold text-on-surface-variant whitespace-nowrap">สิ้นสุด:</label>
-                  <input
+                  <DatePicker
                     id="hist-end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => applyFilter(() => setEndDate(e.target.value))}
-                    className="h-10 px-3 rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-sm text-on-surface flex-1 lg:w-[170px] shadow-sm"
+                    value={endDate ? dayjs(endDate) : null}
+                    onChange={(d) => applyFilter(() => setEndDate(d ? d.format('YYYY-MM-DD') : ''))}
+                    format="DD/MM/YYYY"
+                    className="flex-1 lg:w-[170px] shadow-sm"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Desktop Table */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full min-w-[1330px] table-fixed text-left border-collapse">
-              <thead className="sticky top-0 bg-surface-container border-b border-outline-variant/40 z-10">
-                <tr>
-                  <th className="py-4 pl-5 pr-2 text-center w-[50px]">
-                    <button
-                      onClick={confirmDeleteSelected}
-                      disabled={!deleteBtnActive}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${deleteBtnActive ? 'text-error hover:bg-error-container/30 cursor-pointer' : 'text-on-surface-variant opacity-30 cursor-not-allowed'}`}
-                      title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">delete</span>
-                    </button>
-                  </th>
-                  <th className="w-[220px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase whitespace-nowrap">รหัสรายการ / วัน-เวลา</th>
-                  <th className="w-[430px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase whitespace-nowrap">รายการสินค้า</th>
-                  <th className="w-[130px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase whitespace-nowrap">ช่องทางการขาย</th>
-                  <th className="w-[130px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase text-right whitespace-nowrap">ยอดขายสุทธิ</th>
-                  <th className="w-[110px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase text-center whitespace-nowrap">อัตรากำไร</th>
-                  <th className="w-[130px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase whitespace-nowrap">หมายเหตุ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                {pageItems.length === 0 ? (
-                  <tr><td colSpan={7} className="p-lg text-center text-on-surface-variant">ไม่พบประวัติการขาย</td></tr>
-                ) : (
-                  pageItems.map((row) => (
-                    <tr
-                      key={row.orderId}
-                      onClick={() => setDetailOrderId(row.orderId)}
-                      className={`hover:bg-primary/[0.04] cursor-pointer transition-colors duration-150 border-b border-outline-variant/10 ${selected.has(row.orderId) ? 'bg-error/[0.04]' : ''}`}
-                    >
-                      <td className="py-4 pl-5 pr-2 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selected.has(row.orderId)}
-                          onChange={(e) => toggleSelect(row.orderId, e.target.checked)}
-                          className="w-4 h-4 rounded-[4px] border-outline-variant text-red-600 focus:ring-red-500 accent-red-600 cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="font-semibold text-primary text-body-md">{row.orderId}</div>
-                        <div className="text-xs text-on-surface-variant mt-0.5">{formatOrderDate(row.date)}</div>
-                      </td>
-                      <td className="py-4 px-6 font-semibold text-on-surface text-body-md">
-                        {row.items.length === 0 ? '-' : (
-                          <>
-                            {row.items[0].productName} <span className="text-xs font-medium text-on-surface-variant/80 ml-1">x{row.items[0].qty}</span>
-                            {row.items.length > 1 && (
-                              <span className="text-xs font-semibold text-secondary ml-1.5">(และอีก {row.items.length - 1} รายการ)</span>
-                            )}
-                          </>
-                        )}
-                      </td>
-                      <td className="py-4 px-6"><ChannelBadge channel={row.channel} /></td>
-                      <td className="py-4 px-6 text-right font-bold text-body-md text-secondary">{thbFormat(row.totalSales)}</td>
-                      <td className="py-4 px-4 text-center"><MarginBadge totalSales={row.totalSales} netProfit={row.netProfit} /></td>
-                      <td className="py-4 px-6 text-on-surface-variant truncate max-w-[130px]" title={row.note || ''}>{row.note || '-'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          {/* Desktop Table (antd) */}
+          <div className="hidden lg:block">
+            <Table<OrderGroup>
+              rowKey="orderId"
+              columns={columns}
+              dataSource={pageItems}
+              pagination={paginationConfig}
+              scroll={{ x: 1180 }}
+              rowSelection={{
+                selectedRowKeys: Array.from(selected),
+                onChange: (keys) => setSelected(new Set(keys as string[])),
+                columnWidth: 50,
+              }}
+              onRow={(record) => ({
+                onClick: (e) => {
+                  // ไม่เปิด detail เมื่อคลิกที่ checkbox
+                  if ((e.target as HTMLElement).closest('.ant-table-selection-column, .ant-checkbox-wrapper')) return
+                  setDetailOrderId(record.orderId)
+                },
+                className: 'cursor-pointer',
+              })}
+              rowClassName={(record) => (selected.has(record.orderId) ? 'bg-error/[0.04]' : '')}
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบประวัติการขาย" /> }}
+            />
           </div>
 
           {/* Mobile Cards */}
@@ -433,11 +485,9 @@ export default function HistoryPage() {
                   </div>
                   <div className="flex items-start gap-2">
                     <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 mt-0.5">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selected.has(row.orderId)}
                         onChange={(e) => toggleSelect(row.orderId, e.target.checked)}
-                        className="w-4 h-4 rounded-[4px] border-outline-variant text-red-600 focus:ring-red-500 accent-red-600 cursor-pointer"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -468,175 +518,155 @@ export default function HistoryPage() {
                 </article>
               ))
             )}
-          </div>
-
-          <div className="flex-shrink-0">
-            <TablePagination
-              totalItems={filtered.length}
-              currentPage={currentPage}
-              itemsPerPage={itemsPerPage}
-              onPageChange={(p) => { setCurrentPage(p); resetSelection() }}
-              onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); resetSelection() }}
-            />
+            {/* Pagination มือถือ (ตาราง antd ถูกซ่อนบนมือถือ) */}
+            <div className="flex justify-center py-3">
+              <Pagination {...paginationConfig} size="small" showTotal={undefined} />
+            </div>
           </div>
         </div>
       </div>
 
       {/* ==================== Order Detail Modal ==================== */}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${detailOrderId ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div onClick={() => setDetailOrderId(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-        <div className={`relative z-10 w-full max-w-lg bg-surface rounded-2xl shadow-premium overflow-hidden flex flex-col transition-transform duration-200 max-h-[85vh] ${detailOrderId ? 'scale-100' : 'scale-95'}`}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/30 bg-surface/30">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary flex-shrink-0">
-                <span className="material-symbols-outlined text-[22px] filled">receipt_long</span>
-              </div>
-              <div>
-                <h3 className="font-headline-sm text-on-surface font-bold">รายละเอียดออเดอร์</h3>
-                <p className="text-xs text-on-surface-variant mt-0.5">{detailOrderId ?? '-'}</p>
-              </div>
+      <Modal
+        open={!!detailOrderId}
+        onCancel={() => setDetailOrderId(null)}
+        centered
+        width={512}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary flex-shrink-0">
+              <ProfileOutlined className="text-[20px]" />
             </div>
-            <button
-              onClick={() => setDetailOrderId(null)}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-on-surface-variant"
-            >
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-          </div>
-
-          <div className="px-6 py-4 overflow-y-auto space-y-4 flex-1">
-            <div className="grid grid-cols-2 gap-4 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
-              <div>
-                <span className="text-xs text-on-surface-variant block mb-1">วัน-เวลา ทำรายการ</span>
-                <span className="font-semibold text-sm text-on-surface">{detailFirst ? formatOrderDate(detailFirst.date, true) : '-'}</span>
-              </div>
-              <div>
-                <span className="text-xs text-on-surface-variant block mb-1">ช่องทางการขาย</span>
-                <span className="block mt-0.5">{detailFirst ? <ChannelBadge channel={detailFirst.channel} /> : '-'}</span>
-              </div>
-              {detailFirst?.note && detailFirst.note.trim() !== '' && (
-                <div className="col-span-2 border-t border-outline-variant/20 pt-2">
-                  <span className="text-xs text-on-surface-variant block mb-1">หมายเหตุ</span>
-                  <p className="text-sm text-on-surface bg-white p-2.5 rounded-lg border border-outline-variant/30 min-h-[40px] break-words">{detailFirst.note}</p>
-                </div>
-              )}
-            </div>
-
             <div>
-              <h4 className="text-sm font-bold text-primary mb-2">รายการสินค้า</h4>
-              <div className="border border-outline-variant/30 rounded-xl overflow-hidden bg-white">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs min-w-[400px]">
-                    <thead>
-                      <tr className="bg-surface-container border-b border-outline-variant/30">
-                        <th className="py-2.5 px-3 font-extrabold text-on-surface text-left whitespace-nowrap">สินค้า</th>
-                        <th className="py-2.5 px-3 font-extrabold text-on-surface text-center w-16 whitespace-nowrap">จำนวน</th>
-                        <th className="py-2.5 px-3 font-extrabold text-on-surface text-right w-24 whitespace-nowrap">ราคา/หน่วย</th>
-                        <th className="py-2.5 px-3 font-extrabold text-on-surface text-right w-28 whitespace-nowrap">ราคารวม</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-outline-variant/10 text-on-surface">
-                      {detailItems.map((item) => {
-                        const qty = Number(item.qty) || 0
-                        const totalSales = Number(item.totalSales) || 0
-                        return (
-                          <tr key={item.productName} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="py-3 px-3 font-semibold text-on-surface text-left whitespace-nowrap">{item.productName}</td>
-                            <td className="py-3 px-3 text-center font-bold text-on-surface whitespace-nowrap">{qty}</td>
-                            <td className="py-3 px-3 text-right font-medium text-on-surface-variant whitespace-nowrap">{thbFormat(qty > 0 ? totalSales / qty : 0)}</td>
-                            <td className="py-3 px-3 text-right font-bold text-on-surface whitespace-nowrap">{thbFormat(totalSales)}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <div className="font-headline-sm text-on-surface font-bold">รายละเอียดออเดอร์</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{detailOrderId ?? '-'}</div>
             </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button danger block icon={<CloseCircleOutlined />} onClick={confirmCancelCurrentOrder} className="h-11">
+              ยกเลิกออเดอร์
+            </Button>
+            <Button block onClick={() => setDetailOrderId(null)} className="ant-btn-secondary-solid h-11">
+              ปิดหน้าต่าง
+            </Button>
+          </div>
+        }
+        styles={{ body: { maxHeight: '60vh', overflowY: 'auto' } }}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+            <div>
+              <span className="text-xs text-on-surface-variant block mb-1">วัน-เวลา ทำรายการ</span>
+              <span className="font-semibold text-sm text-on-surface">{detailFirst ? formatOrderDate(detailFirst.date, true) : '-'}</span>
+            </div>
+            <div>
+              <span className="text-xs text-on-surface-variant block mb-1">ช่องทางการขาย</span>
+              <span className="block mt-0.5">{detailFirst ? <ChannelBadge channel={detailFirst.channel} /> : '-'}</span>
+            </div>
+            {detailFirst?.note && detailFirst.note.trim() !== '' && (
+              <div className="col-span-2 border-t border-outline-variant/20 pt-2">
+                <span className="text-xs text-on-surface-variant block mb-1">หมายเหตุ</span>
+                <p className="text-sm text-on-surface bg-white p-2.5 rounded-lg border border-outline-variant/30 min-h-[40px] break-words">{detailFirst.note}</p>
+              </div>
+            )}
+          </div>
 
-            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/30 space-y-2">
-              <div className="flex justify-between items-center text-xs text-on-surface-variant">
-                <span>ยอดขายรวม (ก่อนหัก GP)</span>
-                <span className="font-bold text-on-surface">{thbFormat(detailSubtotal)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-on-surface-variant">
-                <span>ค่าธรรมเนียม GP ({(detailGpRate * 100).toFixed(1)}%)</span>
-                <span className="font-bold text-error">{thbFormat(detailGpAmount)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-on-surface-variant">
-                <span>ยอดรับหลังหัก GP</span>
-                <span className="font-bold text-on-surface">{thbFormat(detailNetRevenue)}</span>
-              </div>
-              <div className="border-t border-outline-variant/20 my-2 pt-2 flex justify-between items-center text-sm">
-                <span className="font-bold text-primary">กำไรสุทธิ</span>
-                <span className="font-bold text-secondary text-lg">{thbFormat(detailNetProfit)}</span>
+          <div>
+            <h4 className="text-sm font-bold text-primary mb-2">รายการสินค้า</h4>
+            <div className="border border-outline-variant/30 rounded-xl overflow-hidden bg-white">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs min-w-[400px]">
+                  <thead>
+                    <tr className="bg-surface-container border-b border-outline-variant/30">
+                      <th className="py-2.5 px-3 font-extrabold text-on-surface text-left whitespace-nowrap">สินค้า</th>
+                      <th className="py-2.5 px-3 font-extrabold text-on-surface text-center w-16 whitespace-nowrap">จำนวน</th>
+                      <th className="py-2.5 px-3 font-extrabold text-on-surface text-right w-24 whitespace-nowrap">ราคา/หน่วย</th>
+                      <th className="py-2.5 px-3 font-extrabold text-on-surface text-right w-28 whitespace-nowrap">ราคารวม</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/10 text-on-surface">
+                    {detailItems.map((item) => {
+                      const qty = Number(item.qty) || 0
+                      const totalSales = Number(item.totalSales) || 0
+                      return (
+                        <tr key={item.productName} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 px-3 font-semibold text-on-surface text-left whitespace-nowrap">{item.productName}</td>
+                          <td className="py-3 px-3 text-center font-bold text-on-surface whitespace-nowrap">{qty}</td>
+                          <td className="py-3 px-3 text-right font-medium text-on-surface-variant whitespace-nowrap">{thbFormat(qty > 0 ? totalSales / qty : 0)}</td>
+                          <td className="py-3 px-3 text-right font-bold text-on-surface whitespace-nowrap">{thbFormat(totalSales)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 px-6 py-4 border-t border-outline-variant/20 bg-surface/30">
-            <button
-              onClick={confirmCancelCurrentOrder}
-              className="w-full h-11 rounded-xl border border-error text-error font-body-md font-medium hover:bg-error-container/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">cancel</span>
-              ยกเลิกออเดอร์
-            </button>
-            <button
-              onClick={() => setDetailOrderId(null)}
-              className="w-full h-11 rounded-xl bg-secondary text-on-secondary font-body-md font-medium hover:bg-secondary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
-            >
-              ปิดหน้าต่าง
-            </button>
+          <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/30 space-y-2">
+            <div className="flex justify-between items-center text-xs text-on-surface-variant">
+              <span>ยอดขายรวม (ก่อนหัก GP)</span>
+              <span className="font-bold text-on-surface">{thbFormat(detailSubtotal)}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs text-on-surface-variant">
+              <span>ค่าธรรมเนียม GP ({(detailGpRate * 100).toFixed(1)}%)</span>
+              <span className="font-bold text-error">{thbFormat(detailGpAmount)}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs text-on-surface-variant">
+              <span>ยอดรับหลังหัก GP</span>
+              <span className="font-bold text-on-surface">{thbFormat(detailNetRevenue)}</span>
+            </div>
+            <div className="border-t border-outline-variant/20 my-2 pt-2 flex justify-between items-center text-sm">
+              <span className="font-bold text-primary">กำไรสุทธิ</span>
+              <span className="font-bold text-secondary text-lg">{thbFormat(detailNetProfit)}</span>
+            </div>
           </div>
         </div>
-      </div>
+      </Modal>
 
       {/* ==================== Delete Confirm Modal ==================== */}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${deleteConfirm.open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div onClick={() => setDeleteConfirm({ open: false, orderIds: [] })} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-        <div className={`relative z-10 w-full max-w-sm bg-surface rounded-2xl shadow-premium overflow-hidden flex flex-col transition-transform duration-200 ${deleteConfirm.open ? 'scale-100' : 'scale-95'}`}>
-          <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+      <Modal
+        open={deleteConfirm.open}
+        onCancel={() => setDeleteConfirm({ open: false, orderIds: [] })}
+        centered
+        width={384}
+        closable={false}
+        title={
+          <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <span className="material-symbols-outlined text-[24px]">delete_forever</span>
+              <ExclamationCircleOutlined className="text-[22px]" />
             </div>
             <div>
-              <h3 className="font-headline-sm text-on-surface">ยืนยันการลบประวัติ</h3>
-              <p className="text-xs text-on-surface-variant mt-0.5">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+              <div className="font-headline-sm text-on-surface">ยืนยันการลบประวัติ</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">การดำเนินการนี้ไม่สามารถย้อนกลับได้</div>
             </div>
           </div>
-
-          <div className="px-6 pb-4">
-            <p className="text-sm text-on-surface-variant mb-3">
-              ต้องการลบรายการ <span className="font-bold text-error">{deleteConfirm.orderIds.length} ออเดอร์</span> ออกจากระบบ?
-            </p>
-            <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
-              {deleteDisplayList.map((i) => (
-                <li key={i.orderId} className="flex items-center gap-2 text-sm text-on-surface">
-                  <span className="material-symbols-outlined text-[16px] text-error flex-shrink-0">receipt_long</span>
-                  <span className="font-semibold">{i.orderId}</span> - <span className="truncate max-w-[220px]" title={i.desc}>{i.desc}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="flex gap-3 px-6 py-4 border-t border-outline-variant/20">
-            <button
-              onClick={() => setDeleteConfirm({ open: false, orderIds: [] })}
-              className="flex-1 h-11 rounded-xl border border-outline-variant text-on-surface-variant font-body-md font-medium hover:bg-surface-container transition-colors"
-            >
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setDeleteConfirm({ open: false, orderIds: [] })} className="h-11">
               ยกเลิก
-            </button>
-            <button
-              onClick={executeDelete}
-              className="flex-1 h-11 rounded-xl bg-error text-on-error font-body-md font-medium hover:bg-error/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">delete</span>
+            </Button>
+            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      >
+        <p className="text-sm text-on-surface-variant mb-3">
+          ต้องการลบรายการ <span className="font-bold text-error">{deleteConfirm.orderIds.length} ออเดอร์</span> ออกจากระบบ?
+        </p>
+        <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
+          {deleteDisplayList.map((i) => (
+            <li key={i.orderId} className="flex items-center gap-2 text-sm text-on-surface">
+              <ProfileOutlined className="text-[14px] text-error flex-shrink-0" />
+              <span className="font-semibold">{i.orderId}</span> - <span className="truncate max-w-[220px]" title={i.desc}>{i.desc}</span>
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </>
   )
 }

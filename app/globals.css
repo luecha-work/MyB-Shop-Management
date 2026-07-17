@@ -131,22 +131,6 @@
   font-weight: 400;
 }
 
-.material-symbols-outlined {
-  font-variation-settings:
-    "FILL" 0,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 24;
-}
-
-.material-symbols-outlined.filled {
-  font-variation-settings:
-    "FILL" 1,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 24;
-}
-
 @utility no-scrollbar {
   &::-webkit-scrollbar {
     display: none;
@@ -184,4 +168,15 @@ body {
 /* ซ่อนส่วนที่เป็นของ ADMIN เมื่อผู้ใช้เป็น STAFF (กลไกเดิมจาก index.html: body.role-staff .role-admin-only) */
 .role-staff .role-admin-only {
   display: none !important;
+}
+
+/* ปุ่มสีทอง secondary (#765a24) สำหรับ antd Button — ใช้แทน bg-secondary เดิม */
+.ant-btn-secondary-solid {
+  background: var(--color-secondary) !important;
+  border-color: var(--color-secondary) !important;
+  color: #ffffff !important;
+}
+.ant-btn-secondary-solid:hover {
+  background: color-mix(in srgb, var(--color-secondary) 90%, black) !important;
+  border-color: var(--color-secondary) !important;
 }

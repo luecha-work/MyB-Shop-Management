@@ -1,7 +1,22 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import TablePagination from '@/components/UI/TablePagination'
+import { useMemo, useState } from 'react'
+import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Table, Tag, Upload } from 'antd'
+import type { TableColumnsType } from 'antd'
+import {
+  ArrowRightOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  ExclamationCircleOutlined,
+  FilterOutlined,
+  PlusOutlined,
+  PlusSquareOutlined,
+  SaveOutlined,
+  StopOutlined,
+  UploadOutlined,
+  WarningOutlined,
+  AppstoreOutlined,
+} from '@ant-design/icons'
 import { thbFormat, formatNum } from '@/lib/format'
 
 // ==========================================
@@ -43,25 +58,9 @@ const isLowStock = (p: Product) =>
   !isOutOfStock(p) && (p.currentStock <= p.minStock || p.status === 'Low Stock' || p.status === 'เหลือน้อย')
 
 function StatusBadge({ product }: { product: Product }) {
-  if (isOutOfStock(product)) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-600 border border-rose-500/20">
-        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> สินค้าหมด
-      </span>
-    )
-  }
-  if (isLowStock(product)) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 border border-amber-500/20">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> เหลือน้อย
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> พร้อมขาย
-    </span>
-  )
+  if (isOutOfStock(product)) return <Tag color="error" className="rounded-full">สินค้าหมด</Tag>
+  if (isLowStock(product)) return <Tag color="warning" className="rounded-full">เหลือน้อย</Tag>
+  return <Tag color="success" className="rounded-full">พร้อมขาย</Tag>
 }
 
 const stockClassOf = (p: Product) => {
@@ -84,10 +83,27 @@ type EditForm = {
 
 const EMPTY_FORM: EditForm = { name: '', cost: '', priceCash: '', priceGrab: '', priceLineman: '', stockIn: '', minStock: '', image: '', imagePreview: '' }
 
-const inputClass = (hasError: boolean) =>
-  `w-full h-11 px-3 rounded-xl border bg-surface-container-lowest focus:ring-1 outline-none font-body-md text-on-surface ${
-    hasError ? 'border-error ring-error focus:border-error focus:ring-error' : 'border-outline-variant focus:border-secondary focus:ring-secondary'
-  }`
+const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
+
+// InputNumber แบบ string state (ฟอร์มเดิมเก็บเป็น string)
+function NumberField({
+  value, onChange, hasError, min = 0, step = 0.01, placeholder,
+}: {
+  value: string; onChange: (v: string) => void; hasError: boolean; min?: number; step?: number; placeholder?: string
+}) {
+  return (
+    <InputNumber
+      min={min}
+      step={step}
+      value={value === '' ? null : Number(value)}
+      onChange={(v) => onChange(v == null ? '' : String(v))}
+      status={hasError ? 'error' : undefined}
+      placeholder={placeholder}
+      className="w-full"
+      size="large"
+    />
+  )
+}
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS)
@@ -105,19 +121,6 @@ export default function InventoryPage() {
   const [stockInQty, setStockInQty] = useState('')
   const [stockInNote, setStockInNote] = useState('')
   const [stockInError, setStockInError] = useState('')
-
-  // ปิด modal เมื่อกด Escape (เหมือนของเดิม)
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setEditModal((m) => ({ ...m, open: false }))
-        setDetailModalType(null)
-        setStockInModal((m) => ({ ...m, open: false }))
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
 
   // กรองตามชื่อสินค้าก่อน slice (logic เดิมจาก renderInventoryTable)
   const filtered = useMemo(() => {
@@ -179,23 +182,18 @@ export default function InventoryPage() {
     setTimeout(() => openEditModalForProduct(p), 200)
   }
 
-  const previewSelectedImage = (input: HTMLInputElement) => {
-    const file = input.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น')
-        input.value = ''
-        return
-      }
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = String(e.target?.result || '')
-        setEditForm((f) => ({ ...f, imagePreview: result, image: result }))
-      }
-      reader.readAsDataURL(file)
-    } else {
-      setEditForm((f) => ({ ...f, imagePreview: f.image }))
+  // preview รูปที่เลือกจาก antd Upload (FileReader เดิม)
+  const previewSelectedImage = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setEditErrorMsg('กรุณาเลือกไฟล์รูปภาพเท่านั้น')
+      return
     }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = String(e.target?.result || '')
+      setEditForm((f) => ({ ...f, imagePreview: result, image: result }))
+    }
+    reader.readAsDataURL(file)
   }
 
   // TODO: เชื่อม Server Action uploadImageToDrive + addProduct/updateProduct แทนการแก้ state
@@ -252,6 +250,87 @@ export default function InventoryPage() {
   const deleteBtnActive = selected.size > 0
   const detailList = detailModalType === 'low' ? lowItems : detailModalType === 'out' ? outItems : []
 
+  const paginationConfig = {
+    current: currentPage,
+    pageSize: itemsPerPage,
+    total: filtered.length,
+    showSizeChanger: true,
+    pageSizeOptions: PAGE_SIZE_OPTIONS,
+    showTotal: (total: number, range: [number, number]) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
+    onChange: (page: number, pageSize: number) => {
+      setCurrentPage(pageSize !== itemsPerPage ? 1 : page)
+      setItemsPerPage(pageSize)
+      resetSelection()
+    },
+  }
+
+  // ตาราง Desktop (antd Table)
+  const columns: TableColumnsType<Product> = [
+    {
+      title: 'ชื่อสินค้า',
+      dataIndex: 'name',
+      key: 'name',
+      width: 400,
+      render: (_, product) => (
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+          <div>
+            <div className="text-on-surface font-semibold text-body-md">{product.name}</div>
+            <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'จำนวนสต็อก',
+      dataIndex: 'currentStock',
+      key: 'currentStock',
+      width: 170,
+      align: 'right',
+      render: (_, product) => <span className={`font-medium text-body-md ${stockClassOf(product)}`}>{formatNum(product.currentStock)} ชิ้น</span>,
+    },
+    {
+      title: 'ราคา (เงินสด)',
+      dataIndex: 'priceCash',
+      key: 'priceCash',
+      width: 150,
+      align: 'right',
+      render: (val: number) => <span className="font-bold text-body-md text-on-surface">{thbFormat(val)}</span>,
+    },
+    {
+      title: 'สถานะ',
+      key: 'status',
+      width: 130,
+      align: 'center',
+      render: (_, product) => <StatusBadge product={product} />,
+    },
+    {
+      title: 'จัดการ',
+      key: 'actions',
+      width: 120,
+      align: 'center',
+      render: (_, product) => (
+        <div className="flex justify-center items-center gap-1">
+          <Button
+            type="text"
+            icon={<PlusSquareOutlined className="text-[18px]" />}
+            onClick={() => openStockInModal(product)}
+            className="text-emerald-600 hover:!bg-emerald-500/10"
+            title="รับเข้าสต็อก"
+          />
+          <Button
+            type="text"
+            icon={<EditOutlined className="text-[18px]" />}
+            onClick={() => openEditModalForProduct(product)}
+            className="text-on-surface-variant hover:!text-secondary role-admin-only"
+            title="แก้ไขข้อมูล"
+          />
+        </div>
+      ),
+    },
+  ]
+
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
@@ -267,23 +346,15 @@ export default function InventoryPage() {
 
           {/* Mobile Add Button */}
           <div className="flex justify-end md:hidden w-full mb-2">
-            <button
-              onClick={openAddModal}
-              className="flex items-center justify-center gap-1.5 bg-primary text-on-primary px-4 h-11 rounded-xl hover:bg-primary/90 transition-all active:translate-y-px shadow-md w-fit"
-            >
-              <span className="material-symbols-outlined text-[20px]">add</span>
-              <span className="font-body-md font-medium">เพิ่มสินค้าใหม่</span>
-            </button>
+            <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openAddModal} className="shadow-md">
+              เพิ่มสินค้าใหม่
+            </Button>
           </div>
 
           {/* Desktop/iPad Add Button */}
-          <button
-            onClick={openAddModal}
-            className="hidden md:flex items-center justify-center gap-2 bg-primary text-on-primary px-lg py-sm rounded-lg hover:bg-primary/90 transition-all active:translate-y-px shadow-sm"
-          >
-            <span className="material-symbols-outlined">add</span>
-            <span className="font-body-md font-medium">เพิ่มสินค้าใหม่</span>
-          </button>
+          <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openAddModal} className="hidden md:inline-flex shadow-sm">
+            เพิ่มสินค้าใหม่
+          </Button>
         </div>
 
         {/* การ์ดสรุป: สต็อกต่ำ / สินค้าหมด */}
@@ -295,15 +366,15 @@ export default function InventoryPage() {
           >
             <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-amber-500/5 rounded-bl-full -mr-4 -mt-4 z-0"></div>
             <div className="relative z-10 flex items-center md:justify-between md:items-start md:w-full">
-              <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px] md:text-[24px] lg:text-[28px]">warning</span>
+              <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 flex-shrink-0 text-[20px] md:text-[24px] lg:text-[28px]">
+                <WarningOutlined />
               </div>
               <span className="hidden md:inline-block bg-amber-100 text-amber-800 font-label-sm px-2 py-1 rounded-full">เตือน</span>
             </div>
             <div className="flex-1 md:flex-initial relative z-10">
               <h3 className="font-body-md md:font-headline-sm text-on-surface font-semibold md:font-bold md:mb-1">สต็อกต่ำ</h3>
               <div className="hidden md:flex text-xs text-amber-600 font-semibold items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-                คลิกดูรายละเอียด <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                คลิกดูรายละเอียด <ArrowRightOutlined className="text-[12px]" />
               </div>
             </div>
             <div className="relative z-10 flex items-baseline gap-1 md:gap-2 md:mt-auto">
@@ -319,14 +390,14 @@ export default function InventoryPage() {
           >
             <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-error/5 rounded-bl-full -mr-4 -mt-4 z-0"></div>
             <div className="relative z-10 flex items-center md:justify-between md:items-start md:w-full">
-              <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-error-container/30 flex items-center justify-center text-error flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px] md:text-[24px] lg:text-[28px]">remove_shopping_cart</span>
+              <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-error-container/30 flex items-center justify-center text-error flex-shrink-0 text-[20px] md:text-[24px] lg:text-[28px]">
+                <StopOutlined />
               </div>
             </div>
             <div className="flex-1 md:flex-initial relative z-10">
               <h3 className="font-body-md md:font-headline-sm text-on-surface font-semibold md:font-bold md:mb-1">สินค้าหมด (Out of Stock)</h3>
               <div className="hidden md:flex text-xs text-error font-semibold items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-                คลิกดูรายละเอียด <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                คลิกดูรายละเอียด <ArrowRightOutlined className="text-[12px]" />
               </div>
             </div>
             <div className="relative z-10 flex items-baseline gap-1 md:gap-2 md:mt-auto">
@@ -337,96 +408,46 @@ export default function InventoryPage() {
         </div>
 
         {/* ตารางรายการสินค้า */}
-        <div className="flex-initial bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col mb-8 lg:mb-0 lg:overflow-hidden lg:min-h-0">
+        <div className="flex-initial bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col mb-8 lg:mb-0 lg:min-h-0">
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col sm:flex-row justify-between sm:items-center gap-sm sm:gap-4 bg-surface/30 flex-shrink-0">
-            <div className="flex items-center justify-between w-full sm:w-auto">
+            <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
               <h3 className="font-headline-sm text-primary flex-shrink-0">รายการสินค้าทั้งหมด</h3>
-              {/* Mobile Delete Button */}
-              <button
-                onClick={() => deleteBtnActive && setDeleteConfirmOpen(true)}
+              <Button
+                danger
                 disabled={!deleteBtnActive}
-                className={`lg:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-all bg-rose-500/10 text-error ${deleteBtnActive ? 'opacity-100 cursor-pointer hover:bg-rose-500/20' : 'opacity-30 cursor-not-allowed'}`}
+                onClick={() => setDeleteConfirmOpen(true)}
+                icon={<DeleteOutlined />}
                 title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
               >
-                <span className="material-symbols-outlined text-[22px]">delete</span>
-              </button>
+                {deleteBtnActive ? `ลบ (${selected.size})` : 'ลบ'}
+              </Button>
             </div>
-            <div className="relative w-full sm:max-w-xs">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px] pointer-events-none">filter_list</span>
-              <input
-                type="text"
-                value={filterText}
-                onChange={(e) => { setFilterText(e.target.value); setCurrentPage(1); resetSelection() }}
-                className="w-full h-10 pl-9 pr-3 rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-sm text-on-surface placeholder:text-on-surface-variant/60 transition-all shadow-sm"
-                placeholder="ค้นหาสินค้า..."
-              />
-            </div>
+            <Input
+              prefix={<FilterOutlined className="text-on-surface-variant" />}
+              value={filterText}
+              onChange={(e) => { setFilterText(e.target.value); setCurrentPage(1); resetSelection() }}
+              placeholder="ค้นหาสินค้า..."
+              allowClear
+              className="w-full sm:max-w-xs shadow-sm font-body-sm"
+            />
           </div>
 
-          {/* Desktop Table */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full min-w-[1000px] table-fixed text-left border-collapse">
-              <thead className="sticky top-0 bg-surface-container border-b border-outline-variant/40 z-10">
-                <tr>
-                  <th className="py-4 pl-5 pr-2 text-center w-[50px]">
-                    <button
-                      onClick={() => deleteBtnActive && setDeleteConfirmOpen(true)}
-                      disabled={!deleteBtnActive}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${deleteBtnActive ? 'text-error hover:bg-error-container/30 cursor-pointer' : 'text-on-surface-variant opacity-30 cursor-not-allowed'}`}
-                      title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">delete</span>
-                    </button>
-                  </th>
-                  <th className="w-[400px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase whitespace-nowrap">ชื่อสินค้า</th>
-                  <th className="w-[170px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase text-right whitespace-nowrap">จำนวนสต็อก</th>
-                  <th className="w-[150px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase text-right whitespace-nowrap">ราคา (เงินสด)</th>
-                  <th className="w-[130px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase text-center whitespace-nowrap">สถานะ</th>
-                  <th className="w-[100px] py-4 px-6 text-sm font-extrabold tracking-wider text-on-surface uppercase text-center whitespace-nowrap">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="font-body-sm divide-y divide-outline-variant/30">
-                {pageItems.length === 0 ? (
-                  <tr><td colSpan={6} className="p-lg text-center text-on-surface-variant">ไม่พบข้อมูลสินค้า</td></tr>
-                ) : (
-                  pageItems.map((product) => (
-                    <tr key={product.name} className={`hover:bg-primary/[0.02] transition-colors duration-150 border-b border-outline-variant/10 ${selected.has(product.name) ? 'bg-error/[0.04]' : ''}`}>
-                      <td className="py-4 pl-5 pr-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(product.name)}
-                          onChange={(e) => toggleSelect(product.name, e.target.checked)}
-                          className="w-4 h-4 rounded-[4px] border-outline-variant text-red-600 focus:ring-red-500 accent-red-600 cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
-                          <div>
-                            <div className="text-on-surface font-semibold text-body-md">{product.name}</div>
-                            <div className="text-xs text-on-surface-variant mt-0.5">ต้นทุน: <span className="font-medium">{thbFormat(product.cost)}</span></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className={`py-4 px-6 text-right font-medium text-body-md ${stockClassOf(product)}`}>{formatNum(product.currentStock)} ชิ้น</td>
-                      <td className="py-4 px-6 text-right font-bold text-body-md text-on-surface">{thbFormat(product.priceCash)}</td>
-                      <td className="py-4 px-6 text-center"><StatusBadge product={product} /></td>
-                      <td className="py-4 px-6 text-center">
-                        <div className="flex justify-center items-center gap-1">
-                          <button onClick={() => openStockInModal(product)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-500/10 text-emerald-600 transition-all interactive-press" title="รับเข้าสต็อก">
-                            <span className="material-symbols-outlined text-[20px]">add_box</span>
-                          </button>
-                          <button onClick={() => openEditModalForProduct(product)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-secondary-container/20 text-on-surface-variant hover:text-secondary transition-all interactive-press role-admin-only" title="แก้ไขข้อมูล">
-                            <span className="material-symbols-outlined text-[20px]">edit</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          {/* Desktop Table (antd) */}
+          <div className="hidden lg:block">
+            <Table<Product>
+              rowKey="name"
+              columns={columns}
+              dataSource={pageItems}
+              pagination={paginationConfig}
+              scroll={{ x: 970 }}
+              rowSelection={{
+                selectedRowKeys: Array.from(selected),
+                onChange: (keys) => setSelected(new Set(keys as string[])),
+                columnWidth: 50,
+              }}
+              rowClassName={(record) => (selected.has(record.name) ? 'bg-error/[0.04]' : '')}
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลสินค้า" /> }}
+            />
           </div>
 
           {/* Mobile Cards */}
@@ -443,11 +464,9 @@ export default function InventoryPage() {
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="flex-shrink-0 mt-0.5">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selected.has(product.name)}
                         onChange={(e) => toggleSelect(product.name, e.target.checked)}
-                        className="w-4 h-4 rounded-[4px] border-outline-variant text-red-600 focus:ring-red-500 accent-red-600 cursor-pointer"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -462,313 +481,291 @@ export default function InventoryPage() {
                       <div className={stockClassOf(product)}>สต็อก: <span className="font-bold text-body-md text-on-surface">{formatNum(product.currentStock)} ชิ้น</span></div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={() => openStockInModal(product)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-500/10 text-emerald-600 transition-all" title="รับเข้าสต็อก">
-                        <span className="material-symbols-outlined text-[20px]">add_box</span>
-                      </button>
-                      <button onClick={() => openEditModalForProduct(product)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-secondary-container/20 text-on-surface-variant hover:text-secondary transition-all role-admin-only">
-                        <span className="material-symbols-outlined text-[20px]">edit</span>
-                      </button>
+                      <Button type="text" icon={<PlusSquareOutlined className="text-[18px]" />} onClick={() => openStockInModal(product)} className="text-emerald-600" title="รับเข้าสต็อก" />
+                      <Button type="text" icon={<EditOutlined className="text-[18px]" />} onClick={() => openEditModalForProduct(product)} className="text-on-surface-variant role-admin-only" />
                     </div>
                   </div>
                 </div>
               ))
             )}
-          </div>
-
-          <div className="p-4 border-t border-outline-variant/20 flex-shrink-0">
-            <TablePagination
-              totalItems={filtered.length}
-              currentPage={currentPage}
-              itemsPerPage={itemsPerPage}
-              onPageChange={(p) => { setCurrentPage(p); resetSelection() }}
-              onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); resetSelection() }}
-            />
+            {/* Pagination มือถือ */}
+            <div className="flex justify-center py-3">
+              <Pagination {...paginationConfig} size="small" showTotal={undefined} />
+            </div>
           </div>
         </div>
       </div>
 
       {/* ==================== Delete Confirm Modal ==================== */}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${deleteConfirmOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div onClick={() => setDeleteConfirmOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-        <div className={`relative z-10 w-full max-w-sm bg-surface rounded-2xl shadow-premium overflow-hidden flex flex-col transition-transform duration-200 ${deleteConfirmOpen ? 'scale-100' : 'scale-95'}`}>
-          <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+      <Modal
+        open={deleteConfirmOpen}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        centered
+        width={384}
+        closable={false}
+        title={
+          <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <span className="material-symbols-outlined text-[24px]">delete_forever</span>
+              <ExclamationCircleOutlined className="text-[22px]" />
             </div>
             <div>
-              <h3 className="font-headline-sm text-on-surface">ยืนยันการลบสินค้า</h3>
-              <p className="text-xs text-on-surface-variant mt-0.5">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+              <div className="font-headline-sm text-on-surface">ยืนยันการลบสินค้า</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">การดำเนินการนี้ไม่สามารถย้อนกลับได้</div>
             </div>
           </div>
-          <div className="px-6 pb-4">
-            <p className="text-sm text-on-surface-variant mb-3">
-              ต้องการลบสินค้า <span className="font-bold text-error">{selected.size} รายการ</span> ออกจากระบบ?
-            </p>
-            <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
-              {Array.from(selected).map((n) => (
-                <li key={n} className="flex items-center gap-2 text-sm text-on-surface">
-                  <span className="material-symbols-outlined text-[16px] text-error flex-shrink-0">inventory_2</span>{n}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex gap-3 px-6 py-4 border-t border-outline-variant/20">
-            <button onClick={() => setDeleteConfirmOpen(false)} className="flex-1 h-11 rounded-xl border border-outline-variant text-on-surface-variant font-body-md font-medium hover:bg-surface-container transition-colors">
-              ยกเลิก
-            </button>
-            <button onClick={executeDelete} className="flex-1 h-11 rounded-xl bg-error text-on-error font-body-md font-medium hover:bg-error/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">delete</span>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11">ยกเลิก</Button>
+            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      >
+        <p className="text-sm text-on-surface-variant mb-3">
+          ต้องการลบสินค้า <span className="font-bold text-error">{selected.size} รายการ</span> ออกจากระบบ?
+        </p>
+        <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
+          {Array.from(selected).map((n) => (
+            <li key={n} className="flex items-center gap-2 text-sm text-on-surface">
+              <AppstoreOutlined className="text-[14px] text-error flex-shrink-0" />{n}
+            </li>
+          ))}
+        </ul>
+      </Modal>
 
       {/* ==================== Detail List Modal (สต็อกต่ำ / สินค้าหมด) ==================== */}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${detailModalType ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div onClick={() => setDetailModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-        <div className={`relative z-10 w-full max-w-4xl bg-surface rounded-2xl shadow-premium overflow-hidden flex flex-col max-h-[85dvh] transition-transform duration-200 ${detailModalType ? 'scale-100' : 'scale-95'}`}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/30 bg-surface flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${detailModalType === 'low' ? 'bg-amber-500/10 text-amber-600' : 'bg-error-container/30 text-error'}`}>
-                <span className="material-symbols-outlined text-[20px]">{detailModalType === 'low' ? 'warning' : 'remove_shopping_cart'}</span>
+      <Modal
+        open={!!detailModalType}
+        onCancel={() => setDetailModalType(null)}
+        centered
+        width={896}
+        title={
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${detailModalType === 'low' ? 'bg-amber-500/10 text-amber-600' : 'bg-error-container/30 text-error'}`}>
+              {detailModalType === 'low' ? <WarningOutlined className="text-[18px]" /> : <StopOutlined className="text-[18px]" />}
+            </div>
+            <div>
+              <div className="font-headline-sm text-primary">
+                {detailModalType === 'low' ? 'สินค้าสต็อกต่ำ (Low Stock)' : 'สินค้าหมด (Out of Stock)'}
               </div>
-              <div>
-                <h3 className="font-headline-sm text-primary">
-                  {detailModalType === 'low' ? 'สินค้าสต็อกต่ำ (Low Stock)' : 'สินค้าหมด (Out of Stock)'}
-                </h3>
-                <p className="text-xs text-on-surface-variant mt-0.5">
-                  {detailModalType === 'low'
-                    ? `พบสินค้าเหลือน้อยกว่าเกณฑ์ขั้นต่ำทั้งหมด ${detailList.length} รายการ`
-                    : `พบสินค้าหมดทั้งหมด ${detailList.length} รายการ`}
-                </p>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">
+                {detailModalType === 'low'
+                  ? `พบสินค้าเหลือน้อยกว่าเกณฑ์ขั้นต่ำทั้งหมด ${detailList.length} รายการ`
+                  : `พบสินค้าหมดทั้งหมด ${detailList.length} รายการ`}
               </div>
             </div>
-            <button onClick={() => setDetailModalType(null)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container text-on-surface-variant transition-colors">
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
           </div>
-
-          <div className="overflow-y-auto flex-1 p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-outline-variant/30">
-                    <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase">สินค้า</th>
-                    <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase text-right">สต็อกปัจจุบัน</th>
+        }
+        footer={
+          <Button onClick={() => setDetailModalType(null)} className="ant-btn-secondary-solid h-11 px-5">
+            ปิดหน้าต่าง
+          </Button>
+        }
+        styles={{ body: { maxHeight: '60vh', overflowY: 'auto' } }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-outline-variant/30">
+                <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase">สินค้า</th>
+                <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase text-right">สต็อกปัจจุบัน</th>
+                {detailModalType === 'low' && (
+                  <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase text-right">สต็อกขั้นต่ำ</th>
+                )}
+                <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase text-center w-24">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10 font-body-sm">
+              {detailList.length === 0 ? (
+                <tr><td colSpan={4} className="py-6 text-center text-on-surface-variant font-medium">ไม่มีรายการสินค้าที่สอดคล้องกับสถานะนี้</td></tr>
+              ) : (
+                detailList.map((product) => (
+                  <tr key={product.name} className="hover:bg-primary/[0.01] transition-colors border-b border-outline-variant/10">
+                    <td className="py-3.5 pr-2">
+                      <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+                        <div>
+                          <div className="text-on-surface font-semibold text-body-md">{product.name}</div>
+                          <div className="text-xs text-on-surface-variant mt-0.5">ราคา: <span className="font-medium text-secondary">{thbFormat(product.priceCash)}</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className={`py-3.5 px-2 text-right font-semibold text-body-md ${product.currentStock <= 0 ? 'text-rose-600 font-bold' : 'text-amber-600 font-bold'}`}>
+                      {formatNum(product.currentStock)} ชิ้น
+                    </td>
                     {detailModalType === 'low' && (
-                      <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase text-right">สต็อกขั้นต่ำ</th>
+                      <td className="py-3.5 px-2 text-right font-medium text-amber-600">{formatNum(product.minStock)} ชิ้น</td>
                     )}
-                    <th className="pb-3 text-xs font-bold text-on-surface-variant uppercase text-center w-24">จัดการ</th>
+                    <td className="py-3.5 pl-2 text-center">
+                      <Button type="text" icon={<EditOutlined className="text-[16px]" />} onClick={() => editProductFromDetail(product)} className="text-on-surface-variant hover:!text-secondary" />
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 font-body-sm">
-                  {detailList.length === 0 ? (
-                    <tr><td colSpan={4} className="py-6 text-center text-on-surface-variant font-medium">ไม่มีรายการสินค้าที่สอดคล้องกับสถานะนี้</td></tr>
-                  ) : (
-                    detailList.map((product) => (
-                      <tr key={product.name} className="hover:bg-primary/[0.01] transition-colors border-b border-outline-variant/10">
-                        <td className="py-3.5 pr-2">
-                          <div className="flex items-center gap-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
-                            <div>
-                              <div className="text-on-surface font-semibold text-body-md">{product.name}</div>
-                              <div className="text-xs text-on-surface-variant mt-0.5">ราคา: <span className="font-medium text-secondary">{thbFormat(product.priceCash)}</span></div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={`py-3.5 px-2 text-right font-semibold text-body-md ${product.currentStock <= 0 ? 'text-rose-600 font-bold' : 'text-amber-600 font-bold'}`}>
-                          {formatNum(product.currentStock)} ชิ้น
-                        </td>
-                        {detailModalType === 'low' && (
-                          <td className="py-3.5 px-2 text-right font-medium text-amber-600">{formatNum(product.minStock)} ชิ้น</td>
-                        )}
-                        <td className="py-3.5 pl-2 text-center">
-                          <button onClick={() => editProductFromDetail(product)} className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-secondary-container/20 text-on-surface-variant hover:text-secondary transition-all interactive-press">
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex justify-end px-6 py-4 border-t border-outline-variant/30 bg-surface-container-low flex-shrink-0">
-            <button onClick={() => setDetailModalType(null)} className="px-5 h-11 rounded-xl bg-secondary text-on-secondary font-body-md font-medium hover:bg-secondary/90 transition-all active:scale-[0.98] shadow-sm">
-              ปิดหน้าต่าง
-            </button>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </Modal>
 
       {/* ==================== Add / Edit Product Modal ==================== */}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${editModal.open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div onClick={() => setEditModal({ ...editModal, open: false })} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-        <div className={`relative z-10 w-full max-w-lg bg-surface rounded-2xl shadow-premium overflow-hidden flex flex-col max-h-[90dvh] transition-transform duration-200 ${editModal.open ? 'scale-100' : 'scale-95'}`}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/30 bg-surface flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-                <span className="material-symbols-outlined text-[20px]">{editModal.isEdit ? 'edit' : 'add'}</span>
-              </div>
-              <div>
-                <h3 className="font-headline-sm text-on-surface">{editModal.isEdit ? 'แก้ไขข้อมูลสินค้า' : 'เพิ่มสินค้าใหม่'}</h3>
-                <p className="text-xs text-on-surface-variant mt-0.5">{editModal.isEdit ? editModal.originalName : 'กรอกข้อมูลรายละเอียดสินค้า'}</p>
-              </div>
+      <Modal
+        open={editModal.open}
+        onCancel={() => setEditModal({ ...editModal, open: false })}
+        centered
+        width={512}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
+              {editModal.isEdit ? <EditOutlined className="text-[18px]" /> : <PlusOutlined className="text-[18px]" />}
             </div>
-            <button onClick={() => setEditModal({ ...editModal, open: false })} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container text-on-surface-variant transition-colors">
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-          </div>
-
-          <div className="overflow-y-auto flex-1 p-6 space-y-5">
-            {/* Product image preview */}
-            <div className="flex items-center gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={editForm.imagePreview || FALLBACK_IMG}
-                alt="preview"
-                className="w-16 h-16 rounded-xl object-cover border border-outline-variant/40 shadow-sm bg-surface-container"
-                onError={(e) => { e.currentTarget.src = FALLBACK_IMG }}
-              />
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รูปภาพสินค้า</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => previewSelectedImage(e.currentTarget)}
-                  className="w-full text-sm text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-secondary-container/50 file:text-secondary hover:file:bg-secondary-container transition-colors rounded-xl outline-none"
-                />
-              </div>
-            </div>
-
-            {/* ชื่อสินค้า */}
             <div>
-              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ชื่อสินค้า</label>
-              <input
-                type="text"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className={inputClass(editErrors.has('name'))}
-                placeholder="ชื่อสินค้า"
-              />
+              <div className="font-headline-sm text-on-surface">{editModal.isEdit ? 'แก้ไขข้อมูลสินค้า' : 'เพิ่มสินค้าใหม่'}</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{editModal.isEdit ? editModal.originalName : 'กรอกข้อมูลรายละเอียดสินค้า'}</div>
             </div>
-
-            {/* ราคา grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ต้นทุน (฿)</label>
-                <input type="number" min={0} step={0.01} value={editForm.cost} onChange={(e) => setEditForm({ ...editForm, cost: e.target.value })} className={inputClass(editErrors.has('cost'))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ราคาหน้าร้าน (฿)</label>
-                <input type="number" min={0} step={0.01} value={editForm.priceCash} onChange={(e) => setEditForm({ ...editForm, priceCash: e.target.value })} className={inputClass(editErrors.has('priceCash'))} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-on-surface-variant mb-1.5 flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span> ราคา Grab (฿)
-                </label>
-                <input type="number" min={0} step={0.01} value={editForm.priceGrab} onChange={(e) => setEditForm({ ...editForm, priceGrab: e.target.value })} className={inputClass(editErrors.has('priceGrab'))} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-on-surface-variant mb-1.5 flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> ราคา LINE MAN (฿)
-                </label>
-                <input type="number" min={0} step={0.01} value={editForm.priceLineman} onChange={(e) => setEditForm({ ...editForm, priceLineman: e.target.value })} className={inputClass(editErrors.has('priceLineman'))} />
-              </div>
-            </div>
-
-            {/* Stock In / Min Stock grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รับเข้าจำนวน (ชิ้น)</label>
-                <input type="number" min={0} step={1} value={editForm.stockIn} onChange={(e) => setEditForm({ ...editForm, stockIn: e.target.value })} className={inputClass(editErrors.has('stockIn'))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สต็อกต่ำ (ชิ้น)</label>
-                <input type="number" min={0} step={1} value={editForm.minStock} onChange={(e) => setEditForm({ ...editForm, minStock: e.target.value })} className={inputClass(editErrors.has('minStock'))} />
-              </div>
-            </div>
-
-            {/* Error message */}
-            {editErrorMsg && (
-              <div className="text-sm text-error bg-error-container/20 border border-error/20 rounded-xl px-4 py-3">{editErrorMsg}</div>
-            )}
           </div>
-
-          <div className="flex gap-3 px-6 py-4 border-t border-outline-variant/30 bg-surface flex-shrink-0">
-            <button onClick={() => setEditModal({ ...editModal, open: false })} className="flex-1 h-11 rounded-xl border border-outline-variant text-on-surface-variant font-body-md font-medium hover:bg-surface-container-low transition-colors">
-              ยกเลิก
-            </button>
-            <button onClick={saveProductEdit} className="flex-1 h-11 rounded-xl bg-secondary text-on-secondary font-body-md font-medium hover:bg-secondary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">save</span>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setEditModal({ ...editModal, open: false })} className="h-11">ยกเลิก</Button>
+            <Button block icon={<SaveOutlined />} onClick={saveProductEdit} className="ant-btn-secondary-solid h-11">
               บันทึก
-            </button>
+            </Button>
           </div>
+        }
+        styles={{ body: { maxHeight: '65vh', overflowY: 'auto' } }}
+      >
+        <div className="space-y-5 py-1">
+          {/* Product image preview */}
+          <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={editForm.imagePreview || FALLBACK_IMG}
+              alt="preview"
+              className="w-16 h-16 rounded-xl object-cover border border-outline-variant/40 shadow-sm bg-surface-container"
+              onError={(e) => { e.currentTarget.src = FALLBACK_IMG }}
+            />
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รูปภาพสินค้า</label>
+              <Upload
+                accept="image/*"
+                maxCount={1}
+                showUploadList={false}
+                beforeUpload={(file) => { previewSelectedImage(file); return false }}
+              >
+                <Button icon={<UploadOutlined />}>เลือกรูปภาพ</Button>
+              </Upload>
+            </div>
+          </div>
+
+          {/* ชื่อสินค้า */}
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ชื่อสินค้า</label>
+            <Input
+              size="large"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              status={editErrors.has('name') ? 'error' : undefined}
+              placeholder="ชื่อสินค้า"
+            />
+          </div>
+
+          {/* ราคา grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ต้นทุน (฿)</label>
+              <NumberField value={editForm.cost} onChange={(v) => setEditForm({ ...editForm, cost: v })} hasError={editErrors.has('cost')} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">ราคาหน้าร้าน (฿)</label>
+              <NumberField value={editForm.priceCash} onChange={(v) => setEditForm({ ...editForm, priceCash: v })} hasError={editErrors.has('priceCash')} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-on-surface-variant mb-1.5 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span> ราคา Grab (฿)
+              </label>
+              <NumberField value={editForm.priceGrab} onChange={(v) => setEditForm({ ...editForm, priceGrab: v })} hasError={editErrors.has('priceGrab')} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-on-surface-variant mb-1.5 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> ราคา LINE MAN (฿)
+              </label>
+              <NumberField value={editForm.priceLineman} onChange={(v) => setEditForm({ ...editForm, priceLineman: v })} hasError={editErrors.has('priceLineman')} />
+            </div>
+          </div>
+
+          {/* Stock In / Min Stock grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รับเข้าจำนวน (ชิ้น)</label>
+              <NumberField value={editForm.stockIn} onChange={(v) => setEditForm({ ...editForm, stockIn: v })} hasError={editErrors.has('stockIn')} step={1} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สต็อกต่ำ (ชิ้น)</label>
+              <NumberField value={editForm.minStock} onChange={(v) => setEditForm({ ...editForm, minStock: v })} hasError={editErrors.has('minStock')} step={1} />
+            </div>
+          </div>
+
+          {/* Error message */}
+          {editErrorMsg && <Alert type="error" showIcon message={editErrorMsg} className="rounded-xl" />}
         </div>
-      </div>
+      </Modal>
 
       {/* ==================== Stock In Modal ==================== */}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${stockInModal.open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div onClick={() => setStockInModal({ ...stockInModal, open: false })} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-        <div className={`relative z-10 w-full max-w-md bg-surface rounded-2xl shadow-premium overflow-hidden flex flex-col transition-transform duration-200 ${stockInModal.open ? 'scale-100' : 'scale-95'}`}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/30 bg-surface flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                <span className="material-symbols-outlined text-[20px]">add_box</span>
-              </div>
-              <div>
-                <h3 className="font-headline-sm text-on-surface">รับเข้าสต็อกสินค้า</h3>
-                <p className="text-xs text-on-surface-variant mt-0.5 font-semibold">{stockInModal.productName}</p>
-              </div>
-            </div>
-            <button onClick={() => setStockInModal({ ...stockInModal, open: false })} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container text-on-surface-variant transition-colors">
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-          </div>
-
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">จำนวนรับเข้า (ชิ้น) <span className="text-error">*</span></label>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={stockInQty}
-                onChange={(e) => setStockInQty(e.target.value)}
-                className={inputClass(!!stockInError)}
-                placeholder="ระบุจำนวนตัวเลขมากกว่า 0"
-              />
+      <Modal
+        open={stockInModal.open}
+        onCancel={() => setStockInModal({ ...stockInModal, open: false })}
+        centered
+        width={448}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+              <PlusSquareOutlined className="text-[18px]" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">หมายเหตุ</label>
-              <textarea
-                rows={3}
-                value={stockInNote}
-                onChange={(e) => setStockInNote(e.target.value)}
-                className="w-full p-3 rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-1 focus:ring-secondary outline-none font-body-md text-on-surface resize-none"
-                placeholder="ระบุหมายเหตุ (ถ้ามี)"
-              ></textarea>
+              <div className="font-headline-sm text-on-surface">รับเข้าสต็อกสินค้า</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-semibold">{stockInModal.productName}</div>
             </div>
-            {stockInError && (
-              <div className="text-sm text-error bg-error-container/20 border border-error/20 rounded-xl px-4 py-3">{stockInError}</div>
-            )}
           </div>
-
-          <div className="flex gap-3 px-6 py-4 border-t border-outline-variant/30 bg-surface flex-shrink-0">
-            <button onClick={() => setStockInModal({ ...stockInModal, open: false })} className="flex-1 h-11 rounded-xl border border-outline-variant text-on-surface-variant font-body-md font-medium hover:bg-surface-container-low transition-colors">
-              ยกเลิก
-            </button>
-            <button onClick={saveStockIn} className="flex-1 h-11 rounded-xl bg-secondary text-on-secondary font-body-md font-medium hover:bg-secondary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">save</span>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setStockInModal({ ...stockInModal, open: false })} className="h-11">ยกเลิก</Button>
+            <Button block icon={<SaveOutlined />} onClick={saveStockIn} className="ant-btn-secondary-solid h-11">
               บันทึกการรับเข้า
-            </button>
+            </Button>
           </div>
+        }
+      >
+        <div className="space-y-4 py-1">
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">จำนวนรับเข้า (ชิ้น) <span className="text-error">*</span></label>
+            <InputNumber
+              min={1}
+              step={1}
+              size="large"
+              value={stockInQty === '' ? null : Number(stockInQty)}
+              onChange={(v) => setStockInQty(v == null ? '' : String(v))}
+              status={stockInError ? 'error' : undefined}
+              placeholder="ระบุจำนวนตัวเลขมากกว่า 0"
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">หมายเหตุ</label>
+            <Input.TextArea
+              rows={3}
+              value={stockInNote}
+              onChange={(e) => setStockInNote(e.target.value)}
+              placeholder="ระบุหมายเหตุ (ถ้ามี)"
+              style={{ resize: 'none' }}
+            />
+          </div>
+          {stockInError && <Alert type="error" showIcon message={stockInError} className="rounded-xl" />}
         </div>
-      </div>
+      </Modal>
     </>
   )
 }

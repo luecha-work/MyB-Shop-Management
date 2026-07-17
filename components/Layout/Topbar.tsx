@@ -1,6 +1,7 @@
 'use client'
 
 import { logout } from '@/lib/actions/auth'
+import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
 
 export default function Topbar({ user }: { user: { name: string, role: string, email: string } }) {
   const userInitial = user.name ? user.name.charAt(0).toUpperCase() : 'U'
@@ -34,14 +35,6 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
               <span className="text-[10px] text-secondary font-bold leading-none mt-1">{user.role}</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => logout()}
-            title="ออกจากระบบ"
-            className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors interactive-press"
-          >
-            <span className="material-symbols-outlined">logout</span>
-          </button>
         </div>
       </header>
 
@@ -58,10 +51,10 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             title="ออกจากระบบ"
             className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant interactive-press"
           >
-            <span className="material-symbols-outlined">logout</span>
+            <LogoutOutlined className="text-[20px]" />
           </button>
           <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary relative group">
-            <span className="material-symbols-outlined">account_circle</span>
+            <UserOutlined className="text-[20px]" />
             <span
               className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${isAdmin ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'} text-[9px] font-extrabold flex items-center justify-center border-2 border-white`}
             >
