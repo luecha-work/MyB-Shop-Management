@@ -10,12 +10,12 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 
 ## 1. Project Architecture & Tech Stack
 
-- **Framework:** Next.js 16 (App Router, Turbopack) + React 19
+- **Framework:** Next.js 16 (App Router, Webpack dev server) + React 19
 - **Language:** TypeScript
 - **UI Components:** **Ant Design v6** (`antd` + `@ant-design/icons`) — themed via `ConfigProvider` in `components/Providers/AntdProvider.tsx` to preserve the original design (gold `#765a24` accent, black primary, 12px radius, Thai locale + dayjs `th`)
 - **Styling/Layout:** Tailwind CSS v4 (configured in `app/globals.css` using `@theme`) — used for layout, spacing, and design tokens; antd handles interactive components
 - **State Management:** React Hooks (`useState`, `useMemo`, `useActionState`), Next.js Navigation
-- **Authentication:** Custom Cookie-based Dummy Auth (implemented in `lib/actions/auth.ts` and protected via `middleware.ts` — note: Next 16 deprecates `middleware` in favor of `proxy`, rename pending)
+- **Authentication:** Custom Cookie-based Dummy Auth (implemented in `lib/actions/auth.ts` and protected via `middleware.ts`). The project intentionally keeps the classic Next.js middleware convention even though Next 16 emits a deprecation warning recommending `proxy.ts`.
 - **Database:** PostgreSQL 16 via Docker (`Makefile`) and `pg`
 - **Backend/API:** Next.js App Router route handlers under `app/api/*`
 - **Image Storage:** URL/base64 placeholders in UI; durable file storage is still pending
@@ -61,7 +61,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 
 The app currently uses a hardcoded, dummy authentication system to facilitate UI development and testing.
 - **Roles:** Menus and admin-only sections adapt to `ADMIN` vs `STAFF`. Dashboard menu + History stat cards + Inventory edit buttons are ADMIN-only via the `role-admin-only` class (hidden by `.role-staff` on the layout container).
-- **Middleware:** `middleware.ts` redirects unauthenticated users to `/login`.
+- **Middleware:** `middleware.ts` redirects unauthenticated users to `/login`. Keep this classic middleware file unless the user explicitly asks to migrate to `proxy.ts`.
 - **Demo Users:**
   - Admin: `admin@myb.com` / `admin123`
   - Staff: `staff@myb.com` / `staff123`
@@ -71,6 +71,7 @@ The app currently uses a hardcoded, dummy authentication system to facilitate UI
 ## 5. Dev Workflow Gotchas
 
 - **NEVER run `npm run build` while `npm run dev` is running** — the production artifacts corrupt `.next` and every route 404s. Fix: stop dev → delete `.next` → restart.
+- `npm run dev` MUST stay as `next dev --webpack`. Next 16/Turbopack has produced internal HMR panic errors in this project (`TurbopackInternalError: Cell ... no longer exists`), so do not switch dev back to plain `next dev` or Turbopack unless that issue is explicitly retested and resolved.
 - PostgreSQL local workflow:
   - Start Docker Desktop first.
   - `make up` creates the `myb-shop` PostgreSQL container using defaults from `Makefile`.
