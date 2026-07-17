@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Alert, Button, Empty, Input, Modal, notification, Select, Table, Tag } from 'antd'
+import { Alert, Button, Empty, Input, Modal, Select, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { DeleteOutlined, ExclamationCircleOutlined, PlusOutlined, SaveOutlined, ShopOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
@@ -47,17 +47,16 @@ export default function ManageBranchesPage() {
   const [form, setForm] = useState<BranchForm>(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState<Set<keyof BranchForm>>(new Set())
   const [error, setError] = useState('')
-  const [notificationApi, notificationContext] = notification.useNotification({
-    placement: 'topRight',
-    top: 88,
-    duration: 3,
-  })
+  const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    if (!error) return
-    const timeoutId = window.setTimeout(() => setError(''), 3000)
+    if (!error && !success) return
+    const timeoutId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+    }, 3000)
     return () => window.clearTimeout(timeoutId)
-  }, [error])
+  }, [error, success])
 
   const loadBranches = async () => {
     setError('')
@@ -103,6 +102,7 @@ export default function ManageBranchesPage() {
     setForm(EMPTY_FORM)
     setFormErrors(new Set())
     setError('')
+    setSuccess('')
     setAddOpen(true)
   }
 
@@ -121,6 +121,7 @@ export default function ManageBranchesPage() {
 
     setIsSaving(true)
     setError('')
+    setSuccess('')
 
     try {
       const response = await fetch('/api/branches', {
@@ -135,13 +136,10 @@ export default function ManageBranchesPage() {
       setForm(EMPTY_FORM)
       setFormErrors(new Set())
       setAddOpen(false)
-      notificationApi.success({
-        message: 'เพิ่มสาขาเรียบร้อยแล้ว',
-      })
+      setSuccess('เพิ่มสาขาเรียบร้อยแล้ว')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'บันทึกสาขาไม่สำเร็จ'
       setError(message)
-      notificationApi.error({ message })
     } finally {
       setIsSaving(false)
     }
@@ -150,6 +148,7 @@ export default function ManageBranchesPage() {
   const executeDelete = async () => {
     setIsDeleting(true)
     setError('')
+    setSuccess('')
 
     try {
       const response = await fetch('/api/branches', {
@@ -163,13 +162,10 @@ export default function ManageBranchesPage() {
       await loadBranches()
       setSelected(new Set())
       setDeleteOpen(false)
-      notificationApi.success({
-        message: `ลบสาขาแล้ว ${data.deletedCount ?? 0} รายการ`,
-      })
+      setSuccess(`ลบสาขาแล้ว ${data.deletedCount ?? 0} รายการ`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ลบสาขาไม่สำเร็จ'
       setError(message)
-      notificationApi.error({ message })
     } finally {
       setIsDeleting(false)
     }
@@ -219,7 +215,6 @@ export default function ManageBranchesPage() {
 
   return (
     <>
-      {notificationContext}
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
         <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl flex-shrink-0">
           <div className="flex items-stretch gap-4">
@@ -231,9 +226,10 @@ export default function ManageBranchesPage() {
           </div>
         </div>
 
-        {error && (
+        {(error || success) && (
           <div className="fixed right-4 top-[88px] z-50 w-[min(420px,calc(100vw-2rem))]">
-            <Alert title={error} type="error" showIcon className="rounded-xl shadow-card" />
+            {error && <Alert title={error} type="error" showIcon className="rounded-xl shadow-card" />}
+            {success && <Alert title={success} type="success" showIcon className="rounded-xl shadow-card" />}
           </div>
         )}
 
