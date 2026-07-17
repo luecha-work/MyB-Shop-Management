@@ -19,9 +19,10 @@ import { thbFormat } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
-// Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
+// Types
 // ==========================================
 type Product = {
+  id?: string
   name: string
   cost: number
   priceCash: number
@@ -42,29 +43,6 @@ type CartItem = {
 }
 
 const FALLBACK_IMG = 'https://placehold.co/400x400/eceef0/7c839b?text=No+Image'
-
-const MOCK_PRODUCTS: Product[] = [
-  { name: 'กาแฟเย็น', cost: 15, priceCash: 30, priceGrab: 40, priceLineman: 38, currentStock: 20, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ข้าวกล่องกะเพราไก่', cost: 35, priceCash: 60, priceGrab: 75, priceLineman: 72, currentStock: 12, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ข้าวเหนียวหมูปิ้ง', cost: 18, priceCash: 30, priceGrab: 40, priceLineman: 38, currentStock: 15, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ไก่ทอด', cost: 12, priceCash: 20, priceGrab: 28, priceLineman: 26, currentStock: 30, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ชาไทยเย็น', cost: 14, priceCash: 30, priceGrab: 40, priceLineman: 38, currentStock: 18, status: 'Active', image: FALLBACK_IMG },
-  { name: 'เฉาก๊วยนมสด', cost: 10, priceCash: 25, priceGrab: 34, priceLineman: 32, currentStock: 10, status: 'Active', image: FALLBACK_IMG },
-  { name: 'แซนด์วิชแฮมชีส', cost: 22, priceCash: 39, priceGrab: 52, priceLineman: 49, currentStock: 8, status: 'Active', image: FALLBACK_IMG },
-  { name: 'น้ำเปล่า 600ml', cost: 5, priceCash: 10, priceGrab: 15, priceLineman: 14, currentStock: 48, status: 'Active', image: FALLBACK_IMG },
-  { name: 'นมเย็น', cost: 14, priceCash: 30, priceGrab: 40, priceLineman: 38, currentStock: 0, status: 'Out of Stock', image: FALLBACK_IMG },
-  { name: 'โดนัทช็อกโกแลต', cost: 12, priceCash: 25, priceGrab: 34, priceLineman: 32, currentStock: 14, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ผัดไทยกุ้งสด', cost: 40, priceCash: 70, priceGrab: 89, priceLineman: 85, currentStock: 9, status: 'Active', image: FALLBACK_IMG },
-  { name: 'มาม่าต้มยำทะเล', cost: 30, priceCash: 55, priceGrab: 70, priceLineman: 67, currentStock: 11, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ลูกชิ้นปิ้ง', cost: 15, priceCash: 25, priceGrab: 34, priceLineman: 32, currentStock: 25, status: 'Active', image: FALLBACK_IMG },
-  { name: 'วุ้นมะพร้าว', cost: 8, priceCash: 15, priceGrab: 22, priceLineman: 20, currentStock: 16, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ยำมาม่า', cost: 25, priceCash: 45, priceGrab: 58, priceLineman: 55, currentStock: 7, status: 'Active', image: FALLBACK_IMG },
-  { name: 'ส้มตำไทย', cost: 25, priceCash: 45, priceGrab: 58, priceLineman: 55, currentStock: 13, status: 'Active', image: FALLBACK_IMG },
-  { name: 'หมูปิ้งไม้', cost: 7, priceCash: 12, priceGrab: 17, priceLineman: 16, currentStock: 40, status: 'Active', image: FALLBACK_IMG },
-  { name: '7-Up กระป๋อง', cost: 10, priceCash: 18, priceGrab: 25, priceLineman: 23, currentStock: 24, status: 'Active', image: FALLBACK_IMG },
-  { name: 'Coke Zero', cost: 12, priceCash: 20, priceGrab: 28, priceLineman: 26, currentStock: 22, status: 'Active', image: FALLBACK_IMG },
-  { name: 'Pepsi กระป๋อง', cost: 10, priceCash: 18, priceGrab: 25, priceLineman: 23, currentStock: 19, status: 'Active', image: FALLBACK_IMG },
-]
 
 // ==========================================
 // จัดกลุ่มตัวอักษรสำหรับหน้าขาย POS (logic เดิมจาก script.html)
@@ -127,13 +105,24 @@ export default function POSPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
 
-  // TODO: แทนด้วย Server Action getProducts (ตอนนี้จำลองการโหลดข้อมูล)
   useEffect(() => {
-    const t = setTimeout(() => {
-      setProducts(MOCK_PRODUCTS)
-      setIsLoading(false)
-    }, 600)
-    return () => clearTimeout(t)
+    let active = true
+    fetch('/api/products', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load products')
+        return res.json() as Promise<{ products: Product[] }>
+      })
+      .then((data) => {
+        if (active) setProducts(data.products)
+      })
+      .catch((error) => {
+        console.error(error)
+        if (active) setAlertModal({ open: true, title: 'โหลดข้อมูลไม่สำเร็จ', message: 'ไม่สามารถโหลดรายการสินค้าจากฐานข้อมูลได้' })
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+    return () => { active = false }
   }, [])
 
   // 12 รายการ/หน้า (จอเล็ก) หรือ 16 รายการ/หน้า (จอ xl ขึ้นไป) — สลับอัตโนมัติเมื่อขนาดจอเปลี่ยน

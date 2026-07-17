@@ -15,26 +15,22 @@ import {
 } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
 
-// ==========================================
-// Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
-// ==========================================
-const MOCK_STATS = {
-  totalSales: 45690,
-  netRevenue: 41121,
-  totalCost: 28450,
-  netProfit: 12671,
-  channelSales: [
-    { name: 'เงินสด', sales: 25400 },
-    { name: 'Grab', sales: 12890 },
-    { name: 'LINE MAN', sales: 7400 },
-  ],
-  topProducts: [
-    { name: 'ข้าวกล่องกะเพราไก่', qty: 42, sales: 2520 },
-    { name: 'น้ำเปล่า 600ml', qty: 38, sales: 380 },
-    { name: 'ขนมปังสังขยา', qty: 25, sales: 750 },
-    { name: 'กาแฟเย็น', qty: 21, sales: 630 },
-    { name: 'ข้าวเหนียวหมูปิ้ง', qty: 18, sales: 540 },
-  ],
+type DashboardStats = {
+  totalSales: number
+  netRevenue: number
+  totalCost: number
+  netProfit: number
+  channelSales: { name: string; sales: number }[]
+  topProducts: { name: string; qty: number; sales: number }[]
+}
+
+const EMPTY_STATS: DashboardStats = {
+  totalSales: 0,
+  netRevenue: 0,
+  totalCost: 0,
+  netProfit: 0,
+  channelSales: [],
+  topProducts: [],
 }
 
 const _thbFormatter = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' })
@@ -115,13 +111,32 @@ export default function DashboardPage() {
   const now = new Date()
   const [startDate, setStartDate] = useState(toLocalISODate(new Date(now.getFullYear(), now.getMonth(), 1)))
   const [endDate, setEndDate] = useState(toLocalISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
-  const [stats, setStats] = useState<typeof MOCK_STATS | null>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loadError, setLoadError] = useState('')
 
-  // TODO: แทนด้วย Server Action getDashboardStats (ตอนนี้จำลองการโหลดข้อมูล)
   useEffect(() => {
-    const t = setTimeout(() => setStats(MOCK_STATS), 600)
-    return () => clearTimeout(t)
-  }, [])
+    let active = true
+    const params = new URLSearchParams()
+    if (startDate) params.set('startDate', startDate)
+    if (endDate) params.set('endDate', endDate)
+    fetch(`/api/dashboard?${params.toString()}`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load dashboard stats')
+        return res.json() as Promise<DashboardStats>
+      })
+      .then((data) => {
+        if (!active) return
+        setLoadError('')
+        setStats(data)
+      })
+      .catch((error) => {
+        console.error(error)
+        if (!active) return
+        setLoadError('โหลดข้อมูลแดชบอร์ดจากฐานข้อมูลไม่สำเร็จ')
+        setStats(EMPTY_STATS)
+      })
+    return () => { active = false }
+  }, [startDate, endDate])
 
   // แสดง loading ระหว่างรอโหลดข้อมูล
   if (!stats) return <Loader text="โหลดข้อมูลแดชบอร์ด..." />
@@ -147,6 +162,8 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full flex flex-col p-margin-mobile md:p-margin-desktop w-full overflow-y-auto no-scrollbar bg-background">
+      {loadError && <div className="mb-md rounded-xl border border-error/20 bg-error-container/20 p-3 text-sm font-medium text-error">{loadError}</div>}
+
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-md mb-xl flex-shrink-0">
         <div className="hidden md:flex items-stretch gap-4">

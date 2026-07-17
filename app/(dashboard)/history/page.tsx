@@ -23,10 +23,11 @@ import { thbFormat, currentMonthRange } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
-// Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action getSalesHistory)
-// 1 แถว = สินค้า 1 รายการในออเดอร์ (โครงเดียวกับข้อมูลชีตเดิม)
+// Types
+// 1 แถว = สินค้า 1 รายการในออเดอร์
 // ==========================================
 type HistoryRow = {
+  id?: string
   orderId: string
   date: string
   channel: string
@@ -46,24 +47,6 @@ type OrderGroup = {
   items: { productName: string; qty: number; totalSales: number; netProfit: number }[]
   totalSales: number
   netProfit: number
-}
-
-function buildMockHistory(): HistoryRow[] {
-  const now = new Date()
-  const d = (day: number, h: number, m: number) =>
-    new Date(now.getFullYear(), now.getMonth(), day, h, m).toISOString()
-
-  return [
-    { orderId: 'ORD-A1B2C3D4E5F6', date: d(2, 10, 15), channel: 'Cash (เงินสด)', note: '', productName: 'ข้าวกล่องกะเพราไก่', qty: 2, totalSales: 120, netProfit: 50, gpRate: 0 },
-    { orderId: 'ORD-A1B2C3D4E5F6', date: d(2, 10, 15), channel: 'Cash (เงินสด)', note: '', productName: 'น้ำเปล่า 600ml', qty: 1, totalSales: 10, netProfit: 5, gpRate: 0 },
-    { orderId: 'ORD-G7H8I9J1K2L3', date: d(5, 12, 40), channel: 'Grab', note: 'ไม่ใส่ผัก', productName: 'ชาไทยเย็น', qty: 3, totalSales: 120, netProfit: 42, gpRate: 0.3 },
-    { orderId: 'ORD-M4N5O6P7Q8R9', date: d(9, 17, 5), channel: 'LINE MAN', note: '', productName: 'ผัดไทยกุ้งสด', qty: 1, totalSales: 85, netProfit: 21, gpRate: 0.28 },
-    { orderId: 'ORD-M4N5O6P7Q8R9', date: d(9, 17, 5), channel: 'LINE MAN', note: '', productName: 'วุ้นมะพร้าว', qty: 2, totalSales: 40, netProfit: 9, gpRate: 0.28 },
-    { orderId: 'ORD-S1T2U3V4W5X6', date: d(12, 9, 30), channel: 'Cash (เงินสด)', note: 'ลูกค้าประจำ', productName: 'หมูปิ้งไม้', qty: 5, totalSales: 60, netProfit: 25, gpRate: 0 },
-    { orderId: 'ORD-Y7Z8A9B1C2D3', date: d(15, 13, 20), channel: 'Grab', note: '', productName: 'มาม่าต้มยำทะเล', qty: 1, totalSales: 70, netProfit: 3, gpRate: 0.3 },
-    { orderId: 'ORD-E4F5G6H7I8J9', date: d(16, 18, 45), channel: 'Cash (เงินสด)', note: '', productName: 'ส้มตำไทย', qty: 2, totalSales: 90, netProfit: 40, gpRate: 0 },
-    { orderId: 'ORD-E4F5G6H7I8J9', date: d(16, 18, 45), channel: 'Cash (เงินสด)', note: '', productName: 'ไก่ทอด', qty: 3, totalSales: 60, netProfit: 24, gpRate: 0 },
-  ]
 }
 
 // ฟอร์แมตวันที่ให้อ่านง่าย เช่น "10:15 | 2 ก.ค." (logic เดิมจาก updateHistoryUI)
@@ -152,15 +135,7 @@ export default function HistoryPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
   const [isLoading, setIsLoading] = useState(true)
   const [allData, setAllData] = useState<HistoryRow[]>([])
-
-  // TODO: แทนด้วย Server Action getSalesHistory (ตอนนี้จำลองการโหลดข้อมูล)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setAllData(buildMockHistory())
-      setIsLoading(false)
-    }, 600)
-    return () => clearTimeout(t)
-  }, [])
+  const [loadError, setLoadError] = useState('')
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
   const [endDate, setEndDate] = useState(monthRange.end)
@@ -170,6 +145,30 @@ export default function HistoryPage() {
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; orderIds: string[] }>({ open: false, orderIds: [] })
 
+  useEffect(() => {
+    let active = true
+    const params = new URLSearchParams()
+    if (startDate) params.set('startDate', startDate)
+    if (endDate) params.set('endDate', endDate)
+    fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load sales history')
+        return res.json() as Promise<{ rows: HistoryRow[] }>
+      })
+      .then((data) => {
+        if (!active) return
+        setLoadError('')
+        setAllData(data.rows)
+      })
+      .catch((error) => {
+        console.error(error)
+        if (active) setLoadError('โหลดข้อมูลประวัติการขายจากฐานข้อมูลไม่สำเร็จ')
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+    return () => { active = false }
+  }, [startDate, endDate])
   // 1. Group by orderId ก่อน (logic เดิมจาก renderHistoryTable)
   const grouped = useMemo(() => {
     const groups: Record<string, OrderGroup> = {}
@@ -385,6 +384,8 @@ export default function HistoryPage() {
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
+        {loadError && <div className="mb-md rounded-xl border border-error/20 bg-error-container/20 p-3 text-sm font-medium text-error">{loadError}</div>}
+
         {/* Page Header */}
         <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl flex-shrink-0">
           <div className="flex items-stretch gap-4">

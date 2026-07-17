@@ -14,10 +14,10 @@ import { currentMonthRange, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
-// Types & Mock Data (รอเชื่อมต่อ Google Sheets ผ่าน Server Action)
-// โครงข้อมูลเดิม: [Timestamp, ProductId, ProductName, Quantity, Restock, Note]
+// Types
 // ==========================================
 type StockInRow = {
+  id?: string
   date: string
   productId: string
   productName: string
@@ -25,23 +25,7 @@ type StockInRow = {
   note: string
 }
 
-function buildMockStockIn(): StockInRow[] {
-  const now = new Date()
-  const d = (day: number, h: number, m: number) =>
-    new Date(now.getFullYear(), now.getMonth(), day, h, m).toISOString()
-
-  return [
-    { date: d(1, 8, 30), productId: 'P001', productName: 'น้ำเปล่า 600ml', qty: 72, note: 'สต็อกเริ่มต้นเดือน' },
-    { date: d(1, 8, 45), productId: 'P002', productName: 'กาแฟเย็น', qty: 30, note: '' },
-    { date: d(3, 9, 10), productId: 'P003', productName: 'ข้าวกล่องกะเพราไก่', qty: 20, note: 'รอบเช้า' },
-    { date: d(6, 14, 0), productId: 'P004', productName: 'ไก่ทอด', qty: 40, note: '' },
-    { date: d(9, 10, 20), productId: 'P005', productName: 'ชาไทยเย็น', qty: 25, note: '' },
-    { date: d(12, 11, 5), productId: 'P006', productName: 'หมูปิ้งไม้', qty: 50, note: 'สั่งเพิ่มจากซัพพลายเออร์' },
-    { date: d(15, 16, 40), productId: 'P007', productName: 'โดนัทช็อกโกแลต', qty: 20, note: '' },
-  ]
-}
-
-const rowKey = (row: StockInRow) => JSON.stringify({ date: row.date, productName: row.productName })
+const rowKey = (row: StockInRow) => row.id ?? JSON.stringify({ date: row.date, productName: row.productName })
 
 // ฟอร์แมตวันที่ เช่น "1 ก.ค. 2569 08:30" (logic เดิมจาก updateStockInUI)
 const formatStockInDate = (date: string) =>
@@ -53,22 +37,39 @@ export default function StockInPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
   const [isLoading, setIsLoading] = useState(true)
   const [allData, setAllData] = useState<StockInRow[]>([])
-
-  // TODO: แทนด้วย Server Action (ตอนนี้จำลองการโหลดข้อมูล)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setAllData(buildMockStockIn())
-      setIsLoading(false)
-    }, 600)
-    return () => clearTimeout(t)
-  }, [])
+  const [loadError, setLoadError] = useState('')
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
   const [endDate, setEndDate] = useState(monthRange.end)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [selected, setSelected] = useState<Set<string>>(new Set()) // เก็บ key {date, productName}
+  const [selected, setSelected] = useState<Set<string>>(new Set()) // เก็บ id หรือ key {date, productName}
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    const params = new URLSearchParams()
+    if (startDate) params.set('startDate', startDate)
+    if (endDate) params.set('endDate', endDate)
+    fetch(`/api/stock-in?${params.toString()}`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load stock-in history')
+        return res.json() as Promise<{ rows: StockInRow[] }>
+      })
+      .then((data) => {
+        if (!active) return
+        setLoadError('')
+        setAllData(data.rows)
+      })
+      .catch((error) => {
+        console.error(error)
+        if (active) setLoadError('โหลดข้อมูลประวัติการรับเข้าจากฐานข้อมูลไม่สำเร็จ')
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+    return () => { active = false }
+  }, [startDate, endDate])
 
   // กรองตามชื่อสินค้า + ช่วงวันที่ (logic เดิมจาก renderStockInTable)
   const filtered = useMemo(() => {
@@ -176,6 +177,8 @@ export default function StockInPage() {
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
+        {loadError && <div className="mb-md rounded-xl border border-error/20 bg-error-container/20 p-3 text-sm font-medium text-error">{loadError}</div>}
+
         {/* Page Header */}
         <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl flex-shrink-0">
           <div className="flex items-stretch gap-4">
