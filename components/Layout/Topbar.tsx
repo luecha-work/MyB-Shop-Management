@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { useRouter } from 'next/navigation'
-import { Button, Menu, Popover } from 'antd'
+import { Button, Menu, Popover, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import { DownOutlined, LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
 
@@ -11,6 +11,12 @@ type BranchOption = {
   id: string
   branchName: string
 }
+
+const userMenuTooltip = (
+  <span className="text-xs font-normal">
+    กดเพื่อเปิดเมนูผู้ใช้ เลือกดูสาขา จัดการข้อมูล หรือออกจากระบบ
+  </span>
+)
 
 export default function Topbar({ user }: { user: { name: string, role: string, email: string } }) {
   const router = useRouter()
@@ -196,32 +202,34 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
 
         {/* Profile Menu */}
         <div className="flex items-center gap-lg">
-          <Popover
-            content={userMenu}
-            trigger="click"
-            placement="bottomRight"
-            open={desktopMenuOpen}
-            onOpenChange={handleDesktopMenuOpenChange}
-            destroyOnHidden
-            styles={{ content: { padding: 0, borderRadius: 12 } }}
-          >
-            <Button type="text" className="h-auto px-2 py-1.5">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-8 h-8 rounded-full ${isAdmin ? 'bg-secondary-container text-on-secondary-container' : 'bg-primary-fixed text-on-primary-fixed'} flex items-center justify-center font-bold`}
-                >
-                  {userInitial}
+          <Tooltip title={userMenuTooltip} color="#6b7280">
+            <Popover
+              content={userMenu}
+              trigger="click"
+              placement="bottomRight"
+              open={desktopMenuOpen}
+              onOpenChange={handleDesktopMenuOpenChange}
+              destroyOnHidden
+              styles={{ content: { padding: 0, borderRadius: 12 } }}
+            >
+              <Button type="text" className="h-auto px-2 py-1.5 hover:!bg-transparent active:!bg-transparent">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-full ${isAdmin ? 'bg-secondary-container text-on-secondary-container' : 'bg-primary-fixed text-on-primary-fixed'} flex items-center justify-center font-bold`}
+                  >
+                    {userInitial}
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span className="font-body-md font-medium leading-none">{user.name}</span>
+                    <span className="text-[10px] text-secondary font-bold leading-none mt-1">
+                      {canSelectBranch ? `${user.role} · ${selectedBranchLabel}` : user.role}
+                    </span>
+                  </div>
+                  <DownOutlined className="text-[12px] text-on-surface-variant" />
                 </div>
-                <div className="flex flex-col items-start">
-                  <span className="font-body-md font-medium leading-none">{user.name}</span>
-                  <span className="text-[10px] text-secondary font-bold leading-none mt-1">
-                    {canSelectBranch ? `${user.role} · ${selectedBranchLabel}` : user.role}
-                  </span>
-                </div>
-                <DownOutlined className="text-[12px] text-on-surface-variant" />
-              </div>
-            </Button>
-          </Popover>
+              </Button>
+            </Popover>
+          </Tooltip>
         </div>
       </header>
 
@@ -232,28 +240,29 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
           <span className="font-bold text-lg text-primary tracking-tight">My.B</span>
         </div>
         <div className="flex gap-sm">
-          <Popover
-            content={userMenu}
-            trigger="click"
-            placement="bottomRight"
-            open={mobileMenuOpen}
-            onOpenChange={handleMobileMenuOpenChange}
-            destroyOnHidden
-            styles={{ content: { padding: 0, borderRadius: 12 } }}
-          >
-            <button
-              type="button"
-              title="เมนูผู้ใช้"
-              className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary relative interactive-press"
+          <Tooltip title={userMenuTooltip} color="#6b7280">
+            <Popover
+              content={userMenu}
+              trigger="click"
+              placement="bottomRight"
+              open={mobileMenuOpen}
+              onOpenChange={handleMobileMenuOpenChange}
+              destroyOnHidden
+              styles={{ content: { padding: 0, borderRadius: 12 } }}
             >
-              <UserOutlined className="text-[20px]" />
-              <span
-                className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${isAdmin ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'} text-[9px] font-extrabold flex items-center justify-center border-2 border-white`}
+              <button
+                type="button"
+                className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary relative interactive-press hover:bg-surface-container"
               >
-                {normalizedRole === 'OWNER' ? 'OWN' : isAdmin ? 'ADM' : 'STF'}
-              </span>
-            </button>
-          </Popover>
+                <UserOutlined className="text-[20px]" />
+                <span
+                  className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${isAdmin ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'} text-[9px] font-extrabold flex items-center justify-center border-2 border-white`}
+                >
+                  {normalizedRole === 'OWNER' ? 'OWN' : isAdmin ? 'ADM' : 'STF'}
+                </span>
+              </button>
+            </Popover>
+          </Tooltip>
         </div>
       </header>
     </>
