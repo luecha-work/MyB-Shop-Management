@@ -242,3 +242,58 @@ body {
   background: color-mix(in srgb, var(--color-secondary) 8%, white) !important;
   color: var(--color-on-surface) !important;
 }
+
+.ant-dropdown-menu .ant-dropdown-menu-item-selected,
+.ant-dropdown-menu .ant-dropdown-menu-submenu-title-selected {
+  background: color-mix(in srgb, var(--color-secondary) 14%, white) !important;
+  color: var(--color-on-surface) !important;
+}
+
+.ant-dropdown-menu .ant-dropdown-menu-item-selected .ant-dropdown-menu-title-content,
+.ant-dropdown-menu .ant-dropdown-menu-item-selected .anticon {
+  color: var(--color-on-surface) !important;
+}
+
+.ant-dropdown-menu .ant-dropdown-menu-item-active,
+.ant-dropdown-menu .ant-dropdown-menu-submenu-title-active {
+  background: color-mix(in srgb, var(--color-secondary) 8%, white) !important;
+  color: var(--color-on-surface) !important;
+}
+
+.profile-menu-popover .ant-menu {
+  background: transparent !important;
+}
+
+.profile-menu-popover .ant-menu-item,
+.profile-menu-popover .ant-menu-submenu-title {
+  border-radius: 10px !important;
+  color: var(--color-on-surface) !important;
+}
+
+.profile-menu-popover .ant-menu-item-selected {
+  background: color-mix(in srgb, var(--color-secondary) 14%, white) !important;
+  color: var(--color-on-surface) !important;
+  font-weight: 600;
+}
+
+.profile-menu-popover .ant-menu-item-active,
+.profile-menu-popover .ant-menu-submenu-title:hover {
+  background: color-mix(in srgb, var(--color-secondary) 8%, white) !important;
+  color: var(--color-on-surface) !important;
+}
+
+.profile-menu-popover .ant-menu-submenu-open > .ant-menu-submenu-title {
+  background: color-mix(in srgb, var(--color-secondary) 8%, white) !important;
+  color: var(--color-on-surface) !important;
+}
+
+.profile-menu-popover .ant-menu-item-danger,
+.profile-menu-popover .ant-menu-item-danger .anticon {
+  color: var(--color-error) !important;
+}
+
+.profile-menu-popover .ant-menu-item-danger:hover,
+.profile-menu-popover .ant-menu-item-danger.ant-menu-item-active {
+  background: color-mix(in srgb, var(--color-error) 8%, white) !important;
+  color: var(--color-error) !important;
+}

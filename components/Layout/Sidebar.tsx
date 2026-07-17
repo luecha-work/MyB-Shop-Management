@@ -2,16 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Button } from 'antd'
 import {
   DashboardOutlined,
   TransactionOutlined,
   HistoryOutlined,
   AppstoreOutlined,
   InboxOutlined,
-  LogoutOutlined,
 } from '@ant-design/icons'
-import { logout } from '@/lib/actions/auth'
 
 export default function Sidebar({ userRole }: { userRole: string }) {
   const pathname = usePathname()
@@ -49,21 +46,6 @@ export default function Sidebar({ userRole }: { userRole: string }) {
           )
         })}
       </ul>
-
-      {/* ปุ่มออกจากระบบ — ล่างสุดของ Sidebar (แดงอ่อน) */}
-      <div className="px-2 xl:px-md mt-auto pt-md border-t border-outline-variant/30">
-        <Button
-          color="danger"
-          variant="filled"
-          block
-          icon={<LogoutOutlined className="text-[18px]" />}
-          onClick={() => logout()}
-          title="ออกจากระบบ"
-          className="h-11 font-body-md"
-        >
-          <span className="hidden xl:inline">ออกจากระบบ</span>
-        </Button>
-      </div>
     </nav>
   )
 }
