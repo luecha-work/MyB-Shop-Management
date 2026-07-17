@@ -39,7 +39,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `lib/actions/auth.ts`: login/logout/getSession Server Actions.
 - `lib/db.ts`: Shared PostgreSQL connection pool and small DB value helpers. Requires `DATABASE_URL`.
 - `lib/format.ts`: Shared helpers — `thbFormat` (฿ th-TH), `formatNum`, `toLocalISODate`, `currentMonthRange` (default date-range = current month, mirrors original `resetViewState`).
-- `db/schema.sql`: Idempotent PostgreSQL schema for roles, branches, products, users, sales, stock_in, and indexes.
+- `db/schema.sql`: Idempotent PostgreSQL schema for roles, branches, products, users, sales, stock_in, and indexes. The `users` table stores credentials in `password_hash`; never store plain-text passwords.
 
 ---
 
