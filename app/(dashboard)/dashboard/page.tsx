@@ -24,25 +24,25 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card bordered={false} className="shadow-sm overflow-hidden group">
+          <Card variant="borderless" className="shadow-sm overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-20 h-20 bg-secondary/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
             <p className="text-on-surface-variant font-label-md font-bold mb-1">ยอดขายรวม</p>
             <h3 className="font-headline-xl text-primary leading-tight m-0">฿0.00</h3>
           </Card>
           
-          <Card bordered={false} className="shadow-sm overflow-hidden group">
+          <Card variant="borderless" className="shadow-sm overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-20 h-20 bg-[#1e8e3e]/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
             <p className="text-on-surface-variant font-label-md font-bold mb-1">รายได้สุทธิ</p>
             <h3 className="font-headline-xl text-[#1e8e3e] leading-tight m-0">฿0.00</h3>
           </Card>
           
-          <Card bordered={false} className="shadow-sm overflow-hidden group">
+          <Card variant="borderless" className="shadow-sm overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-20 h-20 bg-error/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
             <p className="text-on-surface-variant font-label-md font-bold mb-1">ต้นทุนรวม</p>
             <h3 className="font-headline-xl text-error leading-tight m-0">฿0.00</h3>
           </Card>
           
-          <Card bordered={false} className="shadow-sm overflow-hidden group">
+          <Card variant="borderless" className="shadow-sm overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
             <p className="text-on-surface-variant font-label-md font-bold mb-1">กำไรสุทธิ</p>
             <h3 className="font-headline-xl text-primary leading-tight m-0">฿0.00</h3>

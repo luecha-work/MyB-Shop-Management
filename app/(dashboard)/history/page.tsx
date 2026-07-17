@@ -79,7 +79,7 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <Card bordered={false} className="shadow-sm" bodyStyle={{ padding: 0 }}>
+        <Card variant="borderless" className="shadow-sm" styles={{ body: { padding: 0 } }}>
           <Table 
             columns={columns} 
             dataSource={data} 

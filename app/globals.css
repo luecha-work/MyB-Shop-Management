@@ -61,12 +61,7 @@
   --shadow-sm-card: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.02);
   --shadow-sidebar: -6px 0 30px rgba(0, 0, 0, 0.06);
 
-  --spacing-sm: 8px;
-  --spacing-base: 4px;
-  --spacing-lg: 24px;
-  --spacing-md: 16px;
   --spacing-container-max: 1280px;
-  --spacing-xl: 40px;
   --spacing-margin-mobile: 16px;
   --spacing-xs: 4px;
   --spacing-gutter: 16px;
