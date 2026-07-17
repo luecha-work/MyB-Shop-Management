@@ -541,7 +541,7 @@ export default function POSPage() {
         open={mobileCartOpen}
         onClose={() => setMobileCartOpen(false)}
         placement="bottom"
-        height="90dvh"
+        size="90dvh"
         closeIcon={null}
         rootClassName="lg:hidden"
         styles={{
