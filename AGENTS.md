@@ -69,6 +69,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **Tables:** antd `Table` with `rowSelection` (keys mirror a `Set` in state), built-in pagination (`pageSizeOptions [10,15,20,25,30]`, Thai `showTotal` "แสดง X-Y จาก Z รายการ"). Data is pre-filtered/sliced in `useMemo`; pass the page slice + `total`. Mobile card lists pair with a standalone antd `Pagination size="small"`.
 - **Dates:** Keep state as `YYYY-MM-DD` strings; antd `DatePicker` converts via `value={v ? dayjs(v) : null}` / `onChange={(d) => set(d?.format('YYYY-MM-DD') ?? '')}`, display `format="DD/MM/YYYY"`.
 - **Modals:** antd `Modal` (centered, custom `title`/`footer` per the original design). POS mobile cart = antd `Drawer placement="bottom" size="90dvh"` — antd v6 API: use `size` (not `width`/`height`) and `styles.section` (not `styles.content`).
+- **Inventory product modal:** Add/edit product keeps the product name full-width, while price and stock numeric fields are arranged as two inputs per row. Numeric `InputNumber` controls must stretch to the full width of their grid cell.
 - **Inputs:** antd v6 deprecates `Input addonAfter`; use `Space.Compact` for input + attached action buttons.
 - **Loading:** Pages render `<Loader text="..." />` until their API fetch resolves. `dashboard`, `history`, and `stockin` refetch when date filters change.
 - **Design System:** Premium Material-3-like aesthetic — `shadow-card` + `border-outline-variant/80` on cards, header, sidebar, and bottom nav; 12px radius; `interactive-press` for press feedback.

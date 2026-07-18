@@ -93,6 +93,7 @@ function NumberField({
       status={hasError ? 'error' : undefined}
       placeholder={placeholder}
       className="w-full"
+      style={{ width: '100%' }}
       size="large"
     />
   )
