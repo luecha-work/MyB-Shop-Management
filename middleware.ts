@@ -1,46 +1,90 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { decodeSessionToken, type Session } from '@/lib/auth/session'
+import { signAccessToken } from '@/lib/auth/jwt'
 
 const ACCESS_TOKEN_MAX_AGE = 60 * 60 // 1 hour
 
-const readSessionRole = (value: string) => {
-  try {
-    const session = JSON.parse(value) as { role?: string }
-    return session.role
-  } catch {
-    return null
-  }
-}
+const isJwt = (value: string): boolean =>
+  value.split('.').length === 3 && value.startsWith('eyJ')
 
-export function middleware(request: NextRequest) {
-  const accessToken = request.cookies.get('access_token')
-  const refreshToken = request.cookies.get('refresh_token')
-  const legacySession = request.cookies.get('auth_session')
-  const authCookie = accessToken ?? refreshToken ?? legacySession
+export async function middleware(request: NextRequest) {
+  const accessTokenCookie = request.cookies.get('access_token')
+  const refreshTokenCookie = request.cookies.get('refresh_token')
+  const legacySessionCookie = request.cookies.get('auth_session')
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
-  const applyAccessRefresh = (response: NextResponse) => {
-    if (!accessToken && refreshToken) {
-      response.cookies.set('access_token', refreshToken.value, {
+
+  // Priority: access_token > refresh_token > auth_session (legacy)
+  let session: Session | null = accessTokenCookie
+    ? await decodeSessionToken(accessTokenCookie.value)
+    : null
+
+  if (!session && refreshTokenCookie) {
+    session = await decodeSessionToken(refreshTokenCookie.value)
+  }
+
+  if (!session && legacySessionCookie) {
+    session = await decodeSessionToken(legacySessionCookie.value)
+  }
+
+  const response = NextResponse.next()
+
+  // Token refresh: if access_token is missing but we have a valid session from refresh_token,
+  // issue a new JWT access_token
+  if (session && !accessTokenCookie && refreshTokenCookie) {
+    try {
+      const newAccessToken = await signAccessToken(session)
+      response.cookies.set('access_token', newAccessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: ACCESS_TOKEN_MAX_AGE,
         path: '/',
         sameSite: 'lax',
       })
+    } catch {
+      // If signing fails (e.g. missing JWT_SECRET), continue without refresh
     }
-    return response
   }
 
-  const authenticatedHome = () => {
-    const role = authCookie ? readSessionRole(authCookie.value) : null
-    return role === 'STAFF' ? '/pos' : '/dashboard'
+  // Legacy refresh fallback: old JSON sessions still valid during migration (24h window)
+  if (
+    !session &&
+    !accessTokenCookie &&
+    refreshTokenCookie &&
+    !isJwt(refreshTokenCookie.value)
+  ) {
+    try {
+      const legacy = JSON.parse(refreshTokenCookie.value) as Record<string, unknown>
+      if (legacy?.userId) {
+        session = {
+          userId: String(legacy.userId),
+          role: (legacy.role as Session['role']) ?? 'STAFF',
+          name: String(legacy.name ?? ''),
+          email: String(legacy.email ?? ''),
+          branchId: legacy.branchId ? String(legacy.branchId) : null,
+          branchName: legacy.branchName ? String(legacy.branchName) : null,
+        }
+        response.cookies.set('access_token', refreshTokenCookie.value, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: ACCESS_TOKEN_MAX_AGE,
+          path: '/',
+          sameSite: 'lax',
+        })
+      }
+    } catch {
+      // Legacy cookie is malformed — ignore
+    }
   }
 
-  if (!authCookie && !isAuthPage) {
+  const role = session?.role ?? null
+
+  const authenticatedHome = () => (role === 'STAFF' ? '/pos' : '/dashboard')
+
+  if (!session && !isAuthPage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const role = authCookie ? readSessionRole(authCookie.value) : null
   const isAdminRoute =
     request.nextUrl.pathname === '/users' ||
     request.nextUrl.pathname.startsWith('/users/') ||
@@ -48,18 +92,18 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/branches')
 
   if (role === 'STAFF' && isAdminRoute) {
-    return applyAccessRefresh(NextResponse.redirect(new URL('/pos', request.url)))
+    return NextResponse.redirect(new URL('/pos', request.url))
   }
 
-  if (authCookie && isAuthPage) {
-    return applyAccessRefresh(NextResponse.redirect(new URL(authenticatedHome(), request.url)))
+  if (session && isAuthPage) {
+    return NextResponse.redirect(new URL(authenticatedHome(), request.url))
   }
 
-  if (request.nextUrl.pathname === '/' && authCookie) {
-    return applyAccessRefresh(NextResponse.redirect(new URL(authenticatedHome(), request.url)))
+  if (request.nextUrl.pathname === '/' && session) {
+    return NextResponse.redirect(new URL(authenticatedHome(), request.url))
   }
 
-  return applyAccessRefresh(NextResponse.next())
+  return response
 }
 
 export const config = {

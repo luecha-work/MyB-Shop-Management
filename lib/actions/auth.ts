@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { decodeSessionToken, type Session } from '@/lib/auth/session'
+import { signAccessToken, signRefreshToken } from '@/lib/auth/jwt'
 
 type LoginState = { error?: string } | null | undefined
 
@@ -25,8 +26,6 @@ const normalizeRole = (roleName: string): Session['role'] => {
   if (role === 'OWNER' || role === 'ADMIN' || role === 'STAFF') return role
   return 'STAFF'
 }
-
-const encodeToken = (session: Session) => JSON.stringify(session)
 
 export async function login(_prevState: LoginState, formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
@@ -75,18 +74,21 @@ export async function login(_prevState: LoginState, formData: FormData) {
     }
 
     const cookieStore = await cookies()
-    const token = encodeToken(session)
+    const [accessTokenValue, refreshTokenValue] = await Promise.all([
+      signAccessToken(session),
+      signRefreshToken(session),
+    ])
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       path: '/',
       sameSite: 'lax' as const,
     }
-    cookieStore.set('access_token', token, {
+    cookieStore.set('access_token', accessTokenValue, {
       ...cookieOptions,
       maxAge: ACCESS_TOKEN_MAX_AGE,
     })
-    cookieStore.set('refresh_token', token, {
+    cookieStore.set('refresh_token', refreshTokenValue, {
       ...cookieOptions,
       maxAge: REFRESH_TOKEN_MAX_AGE,
     })

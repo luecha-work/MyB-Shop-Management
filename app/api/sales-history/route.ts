@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
   const startDate = toDateParam(request.nextUrl.searchParams.get('startDate'), firstDay)
   const endDate = toDateParam(request.nextUrl.searchParams.get('endDate'), lastDay)
-  const session = sessionFromRequest(request)
+  const session = await sessionFromRequest(request)
   const branchId = session?.role === 'STAFF'
     ? toUuidParam(session.branchId)
     : toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())

@@ -40,7 +40,7 @@ const toBranchResponse = (branch: BranchRecord, users: BranchUserRecord[] = []) 
 })
 
 export async function GET(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  if (!canManageSettings(await sessionFromRequest(request))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  if (!canManageSettings(await sessionFromRequest(request))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  if (!canManageSettings(await sessionFromRequest(request))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -209,7 +209,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  if (!canManageSettings(await sessionFromRequest(request))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

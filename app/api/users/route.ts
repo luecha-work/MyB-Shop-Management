@@ -12,7 +12,7 @@ const generateTemporaryPassword = () => {
 }
 
 export async function GET(request: NextRequest) {
-  const session = sessionFromRequest(request)
+  const session = await sessionFromRequest(request)
   if (!canManageSettings(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  if (!canManageSettings(await sessionFromRequest(request))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!canManageSettings(sessionFromRequest(request))) {
+  if (!canManageSettings(await sessionFromRequest(request))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -220,7 +220,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = sessionFromRequest(request)
+  const session = await sessionFromRequest(request)
   if (!canManageSettings(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
