@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
@@ -156,30 +156,55 @@ export default function HistoryPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteErrorMsg, setDeleteErrorMsg] = useState('')
 
-  useEffect(() => {
-    let active = true
+  const loadHistory = useCallback(async (signal?: AbortSignal) => {
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
-    fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load sales history')
-        return res.json() as Promise<{ rows: HistoryRow[] }>
-      })
-      .then((data) => {
-        if (!active) return
-        setLoadError('')
-        setAllData(data.rows)
-      })
+    params.set('_', String(Date.now()))
+
+    const res = await fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store', signal })
+    if (!res.ok) throw new Error('Failed to load sales history')
+    const data = await res.json() as { rows: HistoryRow[] }
+
+    setLoadError('')
+    setAllData(data.rows)
+  }, [startDate, endDate])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    Promise.resolve()
+      .then(() => loadHistory(controller.signal))
       .catch((error) => {
+        if (controller.signal.aborted) return
         console.error(error)
-        if (active) setLoadError('โหลดข้อมูลประวัติการขายจากฐานข้อมูลไม่สำเร็จ')
+        setLoadError('โหลดข้อมูลประวัติการขายจากฐานข้อมูลไม่สำเร็จ')
       })
       .finally(() => {
-        if (active) setIsLoading(false)
+        if (!controller.signal.aborted) setIsLoading(false)
       })
-    return () => { active = false }
-  }, [startDate, endDate])
+
+    return () => controller.abort()
+  }, [loadHistory])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        loadHistory().catch((error) => {
+          console.error(error)
+          setLoadError('โหลดข้อมูลประวัติการขายจากฐานข้อมูลไม่สำเร็จ')
+        })
+      }
+    }
+
+    window.addEventListener('focus', refresh)
+    window.addEventListener('storage', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('storage', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [loadHistory])
   // 1. Group by orderId ก่อน (logic เดิมจาก renderHistoryTable)
   const grouped = useMemo(() => {
     const groups: Record<string, OrderGroup> = {}
@@ -305,14 +330,7 @@ export default function HistoryPage() {
 
       if (!response.ok) throw new Error(data.error || 'ลบประวัติการขายไม่สำเร็จ')
 
-      const params = new URLSearchParams()
-      if (startDate) params.set('startDate', startDate)
-      if (endDate) params.set('endDate', endDate)
-      const reload = await fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store' })
-      if (!reload.ok) throw new Error('ลบแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ')
-      const latest = await reload.json() as { rows: HistoryRow[] }
-
-      setAllData(latest.rows)
+      await loadHistory()
       resetSelection()
       setDeleteConfirm({ open: false, orderIds: [] })
     } catch (error) {

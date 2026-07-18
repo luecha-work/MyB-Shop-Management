@@ -35,6 +35,7 @@ type Product = {
 }
 
 type CartItem = {
+  productId: string
   name: string
   cost: number
   priceCash: number
@@ -102,6 +103,7 @@ export default function POSPage() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const [alertModal, setAlertModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: '', message: '' })
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [isCheckoutSaving, setIsCheckoutSaving] = useState(false)
   const gridScrollRef = useRef<HTMLDivElement>(null)
 
   const [isLoading, setIsLoading] = useState(true)
@@ -201,17 +203,29 @@ export default function POSPage() {
 
   // เพิ่มสินค้าเข้าตะกร้า (ตรวจสอบสต็อกก่อน)
   const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.name === product.name)
-    if (existingItem) {
-      if (existingItem.qty >= Number(product.currentStock)) {
-        showAlertModal('สต็อกไม่เพียงพอ', 'ไม่สามารถเพิ่มสินค้าได้เนื่องจากเกินจำนวนสต็อกที่มีอยู่')
-        return
+    if (!product.id) {
+      showAlertModal('ไม่พบรหัสสินค้า', 'ไม่สามารถเพิ่มสินค้านี้ลงตะกร้าได้')
+      return
+    }
+    const productId = product.id
+
+    const existingItem = cart.find((item) => item.productId === productId)
+    if (existingItem && existingItem.qty >= Number(product.currentStock)) {
+      showAlertModal('สต็อกไม่เพียงพอ', 'ไม่สามารถเพิ่มสินค้าได้เนื่องจากเกินจำนวนสต็อกที่มีอยู่')
+      return
+    }
+
+    setCart((prev) => {
+      const latestItem = prev.find((item) => item.productId === productId)
+      if (latestItem) {
+        if (latestItem.qty >= Number(product.currentStock)) return prev
+        return prev.map((item) => (item.productId === productId ? { ...item, qty: item.qty + 1 } : item))
       }
-      setCart(cart.map((item) => (item.name === product.name ? { ...item, qty: item.qty + 1 } : item)))
-    } else {
-      setCart([
-        ...cart,
+
+      return [
+        ...prev,
         {
+          productId,
           name: product.name,
           cost: product.cost,
           priceCash: product.priceCash,
@@ -219,24 +233,31 @@ export default function POSPage() {
           priceLineman: product.priceLineman,
           qty: 1,
         },
-      ])
-    }
+      ]
+    })
   }
 
   // ปรับจำนวนสินค้าในตะกร้า (+/-)
-  const updateCartItemQty = (name: string, amount: number) => {
-    const item = cart.find((i) => i.name === name)
-    if (!item) return
-    const originalProduct = products.find((p) => p.name === name)
-    if (originalProduct && amount > 0 && item.qty >= Number(originalProduct.currentStock)) {
+  const updateCartItemQty = (productId: string, amount: number) => {
+    const originalProduct = products.find((p) => p.id === productId)
+    const maxStock = Number(originalProduct?.currentStock ?? 0)
+    const currentItem = cart.find((i) => i.productId === productId)
+    if (amount > 0 && originalProduct && currentItem && currentItem.qty >= maxStock) {
       showAlertModal('สต็อกไม่เพียงพอ', 'สินค้าในคลังมีไม่เพียงพอ')
       return
     }
-    setCart(
-      cart
-        .map((i) => (i.name === name ? { ...i, qty: i.qty + amount } : i))
-        .filter((i) => i.qty > 0),
-    )
+
+    setCart((prev) => {
+      const item = prev.find((i) => i.productId === productId)
+      if (!item) return prev
+      if (amount > 0 && originalProduct && item.qty >= maxStock) {
+        return prev
+      }
+
+      return prev
+        .map((i) => (i.productId === productId ? { ...i, qty: i.qty + amount } : i))
+        .filter((i) => i.qty > 0)
+    })
   }
 
   const checkoutOrder = () => {
@@ -257,11 +278,16 @@ export default function POSPage() {
     setTimeout(() => setConfirmOpen(true), 320)
   }
 
-  // TODO: เชื่อม Server Action submitOrder เพื่อบันทึกลงฐานข้อมูล (แทนการจำลองผลสำเร็จ)
-  // การคำนวณ GP พร้อมแล้ว — ค่าที่ต้องบันทึกต่อรายการ:
-  //   unit_price, gp_percent, gp_amount, net_revenue, unit_cost, total_cost, total_sales, net_profit
-  const executeCheckout = () => {
+  const loadProducts = async () => {
+    const res = await fetch('/api/products', { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to load products')
+    const data = await res.json() as { products: Product[] }
+    setProducts(data.products)
+  }
+
+  const executeCheckout = async () => {
     setConfirmOpen(false)
+    setIsCheckoutSaving(true)
 
     let finalOrderId = orderId.trim()
     if (!finalOrderId) {
@@ -288,23 +314,35 @@ export default function POSPage() {
     })
 
     const totalNetProfit = saleLines.reduce((s, line) => s + line.netProfit, 0)
-    console.log('[POS] Checkout prepared:', {
-      orderId: finalOrderId,
-      channel,
-      gpRate,
-      gpRateDisplay: GP_RATE_PERCENT[channel],
-      lines: saleLines,
-      totalNetProfit,
-    })
 
-    // ล้างตะกร้าและฟอร์มทั้งหมดกลับค่าเริ่มต้น
-    setCart([])
-    setOrderId('')
-    setOrderNote('')
-    setSearchText('')
-    setActiveGroup(null)
-    setCurrentPage(1)
-    showAlertModal('บันทึกคำสั่งซื้อสำเร็จ!', `เลขที่ธุรกรรม: ${finalOrderId}\nค่าธรรมเนียม GP: ${GP_RATE_PERCENT[channel] || '0%'} | กำไรสุทธิ: ${thbFormat(totalNetProfit)}`)
+    try {
+      const response = await fetch('/api/sales-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: finalOrderId,
+          channel,
+          note: orderNote.trim(),
+          items: cart.map((item) => ({ productId: item.productId, qty: item.qty })),
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'บันทึกคำสั่งซื้อไม่สำเร็จ')
+
+      await loadProducts()
+      window.localStorage.setItem('myb:last-sale-at', String(Date.now()))
+      setCart([])
+      setOrderId('')
+      setOrderNote('')
+      setSearchText('')
+      setActiveGroup(null)
+      setCurrentPage(1)
+      showAlertModal('บันทึกคำสั่งซื้อสำเร็จ!', `เลขที่ธุรกรรม: ${data.orderId || finalOrderId}\nค่าธรรมเนียม GP: ${GP_RATE_PERCENT[channel] || '0%'} | กำไรสุทธิ: ${thbFormat(totalNetProfit)}`)
+    } catch (error) {
+      showAlertModal('บันทึกคำสั่งซื้อไม่สำเร็จ', error instanceof Error ? error.message : 'กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setIsCheckoutSaving(false)
+    }
   }
 
   const displayOrderId = orderId.trim() || '(รันเลขอัตโนมัติ)'
@@ -331,17 +369,17 @@ export default function POSPage() {
             </div>
             <div className="flex items-center gap-1 border border-outline-variant rounded-xl p-1 bg-surface flex-shrink-0">
               <button
-                onClick={() => updateCartItemQty(item.name, -1)}
-                className="w-7 h-7 flex items-center justify-center text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+                onClick={() => updateCartItemQty(item.productId, -1)}
+                className="w-7 h-7 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded-lg transition-colors font-extrabold"
               >
-                <MinusOutlined className="text-[13px]" />
+                <MinusOutlined className="text-[14px] stroke-[2.5]" />
               </button>
-              <span className="font-label-md w-7 text-center font-bold">{item.qty}</span>
+              <span className="w-7 text-center text-[15px] leading-7 font-extrabold tabular-nums text-primary">{item.qty}</span>
               <button
-                onClick={() => updateCartItemQty(item.name, 1)}
-                className="w-7 h-7 flex items-center justify-center text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+                onClick={() => updateCartItemQty(item.productId, 1)}
+                className="w-7 h-7 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded-lg transition-colors font-extrabold"
               >
-                <PlusOutlined className="text-[13px]" />
+                <PlusOutlined className="text-[14px] stroke-[2.5]" />
               </button>
             </div>
           </div>
@@ -353,17 +391,17 @@ export default function POSPage() {
             </div>
             <div className="flex items-center space-x-1 border border-outline-variant rounded-lg p-1 bg-surface">
               <button
-                onClick={() => updateCartItemQty(item.name, -1)}
-                className="w-6 h-6 flex items-center justify-center text-on-surface hover:bg-surface-variant rounded transition-colors"
+                onClick={() => updateCartItemQty(item.productId, -1)}
+                className="w-6 h-6 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded transition-colors font-extrabold"
               >
-                <MinusOutlined className="text-[13px]" />
+                <MinusOutlined className="text-[14px] stroke-[2.5]" />
               </button>
-              <span className="font-label-md w-6 text-center font-bold">{item.qty}</span>
+              <span className="w-6 text-center text-[14px] leading-6 font-extrabold tabular-nums text-primary">{item.qty}</span>
               <button
-                onClick={() => updateCartItemQty(item.name, 1)}
-                className="w-6 h-6 flex items-center justify-center text-on-surface hover:bg-surface-variant rounded transition-colors"
+                onClick={() => updateCartItemQty(item.productId, 1)}
+                className="w-6 h-6 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded transition-colors font-extrabold"
               >
-                <PlusOutlined className="text-[13px]" />
+                <PlusOutlined className="text-[14px] stroke-[2.5]" />
               </button>
             </div>
           </div>
@@ -730,7 +768,7 @@ export default function POSPage() {
             <Button block onClick={() => setConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">
               ยกเลิก
             </Button>
-            <Button block icon={<CheckCircleOutlined />} onClick={executeCheckout} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<CheckCircleOutlined />} loading={isCheckoutSaving} onClick={executeCheckout} className="ant-btn-secondary-solid h-11">
               ยืนยันการสั่งซื้อ
             </Button>
           </div>

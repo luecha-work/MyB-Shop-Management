@@ -143,10 +143,11 @@ export default function InventoryPage() {
   const [isProductSaving, setIsProductSaving] = useState(false)
   const [editErrors, setEditErrors] = useState<Set<string>>(new Set())
   const [editErrorMsg, setEditErrorMsg] = useState('')
-  const [stockInModal, setStockInModal] = useState<{ open: boolean; productName: string }>({ open: false, productName: '' })
+  const [stockInModal, setStockInModal] = useState<{ open: boolean; productId: string; productName: string }>({ open: false, productId: '', productName: '' })
   const [stockInQty, setStockInQty] = useState('')
   const [stockInNote, setStockInNote] = useState('')
   const [stockInError, setStockInError] = useState('')
+  const [isStockInSaving, setIsStockInSaving] = useState(false)
 
   // กรองตามชื่อสินค้าก่อน slice (logic เดิมจาก renderInventoryTable)
   const filtered = useMemo(() => {
@@ -332,19 +333,42 @@ export default function InventoryPage() {
     setStockInQty('')
     setStockInNote('')
     setStockInError('')
-    setStockInModal({ open: true, productName: p.name })
+    setStockInModal({ open: true, productId: p.id ?? '', productName: p.name })
   }
 
-  // TODO: เชื่อม Server Action addStockRecord (Google Sheets) แทนการแก้ state
-  const saveStockIn = () => {
+  const saveStockIn = async () => {
     const qty = stockInQty.trim()
     if (!qty || isNaN(Number(qty)) || Number(qty) <= 0 || !Number.isInteger(Number(qty))) {
       setStockInError('กรุณากรอกจำนวนรับเข้าให้ถูกต้อง (จำนวนเต็มมากกว่า 0)')
       return
     }
+    if (!stockInModal.productId) {
+      setStockInError('ไม่พบรหัสสินค้าที่ต้องการรับเข้า')
+      return
+    }
+
     setStockInError('')
-    setProducts(products.map((p) => (p.name === stockInModal.productName ? { ...p, currentStock: p.currentStock + parseInt(qty) } : p)))
-    setStockInModal({ ...stockInModal, open: false })
+    setIsStockInSaving(true)
+    try {
+      const response = await fetch('/api/stock-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: stockInModal.productId,
+          quantity: parseInt(qty),
+          note: stockInNote.trim(),
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'บันทึกรับเข้าไม่สำเร็จ')
+
+      setProducts(await loadProducts())
+      setStockInModal({ ...stockInModal, open: false })
+    } catch (error) {
+      setStockInError(error instanceof Error ? error.message : 'บันทึกรับเข้าไม่สำเร็จ')
+    } finally {
+      setIsStockInSaving(false)
+    }
   }
 
   const deleteBtnActive = selected.size > 0
@@ -848,7 +872,7 @@ export default function InventoryPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setStockInModal({ ...stockInModal, open: false })} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<SaveOutlined />} onClick={saveStockIn} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<SaveOutlined />} loading={isStockInSaving} onClick={saveStockIn} className="ant-btn-secondary-solid h-11">
               บันทึกการรับเข้า
             </Button>
           </div>

@@ -257,7 +257,7 @@ export default function DashboardPage() {
         <div className="bg-white p-6 rounded-xl shadow-card border border-outline-variant/80 lg:col-span-2">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-headline-sm text-primary">สินค้าขายดี</h3>
-            <span className="font-body-sm text-outline">{prCount > 0 ? `${prCount} อันดับแรก` : 'รอข้อมูล'}</span>
+            <span className="font-body-sm text-outline">{prCount > 0 ? `${prCount} / 100 อันดับ` : 'รอข้อมูล'}</span>
           </div>
           <div className="flex flex-col gap-0">
             {data.topProducts.length === 0 && <div className="text-center text-outline text-sm py-4">ไม่มีข้อมูล</div>}

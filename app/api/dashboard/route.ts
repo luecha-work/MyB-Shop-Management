@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
             ${branchFilter}
           GROUP BY COALESCE(NULLIF(products.product_name, ''), 'ไม่ระบุสินค้า')
           ORDER BY qty DESC, sales DESC
-          LIMIT 5
+          LIMIT 100
         `,
         params,
       ),

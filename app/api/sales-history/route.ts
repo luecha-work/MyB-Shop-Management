@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, toDateParam, toNumber, toUuidParam } from '@/lib/db'
 import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
-import { normalizeGpRate } from '@/lib/constants'
+import { computeSaleLine, gpRateForChannel, normalizeGpRate } from '@/lib/constants'
 
 export const runtime = 'nodejs'
 
@@ -73,6 +73,177 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/sales-history failed', error)
     return NextResponse.json({ error: 'Failed to load sales history' }, { status: 500 })
+  }
+}
+
+const toPositiveInteger = (value: unknown) => {
+  const n = Number(value)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
+const randomOrderId = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let suffix = ''
+  for (let i = 0; i < 12; i += 1) suffix += chars.charAt(Math.floor(Math.random() * chars.length))
+  return `ORD-${suffix}`
+}
+
+export async function POST(request: NextRequest) {
+  const session = await sessionFromRequest(request)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const body = await request.json()
+    const orderId = String(body.orderId ?? '').trim() || randomOrderId()
+    const channel = String(body.channel ?? '').trim()
+    const note = String(body.note ?? '').trim() || null
+    const items: unknown[] = Array.isArray(body.items) ? body.items : []
+    const branchId = toUuidParam(session.branchId)
+
+    if (!channel || items.length === 0) {
+      return NextResponse.json({ error: 'กรุณาเลือกสินค้าและช่องทางขายให้ครบถ้วน' }, { status: 400 })
+    }
+
+    const normalizedItems: { productId: string; qty: number }[] = items
+      .map((rawItem: unknown) => {
+        const item = rawItem && typeof rawItem === 'object' ? rawItem as Record<string, unknown> : {}
+        return {
+          productId: toUuidParam(String(item.productId ?? '').trim()),
+          qty: toPositiveInteger(item.qty),
+        }
+      })
+      .filter((item: { productId: string | null; qty: number | null }): item is { productId: string; qty: number } => (
+        Boolean(item.productId) && item.qty != null
+      ))
+
+    if (normalizedItems.length !== items.length) {
+      return NextResponse.json({ error: 'รายการสินค้าในตะกร้าไม่ถูกต้อง' }, { status: 400 })
+    }
+
+    const client = await db.connect()
+    try {
+      await client.query('BEGIN')
+
+      const productIds = normalizedItems.map((item) => item.productId)
+      const { rows: productRows } = await client.query<{
+        id: string
+        product_name: string
+        cost: unknown
+        cash_price: unknown
+        grab_price: unknown
+        line_man_price: unknown
+        current_stock: unknown
+        min_stock: unknown
+      }>(
+        `
+          SELECT id, product_name, cost, cash_price, grab_price, line_man_price, current_stock, min_stock
+          FROM products
+          WHERE id = ANY($1::uuid[])
+          FOR UPDATE
+        `,
+        [productIds],
+      )
+
+      const productsById = new Map(productRows.map((product) => [product.id, product]))
+
+      for (const item of normalizedItems) {
+        const product = productsById.get(item.productId)
+        if (!product) {
+          await client.query('ROLLBACK')
+          return NextResponse.json({ error: 'ไม่พบสินค้าบางรายการในตะกร้า' }, { status: 404 })
+        }
+        if (toNumber(product.current_stock) < item.qty) {
+          await client.query('ROLLBACK')
+          return NextResponse.json({ error: `สต็อกไม่พอ: ${product.product_name}` }, { status: 400 })
+        }
+      }
+
+      const gpRate = gpRateForChannel(channel)
+      const insertedRows = []
+
+      for (const item of normalizedItems) {
+        const product = productsById.get(item.productId)
+        if (!product) continue
+
+        const unitPrice = channel === 'Grab'
+          ? toNumber(product.grab_price)
+          : channel === 'LINE MAN'
+            ? toNumber(product.line_man_price)
+            : toNumber(product.cash_price)
+        const unitCost = toNumber(product.cost)
+        const line = computeSaleLine(unitPrice, unitCost, item.qty, gpRate)
+
+        const { rows } = await client.query(
+          `
+            INSERT INTO sales (
+              branch_id,
+              order_id,
+              order_datetime,
+              product_id,
+              qty,
+              channel,
+              unit_price,
+              gp_percent,
+              gp_amount,
+              net_revenue,
+              unit_cost,
+              total_cost,
+              total_sales,
+              net_profit,
+              note
+            )
+            VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            RETURNING id
+          `,
+          [
+            branchId,
+            orderId,
+            item.productId,
+            item.qty,
+            channel,
+            unitPrice,
+            gpRate,
+            line.gpAmount,
+            line.netRevenue,
+            unitCost,
+            line.totalCost,
+            line.totalSales,
+            line.netProfit,
+            note,
+          ],
+        )
+        insertedRows.push(rows[0])
+
+        await client.query(
+          `
+            UPDATE products
+            SET current_stock = current_stock - $2,
+                stock_out = stock_out + $2,
+                status = CASE
+                  WHEN current_stock - $2 <= 0 THEN 'Out of Stock'
+                  WHEN current_stock - $2 <= min_stock THEN 'Low Stock'
+                  ELSE 'Active'
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `,
+          [item.productId, item.qty],
+        )
+      }
+
+      await client.query('COMMIT')
+      return NextResponse.json({ orderId, inserted: insertedRows.length }, { status: 201 })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error) {
+    console.error('POST /api/sales-history failed', error)
+    return NextResponse.json({ error: 'Failed to save sale' }, { status: 500 })
   }
 }
 
