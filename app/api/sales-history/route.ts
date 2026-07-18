@@ -92,15 +92,65 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'กรุณาเลือกออเดอร์ที่ต้องการลบ' }, { status: 400 })
     }
 
-    const { rowCount } = await db.query(
-      `
-        DELETE FROM sales
-        WHERE order_id = ANY($1::text[])
-      `,
-      [orderIds],
-    )
+    const client = await db.connect()
+    try {
+      await client.query('BEGIN')
 
-    return NextResponse.json({ deleted: rowCount ?? 0 })
+      await client.query(
+        `
+          SELECT id
+          FROM sales
+          WHERE order_id = ANY($1::text[])
+          FOR UPDATE
+        `,
+        [orderIds],
+      )
+
+      const { rows: restoreRows } = await client.query<{ product_id: string; qty: number }>(
+        `
+          SELECT product_id, SUM(qty)::int AS qty
+          FROM sales
+          WHERE order_id = ANY($1::text[])
+            AND product_id IS NOT NULL
+          GROUP BY product_id
+        `,
+        [orderIds],
+      )
+
+      for (const row of restoreRows) {
+        await client.query(
+          `
+            UPDATE products
+            SET current_stock = current_stock + $2,
+                stock_out = GREATEST(stock_out - $2, 0),
+                status = CASE
+                  WHEN current_stock + $2 <= 0 THEN 'Out of Stock'
+                  WHEN current_stock + $2 <= min_stock THEN 'Low Stock'
+                  ELSE 'Active'
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `,
+          [row.product_id, row.qty],
+        )
+      }
+
+      const { rowCount } = await client.query(
+        `
+          DELETE FROM sales
+          WHERE order_id = ANY($1::text[])
+        `,
+        [orderIds],
+      )
+
+      await client.query('COMMIT')
+      return NextResponse.json({ deleted: rowCount ?? 0, restoredProducts: restoreRows.length })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   } catch (error) {
     console.error('DELETE /api/sales-history failed', error)
     return NextResponse.json({ error: 'Failed to delete sales history' }, { status: 500 })
