@@ -16,6 +16,7 @@ import {
   TransactionOutlined,
 } from '@ant-design/icons'
 import { thbFormat } from '@/lib/format'
+import { gpRateForChannel, computeSaleLine, GP_RATE_PERCENT } from '@/lib/constants'
 import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
@@ -161,15 +162,23 @@ export default function POSPage() {
     return GROUP_ORDER.flatMap((g) => grouped[g] ?? [])
   }, [filtered, currentPage, itemsPerPage])
 
-  // คำนวณยอดรวมในตะกร้าตามช่องทางขายปัจจุบัน
-  const { totalItemsCount, totalPriceSum } = useMemo(() => {
+  // คำนวณยอดรวมในตะกร้าตามช่องทางขายปัจจุบัน และค่า GP
+  const { totalItemsCount, totalPriceSum, gpAmount, netRevenue } = useMemo(() => {
     let count = 0
     let sum = 0
     cart.forEach((item) => {
       count += item.qty
       sum += priceFor(item, channel) * item.qty
     })
-    return { totalItemsCount: count, totalPriceSum: sum }
+    const gpRate = gpRateForChannel(channel)
+    const gp = sum * gpRate
+    const net = sum - gp
+    return {
+      totalItemsCount: count,
+      totalPriceSum: sum,
+      gpAmount: Math.round(gp * 100) / 100,
+      netRevenue: Math.round(net * 100) / 100,
+    }
   }, [cart, channel])
 
   const showAlertModal = (title: string, message: string) => setAlertModal({ open: true, title, message })
@@ -248,7 +257,9 @@ export default function POSPage() {
     setTimeout(() => setConfirmOpen(true), 320)
   }
 
-  // TODO: เชื่อม Server Action submitOrder (Google Sheets) แทนการจำลองผลสำเร็จ
+  // TODO: เชื่อม Server Action submitOrder เพื่อบันทึกลงฐานข้อมูล (แทนการจำลองผลสำเร็จ)
+  // การคำนวณ GP พร้อมแล้ว — ค่าที่ต้องบันทึกต่อรายการ:
+  //   unit_price, gp_percent, gp_amount, net_revenue, unit_cost, total_cost, total_sales, net_profit
   const executeCheckout = () => {
     setConfirmOpen(false)
 
@@ -262,6 +273,30 @@ export default function POSPage() {
       finalOrderId = 'ORD-' + randStr
     }
 
+    const gpRate = gpRateForChannel(channel)
+
+    // Prepare sale line items with full financial breakdown (ready for DB insert)
+    const saleLines = cart.map((item) => {
+      const unitPrice = priceFor(item, channel)
+      return {
+        productName: item.name,
+        ...computeSaleLine(unitPrice, item.cost, item.qty, gpRate),
+        unitPrice,
+        unitCost: item.cost,
+        gpPercent: gpRate,
+      }
+    })
+
+    const totalNetProfit = saleLines.reduce((s, line) => s + line.netProfit, 0)
+    console.log('[POS] Checkout prepared:', {
+      orderId: finalOrderId,
+      channel,
+      gpRate,
+      gpRateDisplay: GP_RATE_PERCENT[channel],
+      lines: saleLines,
+      totalNetProfit,
+    })
+
     // ล้างตะกร้าและฟอร์มทั้งหมดกลับค่าเริ่มต้น
     setCart([])
     setOrderId('')
@@ -269,7 +304,7 @@ export default function POSPage() {
     setSearchText('')
     setActiveGroup(null)
     setCurrentPage(1)
-    showAlertModal('บันทึกคำสั่งซื้อสำเร็จ!', 'เลขที่ธุรกรรม: ' + finalOrderId)
+    showAlertModal('บันทึกคำสั่งซื้อสำเร็จ!', `เลขที่ธุรกรรม: ${finalOrderId}\nค่าธรรมเนียม GP: ${GP_RATE_PERCENT[channel] || '0%'} | กำไรสุทธิ: ${thbFormat(totalNetProfit)}`)
   }
 
   const displayOrderId = orderId.trim() || '(รันเลขอัตโนมัติ)'
@@ -507,9 +542,15 @@ export default function POSPage() {
                   <span className="font-body-md text-on-surface-variant">ยอดรวม</span>
                   <span className="font-label-md text-on-surface">{thbFormat(totalPriceSum)}</span>
                 </div>
+                {gpAmount > 0 && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-body-md text-on-surface-variant">ค่าธรรมเนียม GP ({GP_RATE_PERCENT[channel] || '0%'})</span>
+                    <span className="font-label-md text-error">{thbFormat(gpAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center border-t border-outline-variant/50 pt-4 mb-3">
-                  <span className="font-headline-sm text-on-surface">ยอดสุทธิ</span>
-                  <span className="font-headline-md text-secondary font-bold">{thbFormat(totalPriceSum)}</span>
+                  <span className="font-headline-sm text-on-surface">ยอดรับสุทธิ</span>
+                  <span className="font-headline-md text-secondary font-bold">{thbFormat(gpAmount > 0 ? netRevenue : totalPriceSum)}</span>
                 </div>
                 <Button
                   size="large"
@@ -535,7 +576,7 @@ export default function POSPage() {
               <ShoppingCartOutlined className="text-[18px]" />
               <span>{totalItemsCount} รายการ</span>
             </div>
-            <div className="font-label-md text-label-md font-bold">ดูตะกร้า • <span>{thbFormat(totalPriceSum)}</span></div>
+            <div className="font-label-md text-label-md font-bold">ดูตะกร้า • <span>{thbFormat(gpAmount > 0 ? netRevenue : totalPriceSum)}</span></div>
           </button>
         </div>
       </div>
@@ -613,9 +654,15 @@ export default function POSPage() {
               <span className="font-body-sm text-on-surface-variant">ยอดรวม</span>
               <span className="font-label-md text-on-surface">{thbFormat(totalPriceSum)}</span>
             </div>
+            {gpAmount > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="font-body-sm text-on-surface-variant">ค่าธรรมเนียม GP ({GP_RATE_PERCENT[channel] || '0%'})</span>
+                <span className="font-label-md text-error">{thbFormat(gpAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center border-t border-outline-variant/40 pt-2">
-              <span className="font-headline-sm text-on-surface">ยอดสุทธิ</span>
-              <span className="font-headline-sm text-secondary font-bold">{thbFormat(totalPriceSum)}</span>
+              <span className="font-headline-sm text-on-surface">ยอดรับสุทธิ</span>
+              <span className="font-headline-sm text-secondary font-bold">{thbFormat(gpAmount > 0 ? netRevenue : totalPriceSum)}</span>
             </div>
           </div>
 
@@ -721,9 +768,15 @@ export default function POSPage() {
               {orderNote.trim() || 'ไม่มีหมายเหตุ'}
             </span>
           </div>
+          {gpAmount > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-on-surface-variant font-medium">ค่าธรรมเนียม GP ({GP_RATE_PERCENT[channel] || '0%'}):</span>
+              <span className="font-bold text-error">{thbFormat(gpAmount)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center border-t border-outline-variant/30 pt-2 text-sm">
-            <span className="text-on-surface-variant font-medium">ยอดรวมสุทธิ:</span>
-            <span className="font-extrabold text-secondary text-body-lg">{thbFormat(totalPriceSum)}</span>
+            <span className="text-on-surface-variant font-medium">ยอดรับสุทธิ:</span>
+            <span className="font-extrabold text-secondary text-body-lg">{thbFormat(gpAmount > 0 ? netRevenue : totalPriceSum)}</span>
           </div>
         </div>
       </Modal>

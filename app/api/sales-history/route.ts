@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, toDateParam, toNumber, toUuidParam } from '@/lib/db'
 import { sessionFromRequest } from '@/lib/auth/session'
+import { normalizeGpRate } from '@/lib/constants'
 
 export const runtime = 'nodejs'
-
-const normalizeGpRate = (value: unknown) => {
-  const rate = toNumber(value)
-  return rate > 1 ? rate / 100 : rate
-}
 
 export async function GET(request: NextRequest) {
   const now = new Date()
@@ -39,7 +35,12 @@ export async function GET(request: NextRequest) {
           s.qty,
           s.total_sales,
           s.net_profit,
-          s.gp_percent
+          s.gp_percent,
+          s.gp_amount,
+          s.net_revenue,
+          s.unit_price,
+          s.unit_cost,
+          s.total_cost
         FROM sales s
         LEFT JOIN products p ON p.id = s.product_id
         WHERE s.order_datetime >= $1::date
@@ -62,6 +63,11 @@ export async function GET(request: NextRequest) {
         totalSales: toNumber(row.total_sales),
         netProfit: toNumber(row.net_profit),
         gpRate: normalizeGpRate(row.gp_percent),
+        gpAmount: toNumber(row.gp_amount),
+        netRevenue: toNumber(row.net_revenue),
+        unitPrice: toNumber(row.unit_price),
+        unitCost: toNumber(row.unit_cost),
+        totalCost: toNumber(row.total_cost),
       })),
     })
   } catch (error) {

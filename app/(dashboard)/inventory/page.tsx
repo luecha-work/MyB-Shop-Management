@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons'
 import { thbFormat, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 // ==========================================
 // Types
@@ -38,6 +39,9 @@ type Product = {
 }
 
 const FALLBACK_IMG = 'https://placehold.co/400x400/eceef0/7c839b?text=No+Image'
+const PRODUCT_IMAGE_BUCKET = 'images'
+const PRODUCT_IMAGE_FOLDER = 'products'
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const productImageSrc = (image: string) => image.trim() || FALLBACK_IMG
 
 // สถานะสินค้า (logic เดิมจาก updateInventoryUI)
@@ -131,6 +135,8 @@ export default function InventoryPage() {
   const [detailModalType, setDetailModalType] = useState<'low' | 'out' | null>(null)
   const [editModal, setEditModal] = useState<{ open: boolean; isEdit: boolean; originalName: string }>({ open: false, isEdit: false, originalName: '' })
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
+  const [isProductSaving, setIsProductSaving] = useState(false)
   const [editErrors, setEditErrors] = useState<Set<string>>(new Set())
   const [editErrorMsg, setEditErrorMsg] = useState('')
   const [stockInModal, setStockInModal] = useState<{ open: boolean; productName: string }>({ open: false, productName: '' })
@@ -177,6 +183,7 @@ export default function InventoryPage() {
   // ---------- Add / Edit Product Modal ----------
   const openAddModal = () => {
     setEditForm(EMPTY_FORM)
+    setEditImageFile(null)
     setEditErrors(new Set())
     setEditErrorMsg('')
     setEditModal({ open: true, isEdit: false, originalName: '' })
@@ -194,6 +201,7 @@ export default function InventoryPage() {
       image: p.image || '',
       imagePreview: p.image || '',
     })
+    setEditImageFile(null)
     setEditErrors(new Set())
     setEditErrorMsg('')
     setEditModal({ open: true, isEdit: true, originalName: p.name })
@@ -210,16 +218,48 @@ export default function InventoryPage() {
       setEditErrorMsg('กรุณาเลือกไฟล์รูปภาพเท่านั้น')
       return
     }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setEditErrorMsg('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB')
+      return
+    }
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = String(e.target?.result || '')
-      setEditForm((f) => ({ ...f, imagePreview: result, image: result }))
+      setEditImageFile(file)
+      setEditForm((f) => ({ ...f, imagePreview: result }))
+      setEditErrorMsg('')
     }
     reader.readAsDataURL(file)
   }
 
-  // TODO: เชื่อม Server Action uploadImageToDrive + addProduct/updateProduct แทนการแก้ state
-  const saveProductEdit = () => {
+  const uploadProductImage = async (file: File) => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+      throw new Error('ยังไม่ได้ตั้งค่า Supabase Storage environment variables')
+    }
+
+    const supabase = createSupabaseBrowserClient()
+    const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const safeName = editForm.name.trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, '-').replace(/^-+|-+$/g, '') || 'product'
+    const path = `${PRODUCT_IMAGE_FOLDER}/${Date.now()}-${crypto.randomUUID()}-${safeName}.${extension}`
+    const { data, error } = await supabase.storage
+      .from(PRODUCT_IMAGE_BUCKET)
+      .upload(path, file, {
+        cacheControl: '31536000',
+        contentType: file.type,
+        upsert: false,
+      })
+
+    if (error) throw new Error(error.message || 'อัปโหลดรูปภาพไม่สำเร็จ')
+
+    const { data: publicUrlData } = supabase.storage
+      .from(PRODUCT_IMAGE_BUCKET)
+      .getPublicUrl(data.path)
+
+    return publicUrlData.publicUrl
+  }
+
+  // TODO: เชื่อม Server Action addProduct/updateProduct แทนการแก้ state
+  const saveProductEdit = async () => {
     const required: (keyof EditForm)[] = ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'stockIn', 'minStock']
     const errors = new Set<string>()
     required.forEach((k) => { if (!editForm[k].trim()) errors.add(k) })
@@ -229,24 +269,34 @@ export default function InventoryPage() {
       return
     }
     setEditErrorMsg('')
+    setIsProductSaving(true)
 
-    const data = {
-      name: editForm.name.trim(),
-      cost: parseFloat(editForm.cost) || 0,
-      priceCash: parseFloat(editForm.priceCash) || 0,
-      priceGrab: parseFloat(editForm.priceGrab) || 0,
-      priceLineman: parseFloat(editForm.priceLineman) || 0,
-      stockIn: parseInt(editForm.stockIn) || 0,
-      minStock: parseInt(editForm.minStock) || 0,
-      image: editForm.image || FALLBACK_IMG,
-    }
+    try {
+      const imageUrl = editImageFile ? await uploadProductImage(editImageFile) : editForm.image
 
-    if (editModal.isEdit) {
-      setProducts(products.map((p) => (p.name === editModal.originalName ? { ...p, ...data } : p)))
-    } else {
-      setProducts([...products, { ...data, currentStock: data.stockIn, status: 'Active' }])
+      const data = {
+        name: editForm.name.trim(),
+        cost: parseFloat(editForm.cost) || 0,
+        priceCash: parseFloat(editForm.priceCash) || 0,
+        priceGrab: parseFloat(editForm.priceGrab) || 0,
+        priceLineman: parseFloat(editForm.priceLineman) || 0,
+        stockIn: parseInt(editForm.stockIn) || 0,
+        minStock: parseInt(editForm.minStock) || 0,
+        image: imageUrl || FALLBACK_IMG,
+      }
+
+      if (editModal.isEdit) {
+        setProducts(products.map((p) => (p.name === editModal.originalName ? { ...p, ...data } : p)))
+      } else {
+        setProducts([...products, { ...data, currentStock: data.stockIn, status: 'Active' }])
+      }
+      setEditImageFile(null)
+      setEditModal({ ...editModal, open: false })
+    } catch (error) {
+      setEditErrorMsg(error instanceof Error ? error.message : 'อัปโหลดรูปภาพหรือบันทึกสินค้าไม่สำเร็จ')
+    } finally {
+      setIsProductSaving(false)
     }
-    setEditModal({ ...editModal, open: false })
   }
 
   // ---------- Stock In Modal ----------
@@ -665,7 +715,7 @@ export default function InventoryPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setEditModal({ ...editModal, open: false })} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<SaveOutlined />} onClick={saveProductEdit} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<SaveOutlined />} loading={isProductSaving} onClick={saveProductEdit} className="ant-btn-secondary-solid h-11">
               บันทึก
             </Button>
           </div>

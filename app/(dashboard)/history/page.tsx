@@ -20,6 +20,7 @@ import {
   SwapRightOutlined,
 } from '@ant-design/icons'
 import { thbFormat, currentMonthRange } from '@/lib/format'
+import { GP_RATE_PERCENT } from '@/lib/constants'
 import { Loader } from '@/components/UI/Loader'
 
 // ==========================================
@@ -37,6 +38,11 @@ type HistoryRow = {
   totalSales: number
   netProfit: number
   gpRate: number
+  gpAmount: number
+  netRevenue: number
+  unitPrice: number
+  unitCost: number
+  totalCost: number
 }
 
 type OrderGroup = {
@@ -66,12 +72,14 @@ function formatOrderDate(date: string, withYear = false) {
   }
 }
 
-// ตรวจสอบไอคอนและสีของแต่ละช่องทางขาย
+// ตรวจสอบไอคอนและสีของแต่ละช่องทางขาย พร้อมแสดงอัตรา GP
 function ChannelBadge({ channel }: { channel: string }) {
+  const gpPercent = GP_RATE_PERCENT[channel]
   if (channel === 'Grab') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
         <CarOutlined className="text-[14px]" /> Grab
+        {gpPercent && <span className="text-[10px] opacity-70 ml-0.5">GP {gpPercent}</span>}
       </span>
     )
   }
@@ -79,6 +87,7 @@ function ChannelBadge({ channel }: { channel: string }) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-500/10 text-teal-600 border border-teal-500/20">
         <RocketOutlined className="text-[14px]" /> LINE MAN
+        {gpPercent && <span className="text-[10px] opacity-70 ml-0.5">GP {gpPercent}</span>}
       </span>
     )
   }
@@ -292,9 +301,11 @@ export default function HistoryPage() {
   const detailFirst = detailItems[0]
   const detailSubtotal = detailItems.reduce((s, i) => s + (Number(i.totalSales) || 0), 0)
   const detailNetProfit = detailItems.reduce((s, i) => s + (Number(i.netProfit) || 0), 0)
+  // Use DB-stored values — sum across all line items in the order
+  const detailGpAmount = detailItems.reduce((s, i) => s + (Number(i.gpAmount) || 0), 0)
+  const detailNetRevenue = detailItems.reduce((s, i) => s + (Number(i.netRevenue) || 0), 0)
+  // GP rate from the first line item (same channel = same rate per order)
   const detailGpRate = Number(detailFirst?.gpRate) || 0
-  const detailGpAmount = detailSubtotal * detailGpRate
-  const detailNetRevenue = detailSubtotal - detailGpAmount
 
   // รายการที่จะลบ (แสดงใน Delete Confirm Modal)
   const deleteDisplayList = deleteConfirm.orderIds.map((orderId) => ({
@@ -605,11 +616,12 @@ export default function HistoryPage() {
                     {detailItems.map((item) => {
                       const qty = Number(item.qty) || 0
                       const totalSales = Number(item.totalSales) || 0
+                      const unitPrice = Number(item.unitPrice) || 0
                       return (
                         <tr key={item.productName} className="hover:bg-slate-50/50 transition-colors">
                           <td className="py-3 px-3 font-semibold text-on-surface text-left whitespace-nowrap">{item.productName}</td>
                           <td className="py-3 px-3 text-center font-bold text-on-surface whitespace-nowrap">{qty}</td>
-                          <td className="py-3 px-3 text-right font-medium text-on-surface-variant whitespace-nowrap">{thbFormat(qty > 0 ? totalSales / qty : 0)}</td>
+                          <td className="py-3 px-3 text-right font-medium text-on-surface-variant whitespace-nowrap">{thbFormat(unitPrice || (qty > 0 ? totalSales / qty : 0))}</td>
                           <td className="py-3 px-3 text-right font-bold text-on-surface whitespace-nowrap">{thbFormat(totalSales)}</td>
                         </tr>
                       )
