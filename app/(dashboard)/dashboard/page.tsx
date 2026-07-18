@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DatePicker } from 'antd'
+import { DatePicker, Pagination } from 'antd'
 import dayjs from 'dayjs'
 import {
   DollarOutlined,
@@ -32,6 +32,8 @@ const EMPTY_STATS: DashboardStats = {
   channelSales: [],
   topProducts: [],
 }
+
+const TOP_PRODUCTS_PAGE_SIZE = 5
 
 const _thbFormatter = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' })
 const thbFormat = (val: number) => (isNaN(Number(val)) ? '-' : _thbFormatter.format(Number(val)))
@@ -113,6 +115,7 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState(toLocalISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loadError, setLoadError] = useState('')
+  const [topProductsPage, setTopProductsPage] = useState(1)
 
   useEffect(() => {
     let active = true
@@ -128,6 +131,7 @@ export default function DashboardPage() {
         if (!active) return
         setLoadError('')
         setStats(data)
+        setTopProductsPage(1)
       })
       .catch((error) => {
         console.error(error)
@@ -159,6 +163,8 @@ export default function DashboardPage() {
       percent: channelTotal > 0 ? (ch.sales / channelTotal) * 100 : 0,
       color: channelColor(ch.name, colorIdx),
     }))
+  const topProductsStart = (topProductsPage - 1) * TOP_PRODUCTS_PAGE_SIZE
+  const visibleTopProducts = data.topProducts.slice(topProductsStart, topProductsStart + TOP_PRODUCTS_PAGE_SIZE)
 
   return (
     <div className="h-full flex flex-col p-margin-mobile md:p-margin-desktop w-full overflow-y-auto no-scrollbar bg-background">
@@ -261,13 +267,13 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col gap-0">
             {data.topProducts.length === 0 && <div className="text-center text-outline text-sm py-4">ไม่มีข้อมูล</div>}
-            {data.topProducts.map((pr, i) => (
+            {visibleTopProducts.map((pr, i) => (
               <div
                 key={pr.name}
-                className={`flex items-center justify-between gap-6 py-5 ${i === data.topProducts.length - 1 ? '' : 'border-b border-surface-variant/30'}`}
+                className={`flex items-center justify-between gap-6 py-5 ${i === visibleTopProducts.length - 1 ? '' : 'border-b border-surface-variant/30'}`}
               >
                 <div className="flex-[8] flex items-center gap-4 min-w-0 pr-3">
-                  <RankBadge rank={i + 1} />
+                  <RankBadge rank={topProductsStart + i + 1} />
                   <div className="min-w-0">
                     <div className="font-body-md font-medium text-on-surface mb-0.5 break-words" title={pr.name}>{pr.name}</div>
                     <div className="font-label-md text-outline">{pr.qty} sold</div>
@@ -277,6 +283,18 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+          {data.topProducts.length > TOP_PRODUCTS_PAGE_SIZE && (
+            <div className="flex justify-center pt-4 border-t border-surface-variant/30">
+              <Pagination
+                current={topProductsPage}
+                pageSize={TOP_PRODUCTS_PAGE_SIZE}
+                total={data.topProducts.length}
+                onChange={setTopProductsPage}
+                showSizeChanger={false}
+                size="small"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

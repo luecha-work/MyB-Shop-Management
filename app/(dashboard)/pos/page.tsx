@@ -185,6 +185,9 @@ export default function POSPage() {
 
   const showAlertModal = (title: string, message: string) => setAlertModal({ open: true, title, message })
 
+  const selectedQtyForProduct = (productId: string | undefined) =>
+    productId ? cart.find((item) => item.productId === productId)?.qty ?? 0 : 0
+
   const setPage = (page: number) => {
     setCurrentPage(page)
     if (gridScrollRef.current) gridScrollRef.current.scrollTop = 0
@@ -472,6 +475,8 @@ export default function POSPage() {
               <div className="grid grid-cols-3 xl:grid-cols-4 gap-xs md:gap-sm lg:gap-md p-1 md:p-2">
                 {pageItems.map((product) => {
                   const displayPrice = priceFor(product, channel)
+                  const selectedQty = selectedQtyForProduct(product.id)
+                  const isSelected = selectedQty > 0
                   const isOut =
                     Number(product.currentStock) <= 0 || product.status === 'Out of Stock' || product.status === 'สินค้าหมด'
 
@@ -502,7 +507,11 @@ export default function POSPage() {
                     <article
                       key={product.name}
                       onClick={() => addToCart(product)}
-                      className="bg-surface-container-lowest rounded-xl p-2 md:p-3 lg:p-3 xl:p-5 xl:pb-8 shadow-sm-card border border-outline-variant/80 flex flex-col cursor-pointer transition-all hover:scale-[1.02] hover:shadow-premium hover:border-primary/50 active:scale-[0.98] select-none duration-200"
+                      className={`bg-surface-container-lowest rounded-xl p-2 md:p-3 lg:p-3 xl:p-5 xl:pb-8 shadow-sm-card border flex flex-col cursor-pointer transition-all hover:scale-[1.02] hover:shadow-premium active:scale-[0.98] select-none duration-200 ${
+                        isSelected
+                          ? 'border-secondary bg-secondary-container/10 ring-2 ring-secondary/25'
+                          : 'border-outline-variant/80 hover:border-primary/50'
+                      }`}
                     >
                       <div className="aspect-square w-full rounded-lg bg-surface-container-low overflow-hidden mb-2 md:mb-3 lg:mb-3 xl:mb-[16px] relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -515,10 +524,15 @@ export default function POSPage() {
                         <div className="absolute top-xs left-xs bg-secondary-container/80 backdrop-blur-sm px-1 md:px-2 py-0.5 rounded text-[8px] md:text-[10px] font-label-sm text-secondary font-bold">
                           <span className="hidden xl:inline">สต็อก: </span>{product.currentStock}
                         </div>
+                        {isSelected && (
+                          <div className="absolute bottom-xs right-xs bg-primary text-on-primary px-1.5 md:px-2 py-0.5 rounded text-[9px] md:text-[11px] font-extrabold shadow-sm">
+                            x{selectedQty}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-body-sm md:text-body-md text-on-surface break-words mb-0.5">{product.name}</h3>
-                        <div className="text-body-sm md:text-body-md text-secondary">{thbFormat(displayPrice)}</div>
+                        <h3 className={`text-body-sm md:text-body-md text-on-surface break-words mb-0.5 ${isSelected ? 'font-extrabold' : ''}`}>{product.name}</h3>
+                        <div className={`text-body-sm md:text-body-md text-secondary ${isSelected ? 'font-extrabold' : ''}`}>{thbFormat(displayPrice)}</div>
                       </div>
                     </article>
                   )

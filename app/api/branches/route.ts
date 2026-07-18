@@ -46,6 +46,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const branchId = request.nextUrl.searchParams.get('id')?.trim()
+    const optionsOnly = request.nextUrl.searchParams.get('options') === '1'
+
+    if (optionsOnly) {
+      const { rows: branchRows } = await db.query<BranchRecord>(`
+        SELECT id, branch_code, branch_name, address, phone, status
+        FROM branches
+        ORDER BY branch_name ASC
+      `)
+
+      return NextResponse.json({
+        branches: branchRows.map((row) => toBranchResponse(row)),
+      })
+    }
 
     if (branchId) {
       const { rows: branchRows } = await db.query<BranchRecord>(

@@ -60,17 +60,16 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
     if (!canSelectBranch) return
 
     let active = true
-    fetch('/api/branches', { cache: 'no-store' })
+    fetch('/api/branches?options=1', { cache: 'no-store' })
       .then(async (response) => {
         const data = await response.json()
-        if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลสาขาไม่สำเร็จ')
+        if (!response.ok) return { branches: [] }
         return data as { branches: BranchOption[] }
       })
       .then((data) => {
         if (active) setBranches(data.branches)
       })
-      .catch((error) => {
-        console.error(error)
+      .catch(() => {
         if (active) setBranches([])
       })
 

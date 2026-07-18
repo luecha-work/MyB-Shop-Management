@@ -8,7 +8,7 @@ const ACCESS_TOKEN_MAX_AGE = 60 * 60 // 1 hour
 const isJwt = (value: string): boolean =>
   value.split('.').length === 3 && value.startsWith('eyJ')
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const accessTokenCookie = request.cookies.get('access_token')
   const refreshTokenCookie = request.cookies.get('refresh_token')
   const legacySessionCookie = request.cookies.get('auth_session')
@@ -74,7 +74,7 @@ export async function middleware(request: NextRequest) {
         })
       }
     } catch {
-      // Legacy cookie is malformed — ignore
+      // Legacy cookie is malformed - ignore
     }
   }
 
