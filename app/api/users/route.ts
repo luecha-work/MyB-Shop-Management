@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { db } from '@/lib/db'
-import { canManageSettings, decodeSessionToken } from '@/lib/auth/session'
+import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
-
-const sessionFromRequest = (request: NextRequest) =>
-  decodeSessionToken(
-    request.cookies.get('access_token')?.value ??
-      request.cookies.get('refresh_token')?.value ??
-      request.cookies.get('auth_session')?.value,
-  )
 
 const generateTemporaryPassword = () => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'

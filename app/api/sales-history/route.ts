@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, toDateParam, toNumber } from '@/lib/db'
+import { db, toDateParam, toNumber, toUuidParam } from '@/lib/db'
+import { sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
 
@@ -14,27 +15,39 @@ export async function GET(request: NextRequest) {
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
   const startDate = toDateParam(request.nextUrl.searchParams.get('startDate'), firstDay)
   const endDate = toDateParam(request.nextUrl.searchParams.get('endDate'), lastDay)
+  const session = sessionFromRequest(request)
+  const branchId = session?.role === 'STAFF'
+    ? toUuidParam(session.branchId)
+    : toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())
+  const branchFilter = session?.role === 'STAFF' && !branchId
+    ? 'AND FALSE'
+    : branchId
+      ? 'AND s.branch_id = $3::uuid'
+      : ''
+  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate]
 
   try {
     const { rows } = await db.query(
       `
         SELECT
-          id,
-          order_id,
-          order_datetime,
-          channel,
-          note,
-          product_name,
-          qty,
-          total_sales,
-          net_profit,
-          gp_percent
-        FROM sales
-        WHERE order_datetime >= $1::date
-          AND order_datetime < ($2::date + INTERVAL '1 day')
-        ORDER BY order_datetime DESC, created_at DESC
+          s.id,
+          s.order_id,
+          s.order_datetime,
+          s.channel,
+          s.note,
+          COALESCE(NULLIF(p.product_name, ''), 'ไม่ระบุสินค้า') AS product_name,
+          s.qty,
+          s.total_sales,
+          s.net_profit,
+          s.gp_percent
+        FROM sales s
+        LEFT JOIN products p ON p.id = s.product_id
+        WHERE s.order_datetime >= $1::date
+          AND s.order_datetime < ($2::date + INTERVAL '1 day')
+          ${branchFilter}
+        ORDER BY s.order_datetime DESC, s.created_at DESC
       `,
-      [startDate, endDate],
+      params,
     )
 
     return NextResponse.json({

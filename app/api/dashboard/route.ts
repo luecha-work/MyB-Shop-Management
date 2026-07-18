@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, toDateParam, toNumber } from '@/lib/db'
+import { db, toDateParam, toNumber, toUuidParam } from '@/lib/db'
+import { sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
 
@@ -9,6 +10,16 @@ export async function GET(request: NextRequest) {
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
   const startDate = toDateParam(request.nextUrl.searchParams.get('startDate'), firstDay)
   const endDate = toDateParam(request.nextUrl.searchParams.get('endDate'), lastDay)
+  const session = sessionFromRequest(request)
+  const branchId = session?.role === 'STAFF'
+    ? toUuidParam(session.branchId)
+    : toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())
+  const branchFilter = session?.role === 'STAFF' && !branchId
+    ? 'AND FALSE'
+    : branchId
+      ? 'AND sales.branch_id = $3::uuid'
+      : ''
+  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate]
 
   try {
     const [summary, channelSales, topProducts] = await Promise.all([
@@ -22,8 +33,9 @@ export async function GET(request: NextRequest) {
           FROM sales
           WHERE order_datetime >= $1::date
             AND order_datetime < ($2::date + INTERVAL '1 day')
+            ${branchFilter}
         `,
-        [startDate, endDate],
+        params,
       ),
       db.query(
         `
@@ -33,25 +45,28 @@ export async function GET(request: NextRequest) {
           FROM sales
           WHERE order_datetime >= $1::date
             AND order_datetime < ($2::date + INTERVAL '1 day')
+            ${branchFilter}
           GROUP BY COALESCE(NULLIF(channel, ''), 'ไม่ระบุ')
           ORDER BY sales DESC
         `,
-        [startDate, endDate],
+        params,
       ),
       db.query(
         `
           SELECT
-            COALESCE(NULLIF(product_name, ''), 'ไม่ระบุสินค้า') AS name,
+            COALESCE(NULLIF(products.product_name, ''), 'ไม่ระบุสินค้า') AS name,
             COALESCE(SUM(qty), 0) AS qty,
             COALESCE(SUM(total_sales), 0) AS sales
           FROM sales
+          LEFT JOIN products ON products.id = sales.product_id
           WHERE order_datetime >= $1::date
             AND order_datetime < ($2::date + INTERVAL '1 day')
-          GROUP BY COALESCE(NULLIF(product_name, ''), 'ไม่ระบุสินค้า')
+            ${branchFilter}
+          GROUP BY COALESCE(NULLIF(products.product_name, ''), 'ไม่ระบุสินค้า')
           ORDER BY qty DESC, sales DESC
           LIMIT 5
         `,
-        [startDate, endDate],
+        params,
       ),
     ])
 

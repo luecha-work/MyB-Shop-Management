@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { canManageSettings, decodeSessionToken } from '@/lib/auth/session'
+import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
-
-const sessionFromRequest = (request: NextRequest) =>
-  decodeSessionToken(
-    request.cookies.get('access_token')?.value ??
-      request.cookies.get('refresh_token')?.value ??
-      request.cookies.get('auth_session')?.value,
-  )
 
 type BranchRecord = {
   id: string
