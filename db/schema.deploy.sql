@@ -1,6 +1,9 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE IF NOT EXISTS public.branches (
+CREATE SCHEMA IF NOT EXISTS mybshop;
+SET search_path TO mybshop, public;
+
+CREATE TABLE IF NOT EXISTS branches (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   branch_code varchar(50) NOT NULL,
   branch_name varchar(255) NOT NULL,
@@ -13,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.branches (
   CONSTRAINT branches_branch_code_key UNIQUE (branch_code)
 );
 
-CREATE TABLE IF NOT EXISTS public.products (
+CREATE TABLE IF NOT EXISTS products (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   product_code varchar(50) NULL,
   product_name varchar(255) NOT NULL,
@@ -39,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   CONSTRAINT products_min_stock_check CHECK (min_stock >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS public.roles (
+CREATE TABLE IF NOT EXISTS roles (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   role_name varchar(50) NOT NULL,
   description text NULL,
@@ -48,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.roles (
   CONSTRAINT roles_role_name_key UNIQUE (role_name)
 );
 
-CREATE TABLE IF NOT EXISTS public.sales (
+CREATE TABLE IF NOT EXISTS sales (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   branch_id uuid NULL,
   order_id varchar(50) NOT NULL,
@@ -67,8 +70,8 @@ CREATE TABLE IF NOT EXISTS public.sales (
   note text NULL,
   created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
   CONSTRAINT sales_pkey PRIMARY KEY (id),
-  CONSTRAINT sales_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT sales_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT sales_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT sales_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT sales_qty_check CHECK (qty >= 0),
   CONSTRAINT sales_unit_price_check CHECK (unit_price >= 0),
   CONSTRAINT sales_gp_percent_check CHECK (gp_percent >= 0),
@@ -79,7 +82,7 @@ CREATE TABLE IF NOT EXISTS public.sales (
   CONSTRAINT sales_total_sales_check CHECK (total_sales >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS public.stock_in (
+CREATE TABLE IF NOT EXISTS stock_in (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   branch_id uuid NULL,
   transaction_timestamp timestamp NOT NULL,
@@ -89,11 +92,11 @@ CREATE TABLE IF NOT EXISTS public.stock_in (
   note text NULL,
   created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
   CONSTRAINT stock_in_pkey PRIMARY KEY (id),
-  CONSTRAINT stock_in_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT stock_in_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT stock_in_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT stock_in_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS public.users (
+CREATE TABLE IF NOT EXISTS users (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   first_name varchar(100) NOT NULL,
   last_name varchar(100) NOT NULL,
@@ -106,30 +109,30 @@ CREATE TABLE IF NOT EXISTS public.users (
   password_hash varchar NOT NULL,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_email_key UNIQUE (email),
-  CONSTRAINT users_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT users_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT users_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT users_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_branches_branch_code ON public.branches USING btree (branch_code);
-CREATE INDEX IF NOT EXISTS idx_branches_status ON public.branches USING btree (status);
-CREATE INDEX IF NOT EXISTS idx_products_product_code ON public.products USING btree (product_code);
-CREATE INDEX IF NOT EXISTS idx_products_product_name ON public.products USING btree (product_name);
-CREATE INDEX IF NOT EXISTS idx_products_status ON public.products USING btree (status);
-CREATE INDEX IF NOT EXISTS idx_roles_role_name ON public.roles USING btree (role_name);
-CREATE INDEX IF NOT EXISTS idx_sales_branch_id ON public.sales USING btree (branch_id);
-CREATE INDEX IF NOT EXISTS idx_sales_channel ON public.sales USING btree (channel);
-CREATE INDEX IF NOT EXISTS idx_sales_order_datetime ON public.sales USING btree (order_datetime);
-CREATE INDEX IF NOT EXISTS idx_sales_order_id ON public.sales USING btree (order_id);
-CREATE INDEX IF NOT EXISTS idx_sales_product_id ON public.sales USING btree (product_id);
-CREATE INDEX IF NOT EXISTS idx_stock_in_branch_id ON public.stock_in USING btree (branch_id);
-CREATE INDEX IF NOT EXISTS idx_stock_in_product_id ON public.stock_in USING btree (product_id);
-CREATE INDEX IF NOT EXISTS idx_stock_in_transaction_timestamp ON public.stock_in USING btree (transaction_timestamp);
-CREATE INDEX IF NOT EXISTS idx_users_branch_id ON public.users USING btree (branch_id);
-CREATE INDEX IF NOT EXISTS idx_users_email ON public.users USING btree (email);
-CREATE INDEX IF NOT EXISTS idx_users_role_id ON public.users USING btree (role_id);
-CREATE INDEX IF NOT EXISTS idx_users_status ON public.users USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_branches_branch_code ON branches USING btree (branch_code);
+CREATE INDEX IF NOT EXISTS idx_branches_status ON branches USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_products_product_code ON products USING btree (product_code);
+CREATE INDEX IF NOT EXISTS idx_products_product_name ON products USING btree (product_name);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_roles_role_name ON roles USING btree (role_name);
+CREATE INDEX IF NOT EXISTS idx_sales_branch_id ON sales USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_sales_channel ON sales USING btree (channel);
+CREATE INDEX IF NOT EXISTS idx_sales_order_datetime ON sales USING btree (order_datetime);
+CREATE INDEX IF NOT EXISTS idx_sales_order_id ON sales USING btree (order_id);
+CREATE INDEX IF NOT EXISTS idx_sales_product_id ON sales USING btree (product_id);
+CREATE INDEX IF NOT EXISTS idx_stock_in_branch_id ON stock_in USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_stock_in_product_id ON stock_in USING btree (product_id);
+CREATE INDEX IF NOT EXISTS idx_stock_in_transaction_timestamp ON stock_in USING btree (transaction_timestamp);
+CREATE INDEX IF NOT EXISTS idx_users_branch_id ON users USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users USING btree (email);
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON users USING btree (role_id);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users USING btree (status);
 
-INSERT INTO public.roles (role_name, description)
+INSERT INTO roles (role_name, description)
 VALUES
   ('owner', 'System owner'),
   ('admin', 'Administrator'),

@@ -39,10 +39,22 @@ Required Vercel environment variables:
 
 ```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
+DATABASE_SCHEMA=mybshop
 JWT_SECRET=<random string at least 32 characters>
+NEXT_PUBLIC_SUPABASE_URL=https://ydcaopgvpfqhojozfmea.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
 ```
 
-Use a managed PostgreSQL provider from the Vercel Marketplace or another external PostgreSQL host. The app reads database configuration from `DATABASE_URL`; URLs with `sslmode=require`, `sslmode=verify-ca`, or `sslmode=verify-full` automatically use SSL. The local Docker database is not available to Vercel deployments.
+Use a managed PostgreSQL provider from the Vercel Marketplace or another external PostgreSQL host. The app reads database connection details from `DATABASE_URL`, uses `DATABASE_SCHEMA` for PostgreSQL `search_path`, and automatically enables SSL for URLs with `sslmode=require`, `sslmode=verify-ca`, or `sslmode=verify-full`. The local Docker database is not available to Vercel deployments.
+
+Supabase client helpers live in `lib/supabase`. They are available for future Supabase API/Auth/Storage usage. Current application login still uses the existing database-backed `users` table and custom JWT cookies, so the main middleware remains the app's existing route protection rather than Supabase Auth middleware.
+
+Schema convention:
+
+```text
+Local: public
+Production: mybshop
+```
 
 Initialize a new production database with:
 
@@ -50,7 +62,7 @@ Initialize a new production database with:
 psql "$DATABASE_URL" -f db/schema.deploy.sql
 ```
 
-For the first owner account, run `db/seed-owner.sql` only after reviewing the temporary password in that file, then reset/change it immediately after first login.
+For the first production owner account, run `db/seed-owner.deploy.sql` only after reviewing the temporary password in that file, then reset/change it immediately after first login.
 
 Deploy options:
 

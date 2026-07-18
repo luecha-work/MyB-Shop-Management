@@ -8,6 +8,12 @@ if (!connectionString) {
 
 const globalForPg = globalThis as unknown as { pgPool?: Pool }
 
+const databaseSchema = process.env.DATABASE_SCHEMA?.trim() || 'public'
+
+if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(databaseSchema)) {
+  throw new Error('DATABASE_SCHEMA must be a valid PostgreSQL identifier')
+}
+
 const requiresSsl =
   process.env.DB_SSL === 'true' ||
   connectionString.includes('sslmode=require') ||
@@ -18,6 +24,7 @@ export const db =
   globalForPg.pgPool ??
   new Pool({
     connectionString,
+    options: `-c search_path=${databaseSchema},public`,
     ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
   })
 

@@ -17,6 +17,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **State Management:** React Hooks (`useState`, `useMemo`, `useActionState`), Next.js Navigation
 - **Authentication:** Database-backed login in `lib/actions/auth.ts` using PostgreSQL `users.password_hash` with `pgcrypto crypt()`; route protection remains in `middleware.ts`. Login sets `access_token` for 1 hour and `refresh_token` for 24 hours. The project intentionally keeps the classic Next.js middleware convention even though Next 16 emits a deprecation warning recommending `proxy.ts`.
 - **Database:** PostgreSQL 16 via Docker (`Makefile`) and `pg`
+- **Supabase:** Production database provider is Supabase Postgres. The app still uses direct PostgreSQL via `DATABASE_URL` for core read/write APIs; `@supabase/supabase-js` + `@supabase/ssr` are installed and helper clients live in `lib/supabase/*` for future Supabase API/Auth/Storage usage.
 - **Backend/API:** Next.js App Router route handlers under `app/api/*`
 - **Image Storage:** URL/base64 placeholders in UI; durable file storage is still pending
 
@@ -46,12 +47,13 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `components/UI/Loader.tsx`: Full-screen loading overlay (antd `Spin` + message) — shown by every page while data loads.
 - `lib/actions/auth.ts`: login/logout/getSession Server Actions. Login validates `users.email`, active status, and `password_hash` via PostgreSQL `crypt()`, then stores compact session payloads in `access_token` (1h) and `refresh_token` (24h) cookies.
 - `lib/auth/session.ts`: Shared session type, route-handler cookie decoding (`sessionFromRequest`), and role helpers.
-- `lib/db.ts`: Shared PostgreSQL connection pool and small DB value helpers. Requires `DATABASE_URL`; SSL is inferred from `DATABASE_URL` `sslmode=require|verify-ca|verify-full` or optional `DB_SSL=true`. Includes date/number/UUID param guards for API routes.
+- `lib/db.ts`: Shared PostgreSQL connection pool and small DB value helpers. Requires `DATABASE_URL`; sets PostgreSQL `search_path` from `DATABASE_SCHEMA` (default `public`; production/Vercel uses `mybshop`) plus `public`; SSL is inferred from `DATABASE_URL` `sslmode=require|verify-ca|verify-full` or optional `DB_SSL=true`. Includes date/number/UUID param guards for API routes.
+- `lib/supabase/client.ts` / `lib/supabase/server.ts`: Supabase browser/server client helpers using `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Do not wire Supabase Auth middleware unless product requirements explicitly switch auth away from the current custom JWT/session flow.
 - `lib/format.ts`: Shared helpers — `thbFormat` (฿ th-TH), `formatNum`, `toLocalISODate`, `currentMonthRange` (default date-range = current month, mirrors original `resetViewState`).
 - `db/schema.sql`: Idempotent PostgreSQL schema for roles, branches, products, users, sales, stock_in, and indexes, kept compatible with `db/new_schema.sql`. `sales` and `stock_in` store `product_id`, not `product_name`; product display names must be resolved by joining `products`. The `users` table stores credentials in `password_hash`; never store plain-text passwords.
-- `db/schema.deploy.sql`: Portable managed-PostgreSQL schema for production/Vercel deploys. Uses `CREATE EXTENSION IF NOT EXISTS pgcrypto`, avoids local-owner/GRANT dump statements, creates tables/indexes idempotently, and seeds base roles (`owner`, `admin`, `staff`).
-- `.env.production.example`: Production/Vercel environment variable template. Vercel needs `DATABASE_URL` and a strong `JWT_SECRET`; include `sslmode=require` in managed Postgres URLs when SSL is required.
-- `.gitignore`: Keeps real `.env*` files ignored while explicitly allowing `.env.example` and `.env.production.example` templates to be committed.
+- `db/schema.deploy.sql`: Portable managed-PostgreSQL schema for production/Vercel deploys. Uses schema `mybshop`, `CREATE EXTENSION IF NOT EXISTS pgcrypto`, avoids local-owner/GRANT dump statements, creates tables/indexes idempotently, and seeds base roles (`owner`, `admin`, `staff`).
+- `db/seed-owner.deploy.sql`: Production owner seed for schema `mybshop`; review/change the temporary password immediately after first login.
+- `.gitignore`: Ignores all `.env*` files. Keep env examples in documentation, not committed env files.
 - `db/seed-owner.sql`: Local seed for owner login (`owner@myb.com` / `owner123`) using `crypt()`.
 
 ---
@@ -90,6 +92,7 @@ The app uses PostgreSQL-backed authentication.
 ## 5. Dev Workflow Gotchas
 
 - **NEVER run `npm run build` while `npm run dev` is running** — the production artifacts corrupt `.next` and every route 404s. Fix: stop dev → delete `.next` → restart.
+- **NEVER commit `.env`, `.env.*`, or any environment-variable file to git.** This is absolute for this repo. Keep env examples in `README.md`/docs only; `.gitignore` must continue ignoring `.env*` with no exception rules.
 - `npm run dev` currently uses the standard `next dev`, which starts Turbopack in Next 16. If Turbopack HMR panics (`TurbopackInternalError: Cell ... no longer exists`), stop dev and run `npx next dev --webpack` as a temporary workaround.
 - PostgreSQL local workflow:
   - Start Docker Desktop first.
@@ -97,14 +100,14 @@ The app uses PostgreSQL-backed authentication.
   - `make init-db` applies `db/schema.sql`.
   - `make seed-owner` creates/updates the local owner login.
   - `make psql` opens a psql shell.
-  - `.env` uses `DATABASE_URL="postgresql://admin:Password%401@localhost:5432/myb-shop-db"` and `DB_SSL="false"` by default.
+  - `.env` uses `DATABASE_URL="postgresql://admin:Password%401@localhost:5432/myb-shop-db"`, `DATABASE_SCHEMA="public"`, and `DB_SSL="false"` by default.
 - Verify code changes with `npx tsc --noEmit` and `npm run lint`, then hit routes on the dev server with an `access_token` or `refresh_token` cookie containing the session payload.
 - `npm run verify` runs `npm run typecheck` and `npm run lint`.
 - Vercel deployment workflow:
   - Use Vercel's Next.js framework preset; `vercel.json` pins `npm ci` and `npm run build`.
-  - Set `DATABASE_URL` and `JWT_SECRET` in Vercel Project Settings for Preview/Production. Prefer putting SSL mode in the URL, e.g. `?sslmode=require`; `DB_SSL=true` remains an optional override.
+  - Set `DATABASE_URL`, `DATABASE_SCHEMA=mybshop`, `JWT_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel Project Settings for Preview/Production. Prefer putting SSL mode in the URL, e.g. `?sslmode=require`; `DB_SSL=true` remains an optional override.
   - Use an external/Marketplace PostgreSQL database; local Docker is not reachable from Vercel.
-  - Initialize fresh production databases with `psql "$DATABASE_URL" -f db/schema.deploy.sql`, then seed the first owner carefully from `db/seed-owner.sql` and change/reset that temporary password immediately.
+  - Initialize fresh production databases with `psql "$DATABASE_URL" -f db/schema.deploy.sql`, then seed the first owner carefully from `db/seed-owner.deploy.sql` and change/reset that temporary password immediately.
 - antd v6 emits deprecation warnings in the console — fix them with the v6 API (already done for Drawer `size`/`styles.section`).
 
 ---
