@@ -138,6 +138,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
       return
     }
     if (key === 'profile') {
+      router.push('/profile')
       closeUserMenu()
       return
     }
