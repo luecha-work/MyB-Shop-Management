@@ -19,7 +19,6 @@ import {
 } from '@ant-design/icons'
 import { thbFormat, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 // ==========================================
 // Types
@@ -39,8 +38,6 @@ type Product = {
 }
 
 const FALLBACK_IMG = 'https://placehold.co/400x400/eceef0/7c839b?text=No+Image'
-const PRODUCT_IMAGE_BUCKET = 'images'
-const PRODUCT_IMAGE_FOLDER = 'products'
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const productImageSrc = (image: string) => image.trim() || FALLBACK_IMG
 
@@ -133,7 +130,7 @@ export default function InventoryPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set()) // เก็บชื่อสินค้า
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [detailModalType, setDetailModalType] = useState<'low' | 'out' | null>(null)
-  const [editModal, setEditModal] = useState<{ open: boolean; isEdit: boolean; originalName: string }>({ open: false, isEdit: false, originalName: '' })
+  const [editModal, setEditModal] = useState<{ open: boolean; isEdit: boolean; originalName: string; originalId: string }>({ open: false, isEdit: false, originalName: '', originalId: '' })
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [isProductSaving, setIsProductSaving] = useState(false)
@@ -186,7 +183,7 @@ export default function InventoryPage() {
     setEditImageFile(null)
     setEditErrors(new Set())
     setEditErrorMsg('')
-    setEditModal({ open: true, isEdit: false, originalName: '' })
+    setEditModal({ open: true, isEdit: false, originalName: '', originalId: '' })
   }
 
   const openEditModalForProduct = (p: Product) => {
@@ -204,7 +201,7 @@ export default function InventoryPage() {
     setEditImageFile(null)
     setEditErrors(new Set())
     setEditErrorMsg('')
-    setEditModal({ open: true, isEdit: true, originalName: p.name })
+    setEditModal({ open: true, isEdit: true, originalName: p.name, originalId: p.id ?? '' })
   }
 
   const editProductFromDetail = (p: Product) => {
@@ -233,29 +230,35 @@ export default function InventoryPage() {
   }
 
   const uploadProductImage = async (file: File) => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
-      throw new Error('ยังไม่ได้ตั้งค่า Supabase Storage environment variables')
-    }
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('productName', editForm.name.trim())
 
-    const supabase = createSupabaseBrowserClient()
-    const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const safeName = editForm.name.trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, '-').replace(/^-+|-+$/g, '') || 'product'
-    const path = `${PRODUCT_IMAGE_FOLDER}/${Date.now()}-${crypto.randomUUID()}-${safeName}.${extension}`
-    const { data, error } = await supabase.storage
-      .from(PRODUCT_IMAGE_BUCKET)
-      .upload(path, file, {
-        cacheControl: '31536000',
-        contentType: file.type,
-        upsert: false,
-      })
+    const response = await fetch('/api/products/images', {
+      method: 'POST',
+      body: formData,
+    })
+    const data = await response.json()
 
-    if (error) throw new Error(error.message || 'อัปโหลดรูปภาพไม่สำเร็จ')
+    if (!response.ok) throw new Error(data.error || 'อัปโหลดรูปภาพไม่สำเร็จ')
+    return String(data.publicUrl || '')
+  }
 
-    const { data: publicUrlData } = supabase.storage
-      .from(PRODUCT_IMAGE_BUCKET)
-      .getPublicUrl(data.path)
+  const saveProductImageUrl = async (imageUrl: string) => {
+    if (!editModal.isEdit || !editModal.originalId) return
 
-    return publicUrlData.publicUrl
+    const response = await fetch('/api/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'update-image',
+        id: editModal.originalId,
+        imageUrl,
+      }),
+    })
+    const data = await response.json()
+
+    if (!response.ok) throw new Error(data.error || 'บันทึกรูปภาพสินค้าไม่สำเร็จ')
   }
 
   // TODO: เชื่อม Server Action addProduct/updateProduct แทนการแก้ state
@@ -273,6 +276,7 @@ export default function InventoryPage() {
 
     try {
       const imageUrl = editImageFile ? await uploadProductImage(editImageFile) : editForm.image
+      if (editImageFile) await saveProductImageUrl(imageUrl)
 
       const data = {
         name: editForm.name.trim(),

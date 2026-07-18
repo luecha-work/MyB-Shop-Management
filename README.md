@@ -43,6 +43,7 @@ DATABASE_SCHEMA=mybshop
 JWT_SECRET=<random string at least 32 characters>
 NEXT_PUBLIC_SUPABASE_URL=https://ydcaopgvpfqhojozfmea.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
+SUPABASE_SERVICE_ROLE_KEY=<Supabase service role key>
 ```
 
 Use Supabase Postgres for production. On Vercel, use the Supabase Shared Pooler / Supavisor transaction-mode connection string, not the direct `db.<project-ref>.supabase.co:5432` connection string. Direct Supabase database hosts resolve to IPv6 unless the Supabase IPv4 add-on is enabled, and Vercel Functions cannot use those direct IPv6-only connections.
@@ -50,6 +51,8 @@ Use Supabase Postgres for production. On Vercel, use the Supabase Shared Pooler 
 The app reads database connection details from `DATABASE_URL`, uses `DATABASE_SCHEMA` for PostgreSQL `search_path`, and also includes `public,extensions` so Supabase-hosted `pgcrypto` functions such as `crypt()` are visible. It automatically enables SSL for URLs with `sslmode=require`, `sslmode=verify-ca`, or `sslmode=verify-full`. The app strips `sslmode` before passing the URL to `pg` and applies SSL options directly so Supabase pooler certificates work on Vercel. The local Docker database is not available to Vercel deployments.
 
 Supabase client helpers live in `lib/supabase`. They are available for future Supabase API/Auth/Storage usage. Current application login still uses the existing database-backed `users` table and custom JWT cookies, so the main middleware remains the app's existing route protection rather than Supabase Auth middleware.
+
+Product image uploads use Supabase Storage bucket `images` (public) through `/api/products/images`. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only in Vercel environment variables; never expose it as a `NEXT_PUBLIC_*` value.
 
 Schema convention:
 
