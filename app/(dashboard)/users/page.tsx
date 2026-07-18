@@ -143,14 +143,22 @@ export default function ManageUsersPage() {
     [roles, form.roleId],
   )
   const isStaff = selectedRole === 'staff'
+  const isOwner = selectedRole === 'owner'
+  const showBranchField = Boolean(selectedRole) && !isOwner
   const selectedUsers = users.filter((user) => selected.has(user.id))
 
   const updateField = (key: keyof UserForm, value: string) => {
-    setForm((current) => ({ ...current, [key]: value }))
+    setForm((current) => {
+      const next = { ...current, [key]: value }
+      const nextRole = key === 'roleId' ? roles.find((role) => role.id === value)?.roleName ?? '' : selectedRole
+      if (nextRole === 'owner') next.branchId = ''
+      return next
+    })
     setFormErrors((current) => {
       if (!current.has(key)) return current
       const next = new Set(current)
       next.delete(key)
+      if (key === 'roleId') next.delete('branchId')
       return next
     })
   }
@@ -520,22 +528,24 @@ export default function ManageUsersPage() {
               </Space.Compact>
             </div>
           )}
-          <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>
-            <Select
-              size="large"
-              status={formErrors.has('branchId') ? 'error' : undefined}
-              value={form.branchId || undefined}
-              onChange={(value) => updateField('branchId', value)}
-              placeholder={isStaff ? 'เลือกสาขาสำหรับ STAFF' : 'ไม่ระบุ = ทุกสาขา'}
-              allowClear
-              className="w-full"
-              options={branches.map((branch) => ({
-                label: `${branch.branchName} (${branch.branchCode})`,
-                value: branch.id,
-              }))}
-            />
-          </div>
+          {showBranchField && (
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>
+              <Select
+                size="large"
+                status={formErrors.has('branchId') ? 'error' : undefined}
+                value={form.branchId || undefined}
+                onChange={(value) => updateField('branchId', value)}
+                placeholder={isStaff ? 'เลือกสาขาสำหรับ STAFF' : 'ไม่ระบุ = ทุกสาขา'}
+                allowClear
+                className="w-full"
+                options={branches.map((branch) => ({
+                  label: `${branch.branchName} (${branch.branchCode})`,
+                  value: branch.id,
+                }))}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สถานะ</label>
             <Select

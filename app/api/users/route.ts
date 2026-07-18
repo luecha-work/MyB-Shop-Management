@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const email = String(body.email ?? '').trim().toLowerCase()
     const suppliedPassword = String(body.password ?? '').trim()
     const roleId = String(body.roleId ?? '').trim()
-    const branchId = String(body.branchId ?? '').trim() || null
+    let branchId = String(body.branchId ?? '').trim() || null
     const status = String(body.status ?? 'active').trim() || 'active'
 
     if (!firstName || !lastName || !email || !roleId) {
@@ -104,6 +104,9 @@ export async function POST(request: NextRequest) {
     const roleName = String(roleResult.rows[0]?.role_name ?? '')
     if (!roleName) {
       return NextResponse.json({ error: 'ไม่พบบทบาทผู้ใช้ที่เลือก' }, { status: 400 })
+    }
+    if (roleName === 'owner') {
+      branchId = null
     }
     if (roleName === 'staff' && !branchId) {
       return NextResponse.json({ error: 'ผู้ใช้ STAFF ต้องเลือกสาขาประจำ' }, { status: 400 })
@@ -146,7 +149,7 @@ export async function PATCH(request: NextRequest) {
       const lastName = String(body.lastName ?? '').trim()
       const email = String(body.email ?? '').trim().toLowerCase()
       const roleId = String(body.roleId ?? '').trim()
-      const branchId = String(body.branchId ?? '').trim() || null
+      let branchId = String(body.branchId ?? '').trim() || null
       const status = String(body.status ?? 'active').trim() || 'active'
 
       if (!userId) {
@@ -161,6 +164,9 @@ export async function PATCH(request: NextRequest) {
       const roleName = String(roleResult.rows[0]?.role_name ?? '')
       if (!roleName) {
         return NextResponse.json({ error: 'ไม่พบบทบาทผู้ใช้ที่เลือก' }, { status: 400 })
+      }
+      if (roleName === 'owner') {
+        branchId = null
       }
       if (roleName === 'staff' && !branchId) {
         return NextResponse.json({ error: 'ผู้ใช้ STAFF ต้องเลือกสาขาประจำ' }, { status: 400 })
