@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
   const refreshTokenCookie = request.cookies.get('refresh_token')
   const legacySessionCookie = request.cookies.get('auth_session')
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
+  const hasAuthCookie = Boolean(accessTokenCookie || refreshTokenCookie || legacySessionCookie)
 
   // Priority: access_token > refresh_token > auth_session (legacy)
   let session: Session | null = accessTokenCookie
@@ -81,8 +82,20 @@ export async function middleware(request: NextRequest) {
 
   const authenticatedHome = () => (role === 'STAFF' ? '/pos' : '/dashboard')
 
+  if (!session && hasAuthCookie) {
+    response.cookies.delete('access_token')
+    response.cookies.delete('refresh_token')
+    response.cookies.delete('auth_session')
+  }
+
   if (!session && !isAuthPage) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirectResponse = NextResponse.redirect(new URL('/login', request.url))
+    if (hasAuthCookie) {
+      redirectResponse.cookies.delete('access_token')
+      redirectResponse.cookies.delete('refresh_token')
+      redirectResponse.cookies.delete('auth_session')
+    }
+    return redirectResponse
   }
 
   const isAdminRoute =

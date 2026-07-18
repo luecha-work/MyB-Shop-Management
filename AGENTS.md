@@ -81,7 +81,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 
 The app uses PostgreSQL-backed authentication.
 - **Roles:** Menus and admin-only sections adapt to `ADMIN` vs `STAFF`. Dashboard menu + History stat cards + Inventory edit buttons are ADMIN-only via the `role-admin-only` class (hidden by `.role-staff` on the layout container).
-- **Middleware:** `middleware.ts` redirects unauthenticated users to `/login`. Keep this classic middleware file unless the user explicitly asks to migrate to `proxy.ts`.
+- **Middleware:** `middleware.ts` redirects unauthenticated users to `/login` and clears invalid/stale `access_token`, `refresh_token`, and `auth_session` cookies when token decoding fails. Keep this classic middleware file unless the user explicitly asks to migrate to `proxy.ts`.
 - **Admin-only pages:** `/users*` and `/branches*` are blocked for `STAFF` by middleware. Entry points live in the Topbar profile menu and are shown only to `OWNER` and `ADMIN`, not in Sidebar/BottomNav. The menu labels are "จัดการ user" (`/users`) and "จัดการสาขา" (`/branches`).
 - **User passwords:** Admins never type passwords manually. Add-user shows a generated read-only password with Generate/Copy controls before saving; required add-user fields must validate with red error states before submit. Reset-password is OWNER-only, generates a new password server-side, and shows it once in a copy modal. The current logged-in user cannot be selected/deleted from the user table.
 - **Token lifetime:** `access_token` expires in 1 hour. `refresh_token` expires in 24 hours. Middleware can recreate a missing access token from a valid refresh token.
