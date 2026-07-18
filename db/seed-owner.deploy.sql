@@ -1,4 +1,4 @@
-SET search_path TO mybshop, public;
+SET search_path TO mybshop, public, extensions;
 
 INSERT INTO users (
     first_name,

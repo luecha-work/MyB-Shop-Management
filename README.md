@@ -47,7 +47,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
 
 Use Supabase Postgres for production. On Vercel, use the Supabase Shared Pooler / Supavisor transaction-mode connection string, not the direct `db.<project-ref>.supabase.co:5432` connection string. Direct Supabase database hosts resolve to IPv6 unless the Supabase IPv4 add-on is enabled, and Vercel Functions cannot use those direct IPv6-only connections.
 
-The app reads database connection details from `DATABASE_URL`, uses `DATABASE_SCHEMA` for PostgreSQL `search_path`, and automatically enables SSL for URLs with `sslmode=require`, `sslmode=verify-ca`, or `sslmode=verify-full`. The app strips `sslmode` before passing the URL to `pg` and applies SSL options directly so Supabase pooler certificates work on Vercel. The local Docker database is not available to Vercel deployments.
+The app reads database connection details from `DATABASE_URL`, uses `DATABASE_SCHEMA` for PostgreSQL `search_path`, and also includes `public,extensions` so Supabase-hosted `pgcrypto` functions such as `crypt()` are visible. It automatically enables SSL for URLs with `sslmode=require`, `sslmode=verify-ca`, or `sslmode=verify-full`. The app strips `sslmode` before passing the URL to `pg` and applies SSL options directly so Supabase pooler certificates work on Vercel. The local Docker database is not available to Vercel deployments.
 
 Supabase client helpers live in `lib/supabase`. They are available for future Supabase API/Auth/Storage usage. Current application login still uses the existing database-backed `users` table and custom JWT cookies, so the main middleware remains the app's existing route protection rather than Supabase Auth middleware.
 

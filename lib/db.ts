@@ -35,7 +35,7 @@ export const db =
   globalForPg.pgPool ??
   new Pool({
     connectionString: poolConnectionString,
-    options: `-c search_path=${databaseSchema},public`,
+    options: `-c search_path=${databaseSchema},public,extensions`,
     ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
   })
 

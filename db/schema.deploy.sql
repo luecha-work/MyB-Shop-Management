@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE SCHEMA IF NOT EXISTS mybshop;
-SET search_path TO mybshop, public;
+SET search_path TO mybshop, public, extensions;
 
 CREATE TABLE IF NOT EXISTS branches (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
