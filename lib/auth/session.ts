@@ -48,6 +48,9 @@ export const decodeSessionToken = async (value: string | undefined): Promise<Ses
 export const canManageSettings = (session: Session | null) =>
   session?.role === 'OWNER' || session?.role === 'ADMIN'
 
+export const canResetPasswords = (session: Session | null) =>
+  session?.role === 'OWNER'
+
 export const sessionFromRequest = async (request: {
   cookies: { get: (name: string) => { value: string } | undefined }
 }): Promise<Session | null> =>

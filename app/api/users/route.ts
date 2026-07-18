@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { db } from '@/lib/db'
-import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
+import { canManageSettings, canResetPasswords, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
 
@@ -71,6 +71,9 @@ export async function GET(request: NextRequest) {
         branchCode: row.branch_code,
         branchName: row.branch_name,
       })),
+      permissions: {
+        canResetPasswords: canResetPasswords(session),
+      },
     })
   } catch (error) {
     console.error('GET /api/users failed', error)
@@ -128,7 +131,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!canManageSettings(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request)
+  if (!canManageSettings(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -183,6 +187,10 @@ export async function PATCH(request: NextRequest) {
       }
 
       return NextResponse.json({ user: rows[0] })
+    }
+
+    if (!canResetPasswords(session)) {
+      return NextResponse.json({ error: 'เฉพาะ OWNER เท่านั้นที่ reset password ได้' }, { status: 403 })
     }
 
     if (!userId) {

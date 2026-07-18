@@ -212,8 +212,10 @@ export default function ProfilePage() {
               <Descriptions
                 bordered
                 column={{ xs: 1, sm: 1, md: 2 }}
-                labelStyle={{ width: 160, fontWeight: 600, color: 'var(--color-on-surface-variant)' }}
-                contentStyle={{ color: 'var(--color-on-surface)' }}
+                styles={{
+                  label: { width: 160, fontWeight: 600, color: 'var(--color-on-surface-variant)' },
+                  content: { color: 'var(--color-on-surface)' },
+                }}
                 items={[
                   { key: 'firstName', label: 'ชื่อ', children: profile.firstName },
                   { key: 'lastName', label: 'นามสกุล', children: profile.lastName },

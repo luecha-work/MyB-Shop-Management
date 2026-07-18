@@ -75,6 +75,7 @@ export default function ManageUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([])
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [branches, setBranches] = useState<BranchOption[]>([])
+  const [canResetPasswords, setCanResetPasswords] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -108,6 +109,7 @@ export default function ManageUsersPage() {
     setUsers(data.users)
     setRoles(data.roles)
     setBranches(data.branches)
+    setCanResetPasswords(Boolean(data.permissions?.canResetPasswords))
   }
 
   useEffect(() => {
@@ -116,13 +118,14 @@ export default function ManageUsersPage() {
       .then(async (response) => {
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ')
-        return data as { users: UserRow[]; roles: RoleOption[]; branches: BranchOption[] }
+        return data as { users: UserRow[]; roles: RoleOption[]; branches: BranchOption[]; permissions?: { canResetPasswords?: boolean } }
       })
       .then((data) => {
         if (!active) return
         setUsers(data.users)
         setRoles(data.roles)
         setBranches(data.branches)
+        setCanResetPasswords(Boolean(data.permissions?.canResetPasswords))
       })
       .catch((err) => {
         console.error(err)
@@ -365,15 +368,17 @@ export default function ManageUsersPage() {
           >
             แก้ไข
           </Button>
-          <Button
-            type="text"
-            icon={<ReloadOutlined />}
-            loading={resettingUserId === user.id}
-            onClick={() => setResetUser(user)}
-            className="text-error hover:!text-error"
-          >
-            รีเซ็ต
-          </Button>
+          {canResetPasswords && (
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              loading={resettingUserId === user.id}
+              onClick={() => setResetUser(user)}
+              className="text-error hover:!text-error"
+            >
+              รีเซ็ต
+            </Button>
+          )}
         </div>
       ),
     },
