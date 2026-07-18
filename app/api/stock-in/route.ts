@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, toDateParam, toNumber, toUuidParam } from '@/lib/db'
-import { sessionFromRequest } from '@/lib/auth/session'
+import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
 
@@ -54,5 +54,40 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/stock-in failed', error)
     return NextResponse.json({ error: 'Failed to load stock-in history' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await sessionFromRequest(request)
+  if (!canManageSettings(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const ids: string[] = Array.isArray(body.ids)
+      ? body.ids.map((id: unknown) => String(id).trim()).filter(Boolean)
+      : []
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'กรุณาเลือกประวัติรับเข้าที่ต้องการลบ' }, { status: 400 })
+    }
+
+    const { rowCount } = await db.query(
+      `
+        DELETE FROM stock_in
+        WHERE id = ANY($1::uuid[])
+      `,
+      [ids],
+    )
+
+    return NextResponse.json({ deleted: rowCount ?? 0 })
+  } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '22P02') {
+      return NextResponse.json({ error: 'รายการประวัติรับเข้าที่เลือกไม่ถูกต้อง' }, { status: 400 })
+    }
+    console.error('DELETE /api/stock-in failed', error)
+    return NextResponse.json({ error: 'Failed to delete stock-in history' }, { status: 500 })
   }
 }

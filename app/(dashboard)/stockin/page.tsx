@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, DatePicker, Empty, Input, Modal, Pagination, Table } from 'antd'
+import { Alert, Button, Checkbox, DatePicker, Empty, Input, Modal, Pagination, Table } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import {
@@ -25,7 +25,7 @@ type StockInRow = {
   note: string
 }
 
-const rowKey = (row: StockInRow) => row.id ?? JSON.stringify({ date: row.date, productName: row.productName })
+const rowKey = (row: StockInRow) => row.id ?? ''
 
 // ฟอร์แมตวันที่ เช่น "1 ก.ค. 2569 08:30" (logic เดิมจาก updateStockInUI)
 const formatStockInDate = (date: string) =>
@@ -43,8 +43,10 @@ export default function StockInPage() {
   const [endDate, setEndDate] = useState(monthRange.end)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [selected, setSelected] = useState<Set<string>>(new Set()) // เก็บ id หรือ key {date, productName}
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('')
 
   useEffect(() => {
     let active = true
@@ -108,17 +110,45 @@ export default function StockInPage() {
   }
 
   const toggleSelect = (row: StockInRow, checked: boolean) => {
+    if (!row.id) return
     const next = new Set(selected)
-    if (checked) next.add(rowKey(row))
-    else next.delete(rowKey(row))
+    if (checked) next.add(row.id)
+    else next.delete(row.id)
     setSelected(next)
   }
 
-  // TODO: เชื่อม Server Action deleteStockInRecords (Google Sheets) แทนการลบใน state
-  const executeDelete = () => {
-    setAllData(allData.filter((r) => !selected.has(rowKey(r))))
-    resetSelection()
-    setDeleteConfirmOpen(false)
+  const executeDelete = async () => {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+
+    setIsDeleting(true)
+    setDeleteErrorMsg('')
+
+    try {
+      const response = await fetch('/api/stock-in', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || 'ลบประวัติรับเข้าไม่สำเร็จ')
+
+      const params = new URLSearchParams()
+      if (startDate) params.set('startDate', startDate)
+      if (endDate) params.set('endDate', endDate)
+      const reload = await fetch(`/api/stock-in?${params.toString()}`, { cache: 'no-store' })
+      if (!reload.ok) throw new Error('ลบแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ')
+      const latest = await reload.json() as { rows: StockInRow[] }
+
+      setAllData(latest.rows)
+      resetSelection()
+      setDeleteConfirmOpen(false)
+    } catch (error) {
+      setDeleteErrorMsg(error instanceof Error ? error.message : 'ลบประวัติรับเข้าไม่สำเร็จ')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const selectedRows = allData.filter((r) => selected.has(rowKey(r)))
@@ -198,7 +228,10 @@ export default function StockInPage() {
               <Button
                 danger
                 disabled={!deleteBtnActive}
-                onClick={() => setDeleteConfirmOpen(true)}
+                onClick={() => {
+                  setDeleteErrorMsg('')
+                  setDeleteConfirmOpen(true)
+                }}
                 icon={<DeleteOutlined />}
                 title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
               >
@@ -252,6 +285,7 @@ export default function StockInPage() {
               rowSelection={{
                 selectedRowKeys: Array.from(selected),
                 onChange: (keys) => setSelected(new Set(keys as string[])),
+                getCheckboxProps: (record) => ({ disabled: !record.id }),
                 columnWidth: 50,
               }}
               rowClassName={(record) => (selected.has(rowKey(record)) ? 'bg-error/[0.04]' : '')}
@@ -277,6 +311,7 @@ export default function StockInPage() {
                     <div className="flex-shrink-0 mt-0.5">
                       <Checkbox
                         checked={selected.has(rowKey(row))}
+                        disabled={!row.id}
                         onChange={(e) => toggleSelect(row, e.target.checked)}
                       />
                     </div>
@@ -310,7 +345,10 @@ export default function StockInPage() {
       {/* ==================== Delete Confirm Modal ==================== */}
       <Modal
         open={deleteConfirmOpen}
-        onCancel={() => setDeleteConfirmOpen(false)}
+        onCancel={() => {
+          setDeleteErrorMsg('')
+          setDeleteConfirmOpen(false)
+        }}
         centered
         width={384}
         closable={false}
@@ -327,8 +365,11 @@ export default function StockInPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
+            <Button block onClick={() => {
+              setDeleteErrorMsg('')
+              setDeleteConfirmOpen(false)
+            }} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
+            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>
@@ -337,6 +378,7 @@ export default function StockInPage() {
         <p className="text-sm text-on-surface-variant mb-3">
           ต้องการลบประวัติการรับเข้าคลัง <span className="font-bold text-error">{selected.size} รายการ</span> ออกจากระบบ?
         </p>
+        {deleteErrorMsg && <Alert title={deleteErrorMsg} type="error" showIcon className="mb-3 rounded-xl" />}
         <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg max-h-32 overflow-y-auto p-2 no-scrollbar">
           <ul className="space-y-1.5">
             {selectedRows.map((r) => (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox } from 'antd'
+import { Alert, Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import {
@@ -153,6 +153,8 @@ export default function HistoryPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set()) // เก็บ orderId
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; orderIds: string[] }>({ open: false, orderIds: [] })
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('')
 
   useEffect(() => {
     let active = true
@@ -275,6 +277,7 @@ export default function HistoryPage() {
 
   const confirmDeleteSelected = () => {
     if (selected.size === 0) return
+    setDeleteErrorMsg('')
     setDeleteConfirm({ open: true, orderIds: Array.from(selected) })
   }
 
@@ -282,15 +285,41 @@ export default function HistoryPage() {
   const confirmCancelCurrentOrder = () => {
     if (!detailOrderId) return
     setDetailOrderId(null)
+    setDeleteErrorMsg('')
     setDeleteConfirm({ open: true, orderIds: [detailOrderId] })
   }
 
-  // TODO: เชื่อม Server Action deleteSalesHistory (Google Sheets) แทนการลบใน state
-  const executeDelete = () => {
-    const ids = new Set(deleteConfirm.orderIds)
-    setAllData(allData.filter((r) => !ids.has(r.orderId)))
-    resetSelection()
-    setDeleteConfirm({ open: false, orderIds: [] })
+  const executeDelete = async () => {
+    if (deleteConfirm.orderIds.length === 0) return
+
+    setIsDeleting(true)
+    setDeleteErrorMsg('')
+
+    try {
+      const response = await fetch('/api/sales-history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: deleteConfirm.orderIds }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || 'ลบประวัติการขายไม่สำเร็จ')
+
+      const params = new URLSearchParams()
+      if (startDate) params.set('startDate', startDate)
+      if (endDate) params.set('endDate', endDate)
+      const reload = await fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store' })
+      if (!reload.ok) throw new Error('ลบแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ')
+      const latest = await reload.json() as { rows: HistoryRow[] }
+
+      setAllData(latest.rows)
+      resetSelection()
+      setDeleteConfirm({ open: false, orderIds: [] })
+    } catch (error) {
+      setDeleteErrorMsg(error instanceof Error ? error.message : 'ลบประวัติการขายไม่สำเร็จ')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // ข้อมูลใน Detail Modal
@@ -656,7 +685,10 @@ export default function HistoryPage() {
       {/* ==================== Delete Confirm Modal ==================== */}
       <Modal
         open={deleteConfirm.open}
-        onCancel={() => setDeleteConfirm({ open: false, orderIds: [] })}
+        onCancel={() => {
+          setDeleteErrorMsg('')
+          setDeleteConfirm({ open: false, orderIds: [] })
+        }}
         centered
         width={384}
         closable={false}
@@ -673,10 +705,13 @@ export default function HistoryPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button block onClick={() => setDeleteConfirm({ open: false, orderIds: [] })} className="h-11 ant-btn-cancel-soft">
+            <Button block onClick={() => {
+              setDeleteErrorMsg('')
+              setDeleteConfirm({ open: false, orderIds: [] })
+            }} className="h-11 ant-btn-cancel-soft">
               ยกเลิก
             </Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
+            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>
@@ -685,6 +720,7 @@ export default function HistoryPage() {
         <p className="text-sm text-on-surface-variant mb-3">
           ต้องการลบรายการ <span className="font-bold text-error">{deleteConfirm.orderIds.length} ออเดอร์</span> ออกจากระบบ?
         </p>
+        {deleteErrorMsg && <Alert title={deleteErrorMsg} type="error" showIcon className="mb-3 rounded-xl" />}
         <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
           {deleteDisplayList.map((i) => (
             <li key={i.orderId} className="flex items-center gap-2 text-sm text-on-surface">

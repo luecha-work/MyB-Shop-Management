@@ -132,8 +132,10 @@ export default function InventoryPage() {
   const [filterText, setFilterText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [selected, setSelected] = useState<Set<string>>(new Set()) // เก็บชื่อสินค้า
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('')
   const [detailModalType, setDetailModalType] = useState<'low' | 'out' | null>(null)
   const [editModal, setEditModal] = useState<{ open: boolean; isEdit: boolean; originalName: string; originalId: string }>({ open: false, isEdit: false, originalName: '', originalId: '' })
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
@@ -159,6 +161,7 @@ export default function InventoryPage() {
 
   const lowItems = useMemo(() => products.filter(isLowStock), [products])
   const outItems = useMemo(() => products.filter(isOutOfStock), [products])
+  const selectedProducts = useMemo(() => products.filter((p) => p.id && selected.has(p.id)), [products, selected])
 
   const resetSelection = () => setSelected(new Set())
 
@@ -168,18 +171,39 @@ export default function InventoryPage() {
     resetSelection()
   }
 
-  const toggleSelect = (name: string, checked: boolean) => {
+  const toggleSelect = (id: string | undefined, checked: boolean) => {
+    if (!id) return
     const next = new Set(selected)
-    if (checked) next.add(name)
-    else next.delete(name)
+    if (checked) next.add(id)
+    else next.delete(id)
     setSelected(next)
   }
 
-  // TODO: เชื่อม Server Action deleteProducts (Google Sheets) แทนการลบใน state
-  const executeDelete = () => {
-    setProducts(products.filter((p) => !selected.has(p.name)))
-    resetSelection()
-    setDeleteConfirmOpen(false)
+  const executeDelete = async () => {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+
+    setIsDeleting(true)
+    setDeleteErrorMsg('')
+
+    try {
+      const response = await fetch('/api/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || 'ลบสินค้าไม่สำเร็จ')
+
+      setProducts(await loadProducts())
+      resetSelection()
+      setDeleteConfirmOpen(false)
+    } catch (error) {
+      setDeleteErrorMsg(error instanceof Error ? error.message : 'ลบสินค้าไม่สำเร็จ')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // ---------- Add / Edit Product Modal ----------
@@ -519,7 +543,7 @@ export default function InventoryPage() {
           {/* Desktop Table (antd) */}
           <div className="hidden lg:block">
             <Table<Product>
-              rowKey="name"
+              rowKey="id"
               columns={columns}
               dataSource={pageItems}
               pagination={paginationConfig}
@@ -529,7 +553,7 @@ export default function InventoryPage() {
                 onChange: (keys) => setSelected(new Set(keys as string[])),
                 columnWidth: 50,
               }}
-              rowClassName={(record) => (selected.has(record.name) ? 'bg-error/[0.04]' : '')}
+              rowClassName={(record) => (record.id && selected.has(record.id) ? 'bg-error/[0.04]' : '')}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลสินค้า" /> }}
             />
           </div>
@@ -540,7 +564,7 @@ export default function InventoryPage() {
               <div className="p-lg text-center text-on-surface-variant">ไม่พบข้อมูลสินค้า</div>
             ) : (
               pageItems.map((product) => (
-                <article key={product.name} className={`bg-surface-container-lowest hover:border-secondary/50 rounded-xl p-md shadow-sm border border-outline-variant/80 relative flex flex-col gap-2 transition-all duration-200 ${selected.has(product.name) ? 'bg-error/[0.04]' : ''}`}>
+                <article key={product.id ?? product.name} className={`bg-surface-container-lowest hover:border-secondary/50 rounded-xl p-md shadow-sm border border-outline-variant/80 relative flex flex-col gap-2 transition-all duration-200 ${product.id && selected.has(product.id) ? 'bg-error/[0.04]' : ''}`}>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-primary truncate pr-2">{product.name}</span>
                     <div className="flex-shrink-0"><StatusBadge product={product} /></div>
@@ -548,8 +572,9 @@ export default function InventoryPage() {
                   <div className="flex items-start gap-2">
                     <div className="flex-shrink-0 mt-0.5">
                       <Checkbox
-                        checked={selected.has(product.name)}
-                        onChange={(e) => toggleSelect(product.name, e.target.checked)}
+                        checked={Boolean(product.id && selected.has(product.id))}
+                        disabled={!product.id}
+                        onChange={(e) => toggleSelect(product.id, e.target.checked)}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -606,7 +631,7 @@ export default function InventoryPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} className="h-11">
+            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} loading={isDeleting} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>
@@ -615,10 +640,11 @@ export default function InventoryPage() {
         <p className="text-sm text-on-surface-variant mb-3">
           ต้องการลบสินค้า <span className="font-bold text-error">{selected.size} รายการ</span> ออกจากระบบ?
         </p>
+        {deleteErrorMsg && <Alert title={deleteErrorMsg} type="error" showIcon className="mb-3 rounded-xl" />}
         <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
-          {Array.from(selected).map((n) => (
-            <li key={n} className="flex items-center gap-2 text-sm text-on-surface">
-              <AppstoreOutlined className="text-[14px] text-error flex-shrink-0" />{n}
+          {selectedProducts.map((product) => (
+            <li key={product.id} className="flex items-center gap-2 text-sm text-on-surface">
+              <AppstoreOutlined className="text-[14px] text-error flex-shrink-0" />{product.name}
             </li>
           ))}
         </ul>

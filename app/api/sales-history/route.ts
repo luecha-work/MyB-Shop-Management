@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, toDateParam, toNumber, toUuidParam } from '@/lib/db'
-import { sessionFromRequest } from '@/lib/auth/session'
+import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 import { normalizeGpRate } from '@/lib/constants'
 
 export const runtime = 'nodejs'
@@ -73,5 +73,36 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/sales-history failed', error)
     return NextResponse.json({ error: 'Failed to load sales history' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await sessionFromRequest(request)
+  if (!canManageSettings(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const orderIds: string[] = Array.isArray(body.orderIds)
+      ? body.orderIds.map((id: unknown) => String(id).trim()).filter(Boolean)
+      : []
+
+    if (orderIds.length === 0) {
+      return NextResponse.json({ error: 'กรุณาเลือกออเดอร์ที่ต้องการลบ' }, { status: 400 })
+    }
+
+    const { rowCount } = await db.query(
+      `
+        DELETE FROM sales
+        WHERE order_id = ANY($1::text[])
+      `,
+      [orderIds],
+    )
+
+    return NextResponse.json({ deleted: rowCount ?? 0 })
+  } catch (error) {
+    console.error('DELETE /api/sales-history failed', error)
+    return NextResponse.json({ error: 'Failed to delete sales history' }, { status: 500 })
   }
 }

@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { db, toNumber } from '@/lib/db'
 import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
+
+const PRODUCT_IMAGE_BUCKET = 'images'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const toProductResponse = (row: {
   id: string
@@ -67,6 +73,38 @@ const nextProductCodeQuery = `
   )::text AS product_code
   FROM products
 `
+
+const storageClient = () => {
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase Storage environment variables are not configured')
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
+const storagePathFromPublicUrl = (imageUrl: string | null) => {
+  if (!imageUrl || !supabaseUrl) return null
+
+  try {
+    const url = new URL(imageUrl)
+    const storageUrl = new URL(supabaseUrl)
+    if (url.host !== storageUrl.host) return null
+
+    const marker = `/storage/v1/object/public/${PRODUCT_IMAGE_BUCKET}/`
+    const markerIndex = url.pathname.indexOf(marker)
+    if (markerIndex === -1) return null
+
+    const path = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+    return path.startsWith('products/') ? path : null
+  } catch {
+    return null
+  }
+}
 
 export async function GET() {
   try {
@@ -226,5 +264,68 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error('PATCH /api/products failed', error)
     return NextResponse.json({ error: 'Failed to update product image' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await sessionFromRequest(request)
+  if (!canManageSettings(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const body = await request.json()
+    const ids: string[] = Array.isArray(body.ids)
+      ? body.ids.map((id: unknown) => String(id).trim()).filter(Boolean)
+      : []
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการลบ' }, { status: 400 })
+    }
+
+    const { rows: imageRows } = await db.query<{ image_url: string | null }>(
+      `
+        SELECT image_url
+        FROM products
+        WHERE id = ANY($1::uuid[])
+      `,
+      [ids],
+    )
+
+    const storagePaths = Array.from(
+      new Set(
+        imageRows
+          .map((row) => storagePathFromPublicUrl(row.image_url))
+          .filter((path): path is string => Boolean(path)),
+      ),
+    )
+
+    if (storagePaths.length > 0) {
+      const { error } = await storageClient()
+        .storage
+        .from(PRODUCT_IMAGE_BUCKET)
+        .remove(storagePaths)
+
+      if (error) {
+        return NextResponse.json({ error: error.message || 'ลบไฟล์รูปภาพสินค้าไม่สำเร็จ' }, { status: 500 })
+      }
+    }
+
+    const { rowCount } = await db.query(
+      `
+        DELETE FROM products
+        WHERE id = ANY($1::uuid[])
+      `,
+      [ids],
+    )
+
+    return NextResponse.json({ deleted: rowCount ?? 0, deletedImages: storagePaths.length })
+  } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '22P02') {
+      return NextResponse.json({ error: 'รายการสินค้าที่เลือกไม่ถูกต้อง' }, { status: 400 })
+    }
+    console.error('DELETE /api/products failed', error)
+    return NextResponse.json({ error: 'Failed to delete products' }, { status: 500 })
   }
 }
