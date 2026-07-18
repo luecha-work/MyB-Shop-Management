@@ -25,6 +25,7 @@ import { Loader } from '@/components/UI/Loader'
 // ==========================================
 type Product = {
   id?: string
+  productCode?: string
   name: string
   cost: number
   priceCash: number

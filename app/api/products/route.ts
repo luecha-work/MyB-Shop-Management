@@ -58,6 +58,16 @@ const productSelect = `
   image_url
 `
 
+const nextProductCodeQuery = `
+  SELECT (
+    COALESCE(
+      MAX(product_code::int) FILTER (WHERE product_code ~ '^[0-9]+$'),
+      0
+    ) + 1
+  )::text AS product_code
+  FROM products
+`
+
 export async function GET() {
   try {
     const { rows } = await db.query(`
@@ -99,7 +109,11 @@ export async function POST(request: NextRequest) {
 
     const { rows } = await db.query(
       `
+        WITH next_code AS (
+          ${nextProductCodeQuery}
+        )
         INSERT INTO products (
+          product_code,
           product_name,
           cost,
           cash_price,
@@ -111,7 +125,8 @@ export async function POST(request: NextRequest) {
           status,
           image_url
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $6, $7, 'Active', $8)
+        SELECT next_code.product_code, $1, $2, $3, $4, $5, $6, $6, $7, 'Active', $8
+        FROM next_code
         RETURNING ${productSelect}
       `,
       [name, cost, priceCash, priceGrab, priceLineman, stockIn, minStock, imageUrl],
