@@ -8,11 +8,17 @@ if (!connectionString) {
 
 const globalForPg = globalThis as unknown as { pgPool?: Pool }
 
+const requiresSsl =
+  process.env.DB_SSL === 'true' ||
+  connectionString.includes('sslmode=require') ||
+  connectionString.includes('sslmode=verify-ca') ||
+  connectionString.includes('sslmode=verify-full')
+
 export const db =
   globalForPg.pgPool ??
   new Pool({
     connectionString,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
   })
 
 if (process.env.NODE_ENV !== 'production') {

@@ -27,6 +27,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `app/layout.tsx`: Root layout configuring Google Fonts (Manrope, Inter, JetBrains Mono) + `AntdRegistry`/`AntdProvider`. `<body suppressHydrationWarning>` guards against browser-extension attribute injection.
 - `app/globals.css`: Tailwind v4 `@theme` (colors `--color-*`, spacing `xs/sm/base/md/lg/xl/margin-*`, radii, shadows `card/premium/sm-card/sidebar`), typography `@utility` classes, `glass-card`, `interactive-press`, `.role-staff .role-admin-only` (role-based hiding), and `.ant-btn-secondary-solid` (gold antd button).
 - `next.config.ts`: Next.js config. Development allows `*.trycloudflare.com` via `allowedDevOrigins` so Cloudflare Tunnel previews can load Next dev/HMR endpoints.
+- `vercel.json`: Vercel project config. Keeps the Next.js framework preset with `npm ci` and `npm run build` for hosted deploys.
 - `app/(auth)/login/page.tsx`: Login interface (antd Input/Button).
 - `app/(dashboard)/layout.tsx`: App shell — `Topbar` (full-width header on top), then `Sidebar` + content row, `BottomNav`. Adds `role-staff` class to the container when the session role is STAFF.
 - `app/(dashboard)/*/page.tsx`: Core views (`/dashboard`, `/pos`, `/history`, `/inventory`, `/stockin`) — all client components, fully implemented against the original app's markup/logic and now fetching read data from local API routes.
@@ -45,9 +46,12 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `components/UI/Loader.tsx`: Full-screen loading overlay (antd `Spin` + message) — shown by every page while data loads.
 - `lib/actions/auth.ts`: login/logout/getSession Server Actions. Login validates `users.email`, active status, and `password_hash` via PostgreSQL `crypt()`, then stores compact session payloads in `access_token` (1h) and `refresh_token` (24h) cookies.
 - `lib/auth/session.ts`: Shared session type, route-handler cookie decoding (`sessionFromRequest`), and role helpers.
-- `lib/db.ts`: Shared PostgreSQL connection pool and small DB value helpers. Requires `DATABASE_URL`. Includes date/number/UUID param guards for API routes.
+- `lib/db.ts`: Shared PostgreSQL connection pool and small DB value helpers. Requires `DATABASE_URL`; SSL is inferred from `DATABASE_URL` `sslmode=require|verify-ca|verify-full` or optional `DB_SSL=true`. Includes date/number/UUID param guards for API routes.
 - `lib/format.ts`: Shared helpers — `thbFormat` (฿ th-TH), `formatNum`, `toLocalISODate`, `currentMonthRange` (default date-range = current month, mirrors original `resetViewState`).
 - `db/schema.sql`: Idempotent PostgreSQL schema for roles, branches, products, users, sales, stock_in, and indexes, kept compatible with `db/new_schema.sql`. `sales` and `stock_in` store `product_id`, not `product_name`; product display names must be resolved by joining `products`. The `users` table stores credentials in `password_hash`; never store plain-text passwords.
+- `db/schema.deploy.sql`: Portable managed-PostgreSQL schema for production/Vercel deploys. Uses `CREATE EXTENSION IF NOT EXISTS pgcrypto`, avoids local-owner/GRANT dump statements, creates tables/indexes idempotently, and seeds base roles (`owner`, `admin`, `staff`).
+- `.env.production.example`: Production/Vercel environment variable template. Vercel needs `DATABASE_URL` and a strong `JWT_SECRET`; include `sslmode=require` in managed Postgres URLs when SSL is required.
+- `.gitignore`: Keeps real `.env*` files ignored while explicitly allowing `.env.example` and `.env.production.example` templates to be committed.
 - `db/seed-owner.sql`: Local seed for owner login (`owner@myb.com` / `owner123`) using `crypt()`.
 
 ---
@@ -95,6 +99,12 @@ The app uses PostgreSQL-backed authentication.
   - `make psql` opens a psql shell.
   - `.env` uses `DATABASE_URL="postgresql://admin:Password%401@localhost:5432/myb-shop-db"` and `DB_SSL="false"` by default.
 - Verify code changes with `npx tsc --noEmit` and `npm run lint`, then hit routes on the dev server with an `access_token` or `refresh_token` cookie containing the session payload.
+- `npm run verify` runs `npm run typecheck` and `npm run lint`.
+- Vercel deployment workflow:
+  - Use Vercel's Next.js framework preset; `vercel.json` pins `npm ci` and `npm run build`.
+  - Set `DATABASE_URL` and `JWT_SECRET` in Vercel Project Settings for Preview/Production. Prefer putting SSL mode in the URL, e.g. `?sslmode=require`; `DB_SSL=true` remains an optional override.
+  - Use an external/Marketplace PostgreSQL database; local Docker is not reachable from Vercel.
+  - Initialize fresh production databases with `psql "$DATABASE_URL" -f db/schema.deploy.sql`, then seed the first owner carefully from `db/seed-owner.sql` and change/reset that temporary password immediately.
 - antd v6 emits deprecation warnings in the console — fix them with the v6 API (already done for Drawer `size`/`styles.section`).
 
 ---
