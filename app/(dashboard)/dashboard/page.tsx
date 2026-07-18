@@ -264,16 +264,16 @@ export default function DashboardPage() {
             {data.topProducts.map((pr, i) => (
               <div
                 key={pr.name}
-                className={`flex items-center justify-between py-5 ${i === data.topProducts.length - 1 ? '' : 'border-b border-surface-variant/30'}`}
+                className={`flex items-center justify-between gap-6 py-5 ${i === data.topProducts.length - 1 ? '' : 'border-b border-surface-variant/30'}`}
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex-[8] flex items-center gap-4 min-w-0 pr-3">
                   <RankBadge rank={i + 1} />
                   <div className="min-w-0">
                     <div className="font-body-md font-medium text-on-surface mb-0.5 break-words" title={pr.name}>{pr.name}</div>
                     <div className="font-label-md text-outline">{pr.qty} sold</div>
                   </div>
                 </div>
-                <div className="font-body-lg font-bold text-on-surface flex-shrink-0">{thbFormat(pr.sales)}</div>
+                <div className="flex-[2] font-body-lg font-bold text-on-surface text-right min-w-0">{thbFormat(pr.sales)}</div>
               </div>
             ))}
           </div>
