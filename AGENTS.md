@@ -19,7 +19,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - **Database:** PostgreSQL 16 via Docker (`Makefile`) and `pg`
 - **Supabase:** Production database provider is Supabase Postgres. The app still uses PostgreSQL via `DATABASE_URL` for core read/write APIs; on Vercel this must be the Supabase Shared Pooler / Supavisor connection string, not the direct `db.<project-ref>.supabase.co:5432` string, because Supabase direct connections are IPv6 unless the IPv4 add-on is enabled and Vercel Functions cannot use direct IPv6-only database connections. `@supabase/supabase-js` + `@supabase/ssr` are installed and helper clients live in `lib/supabase/*`. Product image uploads use Supabase Storage bucket `images` (public) under `products/` through protected API route `app/api/products/images/route.ts` and require server-only `SUPABASE_SERVICE_ROLE_KEY`.
 - **Backend/API:** Next.js App Router route handlers under `app/api/*`
-- **Image Storage:** Product image uploads go to Supabase Storage public bucket `images`, folder `products/`, through a protected Next.js API route using `SUPABASE_SERVICE_ROLE_KEY`. Do not upload directly from the browser with public write policies. Editing an existing product persists the uploaded public URL to `products.image_url`; the rest of the inventory product add/edit fields still update local React state until full product mutation APIs are implemented.
+- **Image Storage:** Product image uploads go to Supabase Storage public bucket `images`, folder `products/`, through a protected Next.js API route using `SUPABASE_SERVICE_ROLE_KEY`. Do not upload directly from the browser with public write policies. Product add/edit saves the returned public URL to `products.image_url`.
 
 ---
 
@@ -31,8 +31,8 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 - `vercel.json`: Vercel project config. Keeps the Next.js framework preset with `npm ci` and `npm run build` for hosted deploys.
 - `app/(auth)/login/page.tsx`: Login interface (antd Input/Button).
 - `app/(dashboard)/layout.tsx`: App shell — `Topbar` (full-width header on top), then `Sidebar` + content row, `BottomNav`. Adds `role-staff` class to the container when the session role is STAFF.
-- `app/(dashboard)/*/page.tsx`: Core views (`/dashboard`, `/pos`, `/history`, `/inventory`, `/stockin`) — all client components, fully implemented against the original app's markup/logic and now fetching read data from local API routes. Inventory image selection uploads to `/api/products/images` on product save and uses the returned Supabase public URL in UI state.
-- `app/api/products/route.ts`: Product list API backed by PostgreSQL `products`, plus admin/owner-only `PATCH { action: 'update-image' }` to persist an uploaded product image URL into `products.image_url`.
+- `app/(dashboard)/*/page.tsx`: Core views (`/dashboard`, `/pos`, `/history`, `/inventory`, `/stockin`) — all client components, fully implemented against the original app's markup/logic and now fetching read data from local API routes. Inventory product add/edit saves through `/api/products`; image selection uploads to `/api/products/images` on product save and persists the returned Supabase public URL.
+- `app/api/products/route.ts`: Product list/add/edit API backed by PostgreSQL `products`. `POST` creates products, and admin/owner-only `PATCH { action: 'update-product' }` updates product fields plus `products.image_url`; `PATCH { action: 'update-image' }` remains available for image-only updates.
 - `app/api/products/images/route.ts`: Admin/owner-only product image upload API. Accepts multipart `file` + `productName`, validates image type/5MB size, uploads to Supabase Storage public bucket `images` under `products/`, and returns the public URL. Requires `SUPABASE_SERVICE_ROLE_KEY`; never expose this key to the browser.
 - `app/api/dashboard/route.ts`: Dashboard summary API backed by PostgreSQL `sales`; top-product names are resolved with `LEFT JOIN products` because transaction tables do not store `product_name` in the current schema.
 - `app/api/sales-history/route.ts`: Sales history API backed by PostgreSQL `sales`; joins `products` through `sales.product_id` to display product names and applies STAFF branch scoping from the session.
@@ -118,9 +118,8 @@ The app uses PostgreSQL-backed authentication.
 
 The read paths now use PostgreSQL. Remaining backend work is focused on mutations and production hardening:
 
-1. Implement write APIs/server actions for POS checkout, stock-in, product add/edit/delete, sales delete, and stock-in delete.
+1. Implement write APIs/server actions for POS checkout, stock-in, product delete, sales delete, and stock-in delete.
 2. Move local state-only handlers in client pages to those write APIs, then refetch or update state from API responses.
 3. Add seed data or import tooling so a fresh `make up && make init-db` environment has usable demo products/branches.
 4. Finish branch-aware filtering for all remaining write workflows and wire the Topbar branch selector to API query state for OWNER/ADMIN views.
-5. Implement durable image storage for product images.
-6. Keep GP commission rates aligned with the original business rules: Cash 0%, Grab 21.6%, LINE MAN 32.1%.
+5. Keep GP commission rates aligned with the original business rules: Cash 0%, Grab 21.6%, LINE MAN 32.1%.

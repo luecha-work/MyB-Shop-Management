@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Table, Tag, Upload } from 'antd'
 import type { TableColumnsType } from 'antd'
 import {
@@ -104,16 +104,19 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loadError, setLoadError] = useState('')
 
+  const loadProducts = useCallback(async () => {
+    const res = await fetch('/api/products', { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to load products')
+    const data = await res.json() as { products: Product[] }
+    return data.products
+  }, [])
+
   useEffect(() => {
     let active = true
-    fetch('/api/products', { cache: 'no-store' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load products')
-        return res.json() as Promise<{ products: Product[] }>
-      })
-      .then((data) => {
+    loadProducts()
+      .then((nextProducts) => {
         if (!active) return
-        setProducts(data.products)
+        setProducts(nextProducts)
       })
       .catch((error) => {
         console.error(error)
@@ -123,7 +126,7 @@ export default function InventoryPage() {
         if (active) setIsLoading(false)
       })
     return () => { active = false }
-  }, [])
+  }, [loadProducts])
 
   const [filterText, setFilterText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -245,24 +248,6 @@ export default function InventoryPage() {
     return String(data.publicUrl || '')
   }
 
-  const saveProductImageUrl = async (imageUrl: string) => {
-    if (!editModal.isEdit || !editModal.originalId) return
-
-    const response = await fetch('/api/products', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'update-image',
-        id: editModal.originalId,
-        imageUrl,
-      }),
-    })
-    const data = await response.json()
-
-    if (!response.ok) throw new Error(data.error || 'บันทึกรูปภาพสินค้าไม่สำเร็จ')
-  }
-
-  // TODO: เชื่อม Server Action addProduct/updateProduct แทนการแก้ state
   const saveProductEdit = async () => {
     const required: (keyof EditForm)[] = ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'stockIn', 'minStock']
     const errors = new Set<string>()
@@ -277,7 +262,6 @@ export default function InventoryPage() {
 
     try {
       const imageUrl = editImageFile ? await uploadProductImage(editImageFile) : editForm.image
-      if (editImageFile) await saveProductImageUrl(imageUrl)
 
       const data = {
         name: editForm.name.trim(),
@@ -287,14 +271,28 @@ export default function InventoryPage() {
         priceLineman: parseFloat(editForm.priceLineman) || 0,
         stockIn: parseInt(editForm.stockIn) || 0,
         minStock: parseInt(editForm.minStock) || 0,
-        image: imageUrl || FALLBACK_IMG,
+        imageUrl,
       }
 
+      const response = await fetch('/api/products', {
+        method: editModal.isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          editModal.isEdit
+            ? { action: 'update-product', id: editModal.originalId, ...data }
+            : data,
+        ),
+      })
+      const result = await response.json()
+
+      if (!response.ok) throw new Error(result.error || 'บันทึกสินค้าไม่สำเร็จ')
+
       if (editModal.isEdit) {
-        setProducts(products.map((p) => (p.name === editModal.originalName ? { ...p, ...data } : p)))
+        setProducts(products.map((p) => (p.id === editModal.originalId ? result.product : p)))
       } else {
-        setProducts([...products, { ...data, currentStock: data.stockIn, status: 'Active' }])
+        setProducts([...products, result.product])
       }
+      setProducts(await loadProducts())
       setEditImageFile(null)
       setEditModal({ ...editModal, open: false })
     } catch (error) {
