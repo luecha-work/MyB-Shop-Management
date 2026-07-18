@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { logout } from '@/lib/actions/auth'
 import { useRouter } from 'next/navigation'
-import { Button, Menu, Popover, Tooltip } from 'antd'
+import { Avatar, Button, Menu, Popover, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import { LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
 
@@ -196,8 +196,8 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             M
           </div>
           <div>
-            <h1 className="font-headline-md text-headline-md font-bold text-primary leading-none">My.B</h1>
-            <p className="text-[10px] text-on-surface-variant mt-0.5 leading-none">Shop Management</p>
+            <h1 className="font-headline-md text-headline-md font-bold text-primary leading-none">My.b Shop</h1>
+            <p className="text-[10px] text-on-surface-variant mt-0.5 leading-none">Management</p>
           </div>
         </div>
 
@@ -237,7 +237,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
       <header className="lg:hidden sticky top-0 z-40 bg-surface/90 backdrop-blur-md px-margin-mobile py-4 border-b border-outline-variant/80 flex justify-between items-center shadow-card">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary font-bold text-sm">M</div>
-          <span className="font-bold text-lg text-primary tracking-tight">My.B</span>
+          <span className="font-bold text-lg text-primary tracking-tight">My.b Shop</span>
         </div>
         <div className="flex gap-sm">
           <Tooltip title={userMenuTooltip} color="#6b7280">
@@ -252,14 +252,14 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             >
               <button
                 type="button"
-                className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary relative interactive-press hover:bg-surface-container"
+                aria-label="เปิดเมนูผู้ใช้"
+                className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center interactive-press"
               >
-                <UserOutlined className="text-[20px]" />
-                <span
-                  className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${isAdmin ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'} text-[9px] font-extrabold flex items-center justify-center border-2 border-white`}
-                >
-                  {normalizedRole === 'OWNER' ? 'OWN' : isAdmin ? 'ADM' : 'STF'}
-                </span>
+                <Avatar
+                  size={40}
+                  icon={<UserOutlined />}
+                  className={isAdmin ? '!bg-secondary !text-on-secondary' : '!bg-primary !text-on-primary'}
+                />
               </button>
             </Popover>
           </Tooltip>
