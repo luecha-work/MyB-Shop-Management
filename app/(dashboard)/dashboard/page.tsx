@@ -165,16 +165,16 @@ export default function DashboardPage() {
       {loadError && <div className="mb-md rounded-xl border border-error/20 bg-error-container/20 p-3 text-sm font-medium text-error">{loadError}</div>}
 
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-md mb-xl flex-shrink-0">
+      <div className="flex flex-col gap-md mb-xl flex-shrink-0">
         <div className="hidden md:flex items-stretch gap-4">
           <div className="w-[6px] bg-gradient-to-b from-secondary to-secondary/30 rounded-full flex-shrink-0 shadow-[0_2px_8px_rgba(118,90,36,0.2)]"></div>
-          <div>
+          <div className="min-w-0 flex-1">
             <h2 className="font-headline-xl text-headline-xl text-primary font-bold tracking-tight mb-xs">ภาพรวมยอดขาย</h2>
             <p className="font-body-lg text-body-lg text-on-surface-variant mt-0.5">สรุปผลการดำเนินงานและสถิติสำคัญ</p>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white p-3 md:p-4 rounded-xl border border-outline-variant/80 shadow-card w-full lg:w-auto">
-          <div className="flex items-center gap-3 justify-start flex-1 lg:flex-initial">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white p-3 md:p-4 rounded-xl border border-outline-variant/80 shadow-card w-full">
+          <div className="flex items-center gap-3 justify-start flex-1">
             <label htmlFor="dash-start-date" className="w-[70px] flex-shrink-0 font-body-md font-bold text-on-surface-variant whitespace-nowrap">เริ่มต้น:</label>
             <DatePicker
               id="dash-start-date"
@@ -182,10 +182,10 @@ export default function DashboardPage() {
               onChange={(d) => setStartDate(d ? d.format('YYYY-MM-DD') : '')}
               format="DD/MM/YYYY"
               allowClear={false}
-              className="h-11 flex-1 lg:flex-initial lg:w-[170px] bg-surface-container-low"
+              className="h-11 flex-1 bg-surface-container-low"
             />
           </div>
-          <div className="flex items-center gap-3 justify-start flex-1 lg:flex-initial">
+          <div className="flex items-center gap-3 justify-start flex-1">
             <label htmlFor="dash-end-date" className="w-[70px] flex-shrink-0 font-body-md font-bold text-on-surface-variant whitespace-nowrap">สิ้นสุด:</label>
             <DatePicker
               id="dash-end-date"
@@ -193,14 +193,14 @@ export default function DashboardPage() {
               onChange={(d) => setEndDate(d ? d.format('YYYY-MM-DD') : '')}
               format="DD/MM/YYYY"
               allowClear={false}
-              className="h-11 flex-1 lg:flex-initial lg:w-[170px] bg-surface-container-low"
+              className="h-11 flex-1 bg-surface-container-low"
             />
           </div>
         </div>
       </div>
 
       {/* Bento Grid: Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-6">
         <StatCard
           icon={<DollarOutlined />} iconBg="#e6f0ff" iconColor="#4b96ff"
           badgeIcon={<ShopOutlined />} badgeText={`${chCount} ช่องทาง`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"

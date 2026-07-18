@@ -478,6 +478,7 @@ export default function HistoryPage() {
                     value={startDate ? dayjs(startDate) : null}
                     onChange={(d) => applyFilter(() => setStartDate(d ? d.format('YYYY-MM-DD') : ''))}
                     format="DD/MM/YYYY"
+                    allowClear={false}
                     className="flex-1 lg:w-[170px] shadow-sm"
                   />
                 </div>
@@ -488,6 +489,7 @@ export default function HistoryPage() {
                     value={endDate ? dayjs(endDate) : null}
                     onChange={(d) => applyFilter(() => setEndDate(d ? d.format('YYYY-MM-DD') : ''))}
                     format="DD/MM/YYYY"
+                    allowClear={false}
                     className="flex-1 lg:w-[170px] shadow-sm"
                   />
                 </div>
