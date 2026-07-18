@@ -20,10 +20,21 @@ const requiresSsl =
   connectionString.includes('sslmode=verify-ca') ||
   connectionString.includes('sslmode=verify-full')
 
+const poolConnectionString = (() => {
+  try {
+    const url = new URL(connectionString)
+    url.searchParams.delete('sslmode')
+    url.searchParams.delete('uselibpqcompat')
+    return url.toString()
+  } catch {
+    return connectionString
+  }
+})()
+
 export const db =
   globalForPg.pgPool ??
   new Pool({
-    connectionString,
+    connectionString: poolConnectionString,
     options: `-c search_path=${databaseSchema},public`,
     ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
   })
