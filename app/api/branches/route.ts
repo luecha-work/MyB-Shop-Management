@@ -159,39 +159,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'กรุณากรอกรหัสสาขาและชื่อสาขา' }, { status: 400 })
     }
 
-    const client = await db.connect()
-    try {
-      await client.query('BEGIN')
+    const { rows } = await db.query(
+      `
+        INSERT INTO branches (branch_code, branch_name, address, phone, status)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, branch_code, branch_name, address, phone, status
+      `,
+      [branchCode, branchName, address, phone, status],
+    )
 
-      const { rows } = await client.query(
-        `
-          INSERT INTO branches (branch_code, branch_name, address, phone, status)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING id, branch_code, branch_name, address, phone, status
-        `,
-        [branchCode, branchName, address, phone, status],
-      )
-
-      const newBranch = rows[0]
-
-      // Auto-create branch_inventory rows for all existing products (stock = 0)
-      await client.query(
-        `
-          INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
-          SELECT p.id, $1::uuid, 0, 0, 0, 0, p.default_min_stock, 'Out of Stock'
-          FROM products p
-        `,
-        [newBranch.id],
-      )
-
-      await client.query('COMMIT')
-      return NextResponse.json({ branch: newBranch }, { status: 201 })
-    } catch (error) {
-      await client.query('ROLLBACK')
-      throw error
-    } finally {
-      client.release()
-    }
+    return NextResponse.json({ branch: rows[0] }, { status: 201 })
   } catch (error) {
     const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
     if (code === '23505') {

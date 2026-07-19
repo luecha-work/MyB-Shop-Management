@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Alert, Button, Checkbox, Empty, Input, Modal, Pagination, Select, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { CircleAlert, Eye, Pencil, Plus, Save, Store, Trash2 } from 'lucide-react'
+import { ArrowRight, CircleAlert, Eye, PackagePlus, Pencil, Plus, Save, Store, Trash2 } from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
 
 type BranchRow = {
@@ -55,6 +56,7 @@ const roleTag = (roleName: string) => {
 }
 
 export default function ManageBranchesPage() {
+  const router = useRouter()
   const [branches, setBranches] = useState<BranchRow[]>([])
   const [canCreateBranches, setCanCreateBranches] = useState(false)
   const [canDeleteBranches, setCanDeleteBranches] = useState(false)
@@ -67,6 +69,9 @@ export default function ManageBranchesPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [viewBranch, setViewBranch] = useState<BranchRow | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importTargetBranch, setImportTargetBranch] = useState<BranchRow | null>(null)
+  const [importSourceBranchId, setImportSourceBranchId] = useState('')
   const [editingBranchId, setEditingBranchId] = useState('')
   const [form, setForm] = useState<BranchForm>(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState<Set<keyof BranchForm>>(new Set())
@@ -263,12 +268,33 @@ export default function ManageBranchesPage() {
     setSelected(next)
   }
 
+  const openImportModal = (branch: BranchRow) => {
+    setImportTargetBranch(branch)
+    setImportSourceBranchId('')
+    setError('')
+    setSuccess('')
+    setImportOpen(true)
+  }
+
+  const goToProductImport = () => {
+    if (!importTargetBranch || !importSourceBranchId) {
+      setError('กรุณาเลือกสาขาต้นทางก่อน import สินค้า')
+      return
+    }
+
+    const params = new URLSearchParams({
+      importSourceBranchId,
+      importTargetBranchId: importTargetBranch.id,
+    })
+    router.push(`/inventory?${params.toString()}`)
+  }
+
   const columns: TableColumnsType<BranchRow> = [
     {
       title: 'สาขา',
       dataIndex: 'branchName',
       key: 'branchName',
-      width: 280,
+      width: 220,
       render: (_, branch) => (
         <div>
           <div className="font-semibold text-primary text-body-md">{branch.branchName}</div>
@@ -302,7 +328,7 @@ export default function ManageBranchesPage() {
     {
       title: 'จัดการ',
       key: 'actions',
-      width: 140,
+      width: 190,
       align: 'center',
       render: (_, branch) => (
         <div className="flex items-center justify-center gap-1">
@@ -320,6 +346,13 @@ export default function ManageBranchesPage() {
             onClick={() => openEditModal(branch)}
             className="text-on-surface-variant hover:!text-secondary"
             title="แก้ไขสาขา"
+          />
+          <Button
+            type="text"
+            icon={<PackagePlus size={16} />}
+            onClick={() => openImportModal(branch)}
+            className="text-emerald-600 hover:!bg-emerald-500/10"
+            title="เพิ่มสินค้าจากสาขาอื่น"
           />
         </div>
       ),
@@ -390,7 +423,7 @@ export default function ManageBranchesPage() {
               columns={columns}
               dataSource={branches}
               pagination={paginationConfig}
-              scroll={{ x: 1040 }}
+              scroll={{ x: 980 }}
               rowSelection={canDeleteBranches ? {
                 selectedRowKeys: Array.from(selected),
                 onChange: (keys) => setSelected(new Set(keys as string[])),
@@ -449,6 +482,14 @@ export default function ManageBranchesPage() {
                       className="text-on-surface-variant hover:!text-secondary"
                     >
                       แก้ไข
+                    </Button>
+                    <Button
+                      type="text"
+                      icon={<PackagePlus size={16} />}
+                      onClick={() => openImportModal(branch)}
+                      className="text-emerald-600"
+                    >
+                      เพิ่มสินค้า
                     </Button>
                   </div>
                 </article>
@@ -538,6 +579,63 @@ export default function ManageBranchesPage() {
               placeholder="ที่อยู่สาขา"
               style={{ resize: 'none' }}
             />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={importOpen}
+        onCancel={() => setImportOpen(false)}
+        centered
+        width={520}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+              <PackagePlus size={18} />
+            </div>
+            <div>
+              <div className="font-headline-sm text-on-surface">เพิ่มสินค้าจากสาขาอื่น</div>
+              <div className="text-xs text-on-surface-variant mt-0.5 font-normal">
+                ปลายทาง: {importTargetBranch?.branchName ?? '-'}
+              </div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex gap-3">
+            <Button block onClick={() => setImportOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
+            <Button block icon={<ArrowRight size={16} />} onClick={goToProductImport} className="ant-btn-secondary-solid h-11">
+              ไปเลือกสินค้า
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-1">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาต้นทาง</label>
+              <Select
+                size="large"
+                value={importSourceBranchId || undefined}
+                onChange={setImportSourceBranchId}
+                placeholder="เลือกสาขาที่ต้องการดึงสินค้า"
+                className="w-full"
+                options={branches
+                  .filter((branch) => branch.id !== importTargetBranch?.id && branch.status === 'active')
+                  .map((branch) => ({
+                    label: `${branch.branchName} (${branch.branchCode})`,
+                    value: branch.id,
+                  }))}
+              />
+            </div>
+            <ArrowRight size={18} className="mb-3 text-on-surface-variant" />
+            <div>
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาปลายทาง</label>
+              <Input size="large" readOnly value={importTargetBranch ? `${importTargetBranch.branchName} (${importTargetBranch.branchCode})` : ''} />
+            </div>
+          </div>
+          <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-3 text-xs text-on-surface-variant">
+            เลือกสาขาต้นทางแล้วไปหน้าเลือกสินค้า ระบบจะแสดงสินค้าเป็นตารางให้ติ๊กก่อน import เข้าสาขาปลายทาง
           </div>
         </div>
       </Modal>

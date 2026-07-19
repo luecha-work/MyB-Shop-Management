@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Table, Tag, Upload } from 'antd'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Select, Table, Tag, Upload } from 'antd'
 import type { TableColumnsType } from 'antd'
 import {
   ArrowRight,
@@ -102,12 +103,29 @@ function NumberField({
 }
 
 export default function InventoryPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const importSourceBranchId = searchParams.get('importSourceBranchId') ?? ''
+  const importTargetBranchId = searchParams.get('importTargetBranchId') ?? ''
+  const isImportMode = Boolean(importSourceBranchId && importTargetBranchId)
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [loadError, setLoadError] = useState('')
-  const { selectedBranchId, selectedBranchLabel } = useBranch()
+  const { selectedBranchId, selectedBranchLabel, setSelectedBranch, branches } = useBranch()
 
   const loadProducts = useCallback(async () => {
+    if (isImportMode) {
+      const params = new URLSearchParams({
+        action: 'import-candidates',
+        sourceBranchId: importSourceBranchId,
+        targetBranchId: importTargetBranchId,
+      })
+      const res = await fetch(`/api/products?${params.toString()}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error('Failed to load import products')
+      const data = await res.json() as { products: Product[] }
+      return data.products
+    }
+
     if (!selectedBranchId) return []
     const params = new URLSearchParams()
     params.set('branchId', selectedBranchId)
@@ -116,10 +134,16 @@ export default function InventoryPage() {
     if (!res.ok) throw new Error('Failed to load products')
     const data = await res.json() as { products: Product[] }
     return data.products
-  }, [selectedBranchId])
+  }, [importSourceBranchId, importTargetBranchId, isImportMode, selectedBranchId])
 
   useEffect(() => {
-    if (!selectedBranchId) return
+    if (isImportMode) {
+      setSelectedBranch(importTargetBranchId)
+    }
+  }, [importTargetBranchId, isImportMode, setSelectedBranch])
+
+  useEffect(() => {
+    if (!isImportMode && !selectedBranchId) return
     let active = true
     loadProducts()
       .then((nextProducts) => {
@@ -134,7 +158,7 @@ export default function InventoryPage() {
         if (active) setIsLoading(false)
       })
     return () => { active = false }
-  }, [loadProducts, selectedBranchId])
+  }, [isImportMode, loadProducts, selectedBranchId])
 
   const [filterText, setFilterText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -155,6 +179,10 @@ export default function InventoryPage() {
   const [stockInNote, setStockInNote] = useState('')
   const [stockInError, setStockInError] = useState('')
   const [isStockInSaving, setIsStockInSaving] = useState(false)
+  const [importConfirmOpen, setImportConfirmOpen] = useState(false)
+  const [importValueMode, setImportValueMode] = useState<'copy' | 'reset'>('copy')
+  const [isImporting, setIsImporting] = useState(false)
+  const [importErrorMsg, setImportErrorMsg] = useState('')
 
   // กรองตามชื่อสินค้าก่อน slice (logic เดิมจาก renderInventoryTable)
   const filtered = useMemo(() => {
@@ -389,6 +417,8 @@ export default function InventoryPage() {
   if (isLoading) return <Loader text="โหลดข้อมูลคลังสินค้า..." />
 
   const detailList = detailModalType === 'low' ? lowItems : detailModalType === 'out' ? outItems : []
+  const sourceBranchLabel = branches.find((branch) => branch.id === importSourceBranchId)?.branchName ?? 'สาขาต้นทาง'
+  const targetBranchLabel = branches.find((branch) => branch.id === importTargetBranchId)?.branchName ?? selectedBranchLabel
 
   const paginationConfig = {
     current: currentPage,
@@ -470,6 +500,237 @@ export default function InventoryPage() {
       ),
     },
   ]
+
+  const importColumns: TableColumnsType<Product> = [
+    {
+      title: 'สินค้า',
+      dataIndex: 'name',
+      key: 'name',
+      width: 380,
+      render: (_, product) => (
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={productImageSrc(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+          <div>
+            <div className="font-semibold text-primary text-body-md">{product.name}</div>
+            <div className="text-xs text-on-surface-variant mt-0.5">รหัส: {product.productCode || '-'}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'ต้นทุน',
+      dataIndex: 'cost',
+      key: 'cost',
+      width: 130,
+      align: 'right',
+      render: (value: number) => <span className="font-semibold">{thbFormat(value)}</span>,
+    },
+    {
+      title: 'ราคาหน้าร้าน',
+      dataIndex: 'priceCash',
+      key: 'priceCash',
+      width: 150,
+      align: 'right',
+      render: (value: number) => <span className="font-bold text-secondary">{thbFormat(value)}</span>,
+    },
+    {
+      title: 'สต็อกต้นทาง',
+      dataIndex: 'currentStock',
+      key: 'currentStock',
+      width: 150,
+      align: 'right',
+      render: (value: number) => <span className="font-bold">{formatNum(value)} ชิ้น</span>,
+    },
+    {
+      title: 'สต็อกต่ำ',
+      dataIndex: 'minStock',
+      key: 'minStock',
+      width: 120,
+      align: 'right',
+      render: (value: number) => `${formatNum(value)} ชิ้น`,
+    },
+    {
+      title: 'สถานะ',
+      key: 'status',
+      width: 130,
+      align: 'center',
+      render: (_, product) => <StatusBadge product={product} />,
+    },
+  ]
+
+  const executeImport = async () => {
+    const productIds = Array.from(selected)
+    if (productIds.length === 0) {
+      setImportErrorMsg('กรุณาเลือกสินค้าที่ต้องการ import')
+      return
+    }
+
+    setIsImporting(true)
+    setImportErrorMsg('')
+
+    try {
+      const response = await fetch('/api/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'import-products',
+          sourceBranchId: importSourceBranchId,
+          targetBranchId: importTargetBranchId,
+          productIds,
+          mode: importValueMode,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'import สินค้าไม่สำเร็จ')
+
+      resetSelection()
+      setImportConfirmOpen(false)
+      router.replace('/inventory')
+    } catch (error) {
+      setImportErrorMsg(error instanceof Error ? error.message : 'import สินค้าไม่สำเร็จ')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  if (isImportMode) {
+    return (
+      <>
+        <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
+          {loadError && <Alert title={loadError} type="error" showIcon className="mb-md" />}
+
+          <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl flex-shrink-0">
+            <div className="flex items-stretch gap-4">
+              <div className="w-[6px] bg-gradient-to-b from-secondary to-secondary/30 rounded-full flex-shrink-0 shadow-[0_2px_8px_rgba(118,90,36,0.2)]"></div>
+              <div>
+                <h2 className="font-headline-xl text-headline-xl text-primary font-bold tracking-tight mb-xs">เพิ่มสินค้าจากสาขาอื่น</h2>
+                <div className="flex flex-wrap items-center gap-2 text-body-lg text-on-surface-variant">
+                  <Tag color="blue" className="font-bold">{sourceBranchLabel}</Tag>
+                  <ArrowRight size={16} />
+                  <Tag color="gold" className="font-bold">{targetBranchLabel}</Tag>
+                </div>
+              </div>
+            </div>
+            <Button onClick={() => router.push('/branches')} className="h-10">
+              กลับไปจัดการสาขา
+            </Button>
+          </div>
+
+          <div className="bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col">
+            <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface/30 flex-shrink-0">
+              <div>
+                <h3 className="font-headline-sm text-primary">เลือกสินค้าที่ต้องการ import</h3>
+                <p className="text-xs text-on-surface-variant mt-1">ติ๊กสินค้าแล้วกด import product to สาขาปลายทาง</p>
+              </div>
+              <Button
+                type="primary"
+                icon={<PackagePlus size={16} />}
+                disabled={selected.size === 0}
+                onClick={() => {
+                  setImportValueMode('copy')
+                  setImportErrorMsg('')
+                  setImportConfirmOpen(true)
+                }}
+              >
+                {selected.size > 0 ? `import product to ${targetBranchLabel} (${selected.size})` : `import product to ${targetBranchLabel}`}
+              </Button>
+            </div>
+
+            <div className="hidden lg:block">
+              <Table<Product>
+                rowKey="id"
+                columns={importColumns}
+                dataSource={pageItems}
+                pagination={paginationConfig}
+                scroll={{ x: 1060 }}
+                rowSelection={{
+                  selectedRowKeys: Array.from(selected),
+                  onChange: (keys) => setSelected(new Set(keys as string[])),
+                  columnWidth: 50,
+                }}
+                locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้าจากสาขาต้นทาง" /> }}
+              />
+            </div>
+
+            <div className="lg:hidden flex flex-col gap-sm p-sm bg-background">
+              {pageItems.length === 0 ? (
+                <div className="p-lg text-center text-on-surface-variant">ไม่พบสินค้าจากสาขาต้นทาง</div>
+              ) : (
+                pageItems.map((product) => (
+                  <article key={product.id ?? product.name} className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border border-outline-variant/80 flex flex-col gap-2 ${product.id && selected.has(product.id) ? 'bg-error/[0.04]' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={Boolean(product.id && selected.has(product.id))}
+                        disabled={!product.id}
+                        onChange={(event) => toggleSelect(product.id, event.target.checked)}
+                      />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={productImageSrc(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm flex-shrink-0" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-primary break-words">{product.name}</div>
+                        <div className="text-xs text-on-surface-variant mt-1">สต็อกต้นทาง: <span className="font-bold text-on-surface">{formatNum(product.currentStock)} ชิ้น</span></div>
+                        <div className="text-xs text-on-surface-variant">ราคา: <span className="font-bold text-secondary">{thbFormat(product.priceCash)}</span></div>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+              <div className="flex justify-center py-3">
+                <Pagination {...paginationConfig} size="small" showTotal={undefined} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Modal
+          open={importConfirmOpen}
+          onCancel={() => setImportConfirmOpen(false)}
+          centered
+          width={520}
+          title={
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                <PackagePlus size={18} />
+              </div>
+              <div>
+                <div className="font-headline-sm text-on-surface">ยืนยัน import สินค้า</div>
+                <div className="text-xs text-on-surface-variant mt-0.5 font-normal">{sourceBranchLabel} ไป {targetBranchLabel}</div>
+              </div>
+            </div>
+          }
+          footer={
+            <div className="flex gap-3">
+              <Button block onClick={() => setImportConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
+              <Button block icon={<PackagePlus size={16} />} loading={isImporting} onClick={executeImport} className="ant-btn-secondary-solid h-11">
+                ยืนยัน import
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 py-1">
+            <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+              <div className="text-xs font-semibold text-on-surface-variant mb-2">เลือกวิธีตั้งค่า inventory ในสาขาปลายทาง</div>
+              <Select
+                size="large"
+                value={importValueMode}
+                onChange={setImportValueMode}
+                className="w-full"
+                options={[
+                  { value: 'copy', label: 'ใช้ค่าเดิมทั้งหมดจากสาขาต้นทาง' },
+                  { value: 'reset', label: 'Reset stock/counter เป็น 0' },
+                ]}
+              />
+            </div>
+            <div className="text-sm text-on-surface-variant">
+              สินค้าที่เลือกทั้งหมด <span className="font-bold text-primary">{selected.size.toLocaleString('th-TH')} รายการ</span> จะถูกเพิ่มหรืออัปเดตในสาขาปลายทาง
+            </div>
+            {importErrorMsg && <Alert title={importErrorMsg} type="error" showIcon className="rounded-xl" />}
+          </div>
+        </Modal>
+      </>
+    )
+  }
 
   return (
     <>

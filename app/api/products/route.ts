@@ -108,6 +108,51 @@ const storagePathFromPublicUrl = (imageUrl: string | null) => {
 
 export async function GET(request: NextRequest) {
   const session = await sessionFromRequest(request)
+  const action = request.nextUrl.searchParams.get('action')?.trim()
+
+  if (action === 'import-candidates') {
+    if (!canManageSettings(session)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const sourceBranchId = toUuidParam(request.nextUrl.searchParams.get('sourceBranchId')?.trim())
+    const targetBranchId = toUuidParam(request.nextUrl.searchParams.get('targetBranchId')?.trim())
+
+    if (!sourceBranchId || !targetBranchId || sourceBranchId === targetBranchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาต้นทางและปลายทางให้ถูกต้อง' }, { status: 400 })
+    }
+
+    try {
+      const { rows } = await db.query(
+        `
+          SELECT
+            p.id,
+            p.product_code,
+            p.product_name,
+            p.cost,
+            p.cash_price,
+            p.grab_price,
+            p.line_man_price,
+            bi.current_stock,
+            bi.stock_in,
+            bi.min_stock,
+            bi.status,
+            p.image_url
+          FROM branch_inventory bi
+          JOIN products p ON p.id = bi.product_id
+          WHERE bi.branch_id = $1::uuid
+          ORDER BY p.product_name ASC
+        `,
+        [sourceBranchId],
+      )
+
+      return NextResponse.json({ products: rows.map(toProductResponse) })
+    } catch (error) {
+      console.error('GET /api/products import-candidates failed', error)
+      return NextResponse.json({ error: 'Failed to load import products' }, { status: 500 })
+    }
+  }
+
   // STAFF always see their own branch; OWNER/ADMIN must pass ?branchId=.
   const branchId = session?.role === 'STAFF'
     ? toUuidParam(session.branchId)
@@ -297,6 +342,140 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const action = String(body.action ?? '')
     const id = String(body.id ?? '').trim()
+
+    if (action === 'import-products') {
+      const sourceBranchId = toUuidParam(String(body.sourceBranchId ?? '').trim())
+      const targetBranchId = toUuidParam(String(body.targetBranchId ?? '').trim())
+      const mode = String(body.mode ?? 'copy')
+      const productIds: string[] = Array.isArray(body.productIds)
+        ? body.productIds.map((productId: unknown) => String(productId).trim()).filter(Boolean)
+        : []
+
+      if (!sourceBranchId || !targetBranchId || sourceBranchId === targetBranchId) {
+        return NextResponse.json({ error: 'กรุณาเลือกสาขาต้นทางและปลายทางให้ถูกต้อง' }, { status: 400 })
+      }
+
+      if (mode !== 'copy' && mode !== 'reset') {
+        return NextResponse.json({ error: 'กรุณาเลือกวิธีนำเข้าสินค้าให้ถูกต้อง' }, { status: 400 })
+      }
+
+      if (productIds.length === 0) {
+        return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการ import' }, { status: 400 })
+      }
+
+      const client = await db.connect()
+      try {
+        await client.query('BEGIN')
+
+        const { rows } = await client.query<{ product_id: string }>(
+          `
+            WITH source_rows AS (
+              SELECT
+                bi.product_id,
+                CASE WHEN $4 = 'copy' THEN bi.current_stock ELSE 0 END AS current_stock,
+                CASE WHEN $4 = 'copy' THEN bi.stock_in ELSE 0 END AS stock_in,
+                CASE WHEN $4 = 'copy' THEN bi.stock_out ELSE 0 END AS stock_out,
+                CASE WHEN $4 = 'copy' THEN bi.number_of_times_received ELSE 0 END AS number_of_times_received,
+                bi.min_stock,
+                CASE
+                  WHEN $4 = 'copy' THEN bi.status
+                  ELSE 'Out of Stock'
+                END AS status
+              FROM branch_inventory bi
+              WHERE bi.branch_id = $1::uuid
+                AND bi.product_id = ANY($3::uuid[])
+            ),
+            upserted AS (
+              INSERT INTO branch_inventory (
+                product_id,
+                branch_id,
+                current_stock,
+                stock_in,
+                stock_out,
+                number_of_times_received,
+                min_stock,
+                status
+              )
+              SELECT
+                product_id,
+                $2::uuid,
+                current_stock,
+                stock_in,
+                stock_out,
+                number_of_times_received,
+                min_stock,
+                status
+              FROM source_rows
+              ON CONFLICT (product_id, branch_id) DO UPDATE
+              SET current_stock = EXCLUDED.current_stock,
+                  stock_in = EXCLUDED.stock_in,
+                  stock_out = EXCLUDED.stock_out,
+                  number_of_times_received = EXCLUDED.number_of_times_received,
+                  min_stock = EXCLUDED.min_stock,
+                  status = EXCLUDED.status,
+                  updated_at = CURRENT_TIMESTAMP
+              RETURNING product_id
+            )
+            SELECT product_id FROM upserted
+          `,
+          [sourceBranchId, targetBranchId, productIds, mode],
+        )
+
+        const importedIds = rows.map((row) => row.product_id)
+
+        if (importedIds.length > 0) {
+          await client.query(
+            `
+              UPDATE products
+              SET total_current_stock = (
+                SELECT COALESCE(SUM(bi.current_stock), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              total_stock_in = (
+                SELECT COALESCE(SUM(bi.stock_in), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              total_stock_out = (
+                SELECT COALESCE(SUM(bi.stock_out), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              total_number_of_times_received = (
+                SELECT COALESCE(SUM(bi.number_of_times_received), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              aggregate_status = CASE
+                WHEN (
+                  SELECT COALESCE(SUM(bi.current_stock), 0)
+                  FROM branch_inventory bi
+                  WHERE bi.product_id = products.id
+                ) <= 0 THEN 'Out of Stock'
+                WHEN (
+                  SELECT COALESCE(SUM(bi.current_stock), 0)
+                  FROM branch_inventory bi
+                  WHERE bi.product_id = products.id
+                ) <= products.default_min_stock THEN 'Low Stock'
+                ELSE 'Active'
+              END,
+              updated_at = CURRENT_TIMESTAMP
+              WHERE id = ANY($1::uuid[])
+            `,
+            [importedIds],
+          )
+        }
+
+        await client.query('COMMIT')
+        return NextResponse.json({ importedCount: importedIds.length })
+      } catch (error) {
+        await client.query('ROLLBACK')
+        throw error
+      } finally {
+        client.release()
+      }
+    }
 
     if (action === 'update-product') {
       const name = String(body.name ?? '').trim()
