@@ -8,6 +8,7 @@ import {
   ShoppingCartOutlined,
   WalletOutlined,
   AccountBookOutlined,
+  AppstoreOutlined,
   ShopOutlined,
   RiseOutlined,
   FallOutlined,
@@ -20,6 +21,7 @@ type DashboardStats = {
   netRevenue: number
   totalCost: number
   netProfit: number
+  inventoryTotalCost: number
   channelSales: { name: string; sales: number }[]
   topProducts: { name: string; qty: number; sales: number }[]
 }
@@ -29,6 +31,7 @@ const EMPTY_STATS: DashboardStats = {
   netRevenue: 0,
   totalCost: 0,
   netProfit: 0,
+  inventoryTotalCost: 0,
   channelSales: [],
   topProducts: [],
 }
@@ -222,6 +225,11 @@ export default function DashboardPage() {
           icon={<WalletOutlined />} iconBg="#f3e8ff" iconColor="#a855f7"
           badgeIcon={<ProfileOutlined />} badgeText={`${costRate.toFixed(1)}%`} badgeClass="bg-[#f3e8ff] text-[#a855f7]"
           label="ต้นทุน" value={thbFormat(data.totalCost)} sub="ของยอดขายรวม"
+        />
+        <StatCard
+          icon={<AppstoreOutlined />} iconBg="#e0f2fe" iconColor="#0284c7"
+          badgeIcon={<ShopOutlined />} badgeText="คลังสินค้า" badgeClass="bg-[#e0f2fe] text-[#0284c7]"
+          label="ต้นทุนรวมสินค้า" value={thbFormat(data.inventoryTotalCost)} sub="มูลค่าต้นทุนสต็อกปัจจุบัน"
         />
         <StatCard
           icon={<AccountBookOutlined />} iconBg="#ffedd5" iconColor="#f97316"

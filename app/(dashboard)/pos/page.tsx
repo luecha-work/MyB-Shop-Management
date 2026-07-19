@@ -129,10 +129,10 @@ export default function POSPage() {
     return () => { active = false }
   }, [])
 
-  // 12 รายการ/หน้า (จอเล็ก) หรือ 16 รายการ/หน้า (จอ xl ขึ้นไป) — สลับอัตโนมัติเมื่อขนาดจอเปลี่ยน
+  // 10 แถว/หน้า: 3 คอลัมน์ = 30 รายการ, จอ xl 4 คอลัมน์ = 40 รายการ
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1280px)')
-    const apply = () => setItemsPerPage(mq.matches ? 16 : 12)
+    const apply = () => setItemsPerPage(mq.matches ? 40 : 30)
     apply()
     mq.addEventListener('change', apply)
     return () => mq.removeEventListener('change', apply)

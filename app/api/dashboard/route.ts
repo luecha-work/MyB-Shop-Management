@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate]
 
   try {
-    const [summary, channelSales, topProducts] = await Promise.all([
+    const [summary, channelSales, topProducts, inventoryCost] = await Promise.all([
       db.query(
         `
           SELECT
@@ -68,14 +68,23 @@ export async function GET(request: NextRequest) {
         `,
         params,
       ),
+      db.query(
+        `
+          SELECT
+            COALESCE(SUM(cost * current_stock), 0) AS inventory_total_cost
+          FROM products
+        `,
+      ),
     ])
 
     const row = summary.rows[0] ?? {}
+    const inventoryRow = inventoryCost.rows[0] ?? {}
     return NextResponse.json({
       totalSales: toNumber(row.total_sales),
       netRevenue: toNumber(row.net_revenue),
       totalCost: toNumber(row.total_cost),
       netProfit: toNumber(row.net_profit),
+      inventoryTotalCost: toNumber(inventoryRow.inventory_total_cost),
       channelSales: channelSales.rows.map((item) => ({
         name: item.name,
         sales: toNumber(item.sales),
