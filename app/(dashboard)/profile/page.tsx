@@ -3,16 +3,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Card, Descriptions, Empty, Tag } from 'antd'
 import {
-  BankOutlined,
-  CheckCircleOutlined,
-  IdcardOutlined,
-  MailOutlined,
-  ReadOutlined,
-  SafetyCertificateOutlined,
-  ShopOutlined,
-  StopOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
+  BookOpen,
+  Building2,
+  CircleCheck,
+  CircleStop,
+  IdCard,
+  Mail,
+  ShieldCheck,
+  Store,
+  User,
+} from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
 
 type ProfileData = {
@@ -36,7 +36,7 @@ const statusTag = (status: string) => {
   if (status === 'active') {
     return (
       <Tag className="!m-0 rounded-full border-emerald-300 bg-emerald-50 !text-emerald-700 font-bold">
-        <CheckCircleOutlined className="mr-1" />
+        <CircleCheck size={14} className="mr-1" />
         เปิดใช้งาน
       </Tag>
     )
@@ -44,7 +44,7 @@ const statusTag = (status: string) => {
 
   return (
     <Tag className="!m-0 rounded-full border-slate-300 bg-slate-50 !text-slate-600 font-bold">
-      <StopOutlined className="mr-1" />
+      <CircleStop size={14} className="mr-1" />
       ปิดใช้งาน
     </Tag>
   )
@@ -123,7 +123,7 @@ export default function ProfilePage() {
                 <div className="min-w-0 pb-1">
                   <h1 className="text-title-lg md:text-headline-md font-headline-md font-bold text-on-primary break-words">{name}</h1>
                   <div className="mt-2 flex items-center gap-2 text-sm text-white/80 min-w-0">
-                    <MailOutlined className="flex-shrink-0" />
+                    <Mail size={18} className="flex-shrink-0" />
                     <span className="truncate">{profile.email}</span>
                   </div>
                 </div>
@@ -133,12 +133,12 @@ export default function ProfilePage() {
             <div className="pt-6 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Tag color={role.color} className="!m-0 rounded-full px-3 py-1 text-xs font-bold">
-                  <SafetyCertificateOutlined className="mr-1" />
+                  <ShieldCheck size={14} className="mr-1" />
                   {role.label}
                 </Tag>
                 {statusTag(profile.status)}
                 <Tag className="!m-0 rounded-full border-outline-variant bg-surface-container-low px-3 py-1 text-xs font-bold !text-on-surface-variant">
-                  <ReadOutlined className="mr-1" />
+                  <BookOpen size={14} className="mr-1" />
                   ดูได้อย่างเดียว
                 </Tag>
               </div>
@@ -147,7 +147,7 @@ export default function ProfilePage() {
                 <div className="text-xs font-semibold text-on-surface-variant mb-1">ประจำร้าน / สาขา</div>
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-secondary text-on-secondary">
-                    <ShopOutlined />
+                    <Store size={18} />
                   </div>
                   <div className="min-w-0">
                     <div className="font-headline-sm text-primary break-words">{branchLabel}</div>
@@ -163,7 +163,7 @@ export default function ProfilePage() {
               <div className={infoTileClass}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                    <IdcardOutlined />
+                    <IdCard size={18} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-on-surface-variant">ชื่อผู้ใช้งาน</div>
@@ -174,7 +174,7 @@ export default function ProfilePage() {
               <div className={infoTileClass}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                    <SafetyCertificateOutlined />
+                    <ShieldCheck size={18} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-on-surface-variant">สิทธิ์การใช้งาน</div>
@@ -185,7 +185,7 @@ export default function ProfilePage() {
               <div className={infoTileClass}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                    <BankOutlined />
+                    <Building2 size={18} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-on-surface-variant">สาขาที่ดูแล</div>
@@ -199,7 +199,7 @@ export default function ProfilePage() {
               title={
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-                    <UserOutlined />
+                    <User size={18} />
                   </div>
                   <div>
                     <div className="font-headline-sm text-on-surface">รายละเอียดข้อมูลส่วนตัว</div>

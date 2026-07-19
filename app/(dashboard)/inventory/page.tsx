@@ -4,19 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Table, Tag, Upload } from 'antd'
 import type { TableColumnsType } from 'antd'
 import {
-  ArrowRightOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  ExclamationCircleOutlined,
-  FilterOutlined,
-  PlusOutlined,
-  PlusSquareOutlined,
-  SaveOutlined,
-  StopOutlined,
-  UploadOutlined,
-  WarningOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons'
+  ArrowRight,
+  CircleAlert,
+  CircleStop,
+  Filter,
+  Package,
+  PackagePlus,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  Upload as UploadIcon,
+  TriangleAlert,
+} from 'lucide-react'
 import { thbFormat, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
 
@@ -441,14 +441,14 @@ export default function InventoryPage() {
         <div className="flex justify-center items-center gap-1">
           <Button
             type="text"
-            icon={<PlusSquareOutlined className="text-[18px]" />}
+            icon={<PackagePlus size={18} />}
             onClick={() => openStockInModal(product)}
             className="text-emerald-600 hover:!bg-emerald-500/10"
             title="รับเข้าสต็อก"
           />
           <Button
             type="text"
-            icon={<EditOutlined className="text-[18px]" />}
+            icon={<Pencil size={18} />}
             onClick={() => openEditModalForProduct(product)}
             className="text-on-surface-variant hover:!text-secondary role-admin-only"
             title="แก้ไขข้อมูล"
@@ -475,15 +475,17 @@ export default function InventoryPage() {
 
           {/* Mobile Add Button */}
           <div className="flex justify-end md:hidden w-full mb-2">
-            <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openAddModal} className="shadow-md">
+            <Button type="primary" size="large" icon={<Plus size={18} />} onClick={openAddModal} className="shadow-md">
               เพิ่มสินค้าใหม่
             </Button>
           </div>
 
           {/* Desktop/iPad Add Button */}
-          <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openAddModal} className="hidden md:inline-flex shadow-sm">
-            เพิ่มสินค้าใหม่
-          </Button>
+          <div className="hidden md:flex">
+            <Button type="primary" size="large" icon={<Plus size={18} />} onClick={openAddModal} className="shadow-sm">
+              เพิ่มสินค้าใหม่
+            </Button>
+          </div>
         </div>
 
         {/* การ์ดสรุป: สต็อกต่ำ / สินค้าหมด */}
@@ -496,14 +498,14 @@ export default function InventoryPage() {
             <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-amber-500/5 rounded-bl-full -mr-4 -mt-4 z-0"></div>
             <div className="relative z-10 flex items-center md:justify-between md:items-start md:w-full">
               <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 flex-shrink-0 text-[20px] md:text-[24px] lg:text-[28px]">
-                <WarningOutlined />
+                <TriangleAlert size={18} />
               </div>
               <span className="hidden md:inline-block bg-amber-100 text-amber-800 font-label-sm px-2 py-1 rounded-full">เตือน</span>
             </div>
             <div className="flex-1 md:flex-initial relative z-10">
               <h3 className="font-body-md md:font-headline-sm text-on-surface font-semibold md:font-bold md:mb-1">สต็อกต่ำ</h3>
               <div className="hidden md:flex text-xs text-amber-600 font-semibold items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-                คลิกดูรายละเอียด <ArrowRightOutlined className="text-[12px]" />
+                คลิกดูรายละเอียด <ArrowRight size={12} />
               </div>
             </div>
             <div className="relative z-10 flex items-baseline gap-1 md:gap-2 md:mt-auto">
@@ -520,13 +522,13 @@ export default function InventoryPage() {
             <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-error/5 rounded-bl-full -mr-4 -mt-4 z-0"></div>
             <div className="relative z-10 flex items-center md:justify-between md:items-start md:w-full">
               <div className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-error-container/30 flex items-center justify-center text-error flex-shrink-0 text-[20px] md:text-[24px] lg:text-[28px]">
-                <StopOutlined />
+                <CircleStop size={18} />
               </div>
             </div>
             <div className="flex-1 md:flex-initial relative z-10">
               <h3 className="font-body-md md:font-headline-sm text-on-surface font-semibold md:font-bold md:mb-1">สินค้าหมด (Out of Stock)</h3>
               <div className="hidden md:flex text-xs text-error font-semibold items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-                คลิกดูรายละเอียด <ArrowRightOutlined className="text-[12px]" />
+                คลิกดูรายละเอียด <ArrowRight size={12} />
               </div>
             </div>
             <div className="relative z-10 flex items-baseline gap-1 md:gap-2 md:mt-auto">
@@ -545,7 +547,7 @@ export default function InventoryPage() {
                 danger
                 disabled={!deleteBtnActive}
                 onClick={() => setDeleteConfirmOpen(true)}
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size={16} />}
                 title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
               >
                 {deleteBtnActive ? `ลบ (${selected.size})` : 'ลบ'}
@@ -554,7 +556,7 @@ export default function InventoryPage() {
 
             <div className="flex flex-col lg:flex-row items-center gap-sm w-full xl:w-auto">
               <Input
-                prefix={<FilterOutlined className="text-on-surface-variant" />}
+                prefix={<Filter size={18} className="text-on-surface-variant" />}
                 value={filterText}
                 onChange={(e) => applyFilter(() => setFilterText(e.target.value))}
                 placeholder="ค้นหาสินค้า..."
@@ -619,8 +621,8 @@ export default function InventoryPage() {
                       <div className={stockClassOf(product)}>สต็อก: <span className="font-bold text-body-md text-on-surface">{formatNum(product.currentStock)} ชิ้น</span></div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button type="text" icon={<PlusSquareOutlined className="text-[18px]" />} onClick={() => openStockInModal(product)} className="text-emerald-600" title="รับเข้าสต็อก" />
-                      <Button type="text" icon={<EditOutlined className="text-[18px]" />} onClick={() => openEditModalForProduct(product)} className="text-on-surface-variant role-admin-only" />
+                      <Button type="text" icon={<PackagePlus size={18} />} onClick={() => openStockInModal(product)} className="text-emerald-600" title="รับเข้าสต็อก" />
+                      <Button type="text" icon={<Pencil size={18} />} onClick={() => openEditModalForProduct(product)} className="text-on-surface-variant role-admin-only" />
                     </div>
                   </div>
                 </article>
@@ -644,7 +646,7 @@ export default function InventoryPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <ExclamationCircleOutlined className="text-[22px]" />
+              <CircleAlert size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">ยืนยันการลบสินค้า</div>
@@ -655,7 +657,7 @@ export default function InventoryPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setDeleteConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} onClick={executeDelete} loading={isDeleting} className="h-11">
+            <Button type="primary" danger block icon={<Trash2 size={16} />} onClick={executeDelete} loading={isDeleting} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>
@@ -668,7 +670,7 @@ export default function InventoryPage() {
         <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
           {selectedProducts.map((product) => (
             <li key={product.id} className="flex items-center gap-2 text-sm text-on-surface">
-              <AppstoreOutlined className="text-[14px] text-error flex-shrink-0" />{product.name}
+              <Package size={14} className="text-error flex-shrink-0" />{product.name}
             </li>
           ))}
         </ul>
@@ -683,7 +685,7 @@ export default function InventoryPage() {
         title={
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${detailModalType === 'low' ? 'bg-amber-500/10 text-amber-600' : 'bg-error-container/30 text-error'}`}>
-              {detailModalType === 'low' ? <WarningOutlined className="text-[18px]" /> : <StopOutlined className="text-[18px]" />}
+              {detailModalType === 'low' ? <TriangleAlert size={18} /> : <CircleStop size={18} />}
             </div>
             <div>
               <div className="font-headline-sm text-primary">
@@ -739,7 +741,7 @@ export default function InventoryPage() {
                       <td className="py-3.5 px-2 text-right font-medium text-amber-600">{formatNum(product.minStock)} ชิ้น</td>
                     )}
                     <td className="py-3.5 pl-2 text-center">
-                      <Button type="text" icon={<EditOutlined className="text-[16px]" />} onClick={() => editProductFromDetail(product)} className="text-on-surface-variant hover:!text-secondary" />
+                      <Button type="text" icon={<Pencil size={16} />} onClick={() => editProductFromDetail(product)} className="text-on-surface-variant hover:!text-secondary" />
                     </td>
                   </tr>
                 ))
@@ -758,7 +760,7 @@ export default function InventoryPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-              {editModal.isEdit ? <EditOutlined className="text-[18px]" /> : <PlusOutlined className="text-[18px]" />}
+              {editModal.isEdit ? <Pencil size={18} /> : <Plus size={18} />}
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">{editModal.isEdit ? 'แก้ไขข้อมูลสินค้า' : 'เพิ่มสินค้าใหม่'}</div>
@@ -769,7 +771,7 @@ export default function InventoryPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setEditModal({ ...editModal, open: false })} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<SaveOutlined />} loading={isProductSaving} onClick={saveProductEdit} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<Save size={16} />} loading={isProductSaving} onClick={saveProductEdit} className="ant-btn-secondary-solid h-11">
               บันทึก
             </Button>
           </div>
@@ -794,7 +796,7 @@ export default function InventoryPage() {
                 showUploadList={false}
                 beforeUpload={(file) => { previewSelectedImage(file); return false }}
               >
-                <Button icon={<UploadOutlined />}>เลือกรูปภาพ</Button>
+                <Button icon={<UploadIcon size={16} />}>เลือกรูปภาพ</Button>
               </Upload>
             </div>
           </div>
@@ -861,7 +863,7 @@ export default function InventoryPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-              <PlusSquareOutlined className="text-[18px]" />
+              <PackagePlus size={18} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">รับเข้าสต็อกสินค้า</div>
@@ -872,7 +874,7 @@ export default function InventoryPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setStockInModal({ ...stockInModal, open: false })} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<SaveOutlined />} loading={isStockInSaving} onClick={saveStockIn} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<Save size={16} />} loading={isStockInSaving} onClick={saveStockIn} className="ant-btn-secondary-solid h-11">
               บันทึกการรับเข้า
             </Button>
           </div>

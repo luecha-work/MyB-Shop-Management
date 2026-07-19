@@ -5,20 +5,20 @@ import { Alert, Button, DatePicker, Empty, Input, Modal, Pagination, Table, Chec
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import {
-  AccountBookOutlined,
-  BarChartOutlined,
-  CarOutlined,
-  CloseCircleOutlined,
-  DeleteOutlined,
-  DollarOutlined,
-  ExclamationCircleOutlined,
-  FallOutlined,
-  FilterOutlined,
-  ProfileOutlined,
-  RiseOutlined,
-  RocketOutlined,
-  SwapRightOutlined,
-} from '@ant-design/icons'
+  BadgeDollarSign,
+  Bike,
+  ChartBar,
+  CircleAlert,
+  CircleDollarSign,
+  CircleX,
+  FileText,
+  Filter,
+  ReceiptText,
+  ShoppingBag,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react'
 import { thbFormat, currentMonthRange } from '@/lib/format'
 import { GP_RATE_PERCENT } from '@/lib/constants'
 import { Loader } from '@/components/UI/Loader'
@@ -78,7 +78,7 @@ function ChannelBadge({ channel }: { channel: string }) {
   if (channel === 'Grab') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-        <CarOutlined className="text-[14px]" /> Grab
+        <Bike size={14} /> Grab
         {gpPercent && <span className="text-[10px] opacity-70 ml-0.5">GP {gpPercent}</span>}
       </span>
     )
@@ -86,14 +86,14 @@ function ChannelBadge({ channel }: { channel: string }) {
   if (channel === 'LINE MAN') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-500/10 text-teal-600 border border-teal-500/20">
-        <RocketOutlined className="text-[14px]" /> LINE MAN
+        <ShoppingBag size={14} /> LINE MAN
         {gpPercent && <span className="text-[10px] opacity-70 ml-0.5">GP {gpPercent}</span>}
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-500/10 text-slate-700 border border-slate-500/20">
-      <DollarOutlined className="text-[14px]" /> หน้าร้าน
+      <CircleDollarSign size={14} /> หน้าร้าน
     </span>
   )
 }
@@ -103,9 +103,9 @@ function MarginBadge({ totalSales, netProfit, size = 'md' }: { totalSales: numbe
   const margin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0
   let colorClass: string
   let icon: React.ReactNode
-  if (margin >= 15) { colorClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'; icon = <RiseOutlined /> }
-  else if (margin >= 5) { colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20'; icon = <SwapRightOutlined /> }
-  else { colorClass = 'bg-rose-500/10 text-rose-600 border-rose-500/20'; icon = <FallOutlined /> }
+  if (margin >= 15) { colorClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'; icon = <TrendingUp size={14} /> }
+  else if (margin >= 5) { colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20'; icon = <ChartBar size={14} /> }
+  else { colorClass = 'bg-rose-500/10 text-rose-600 border-rose-500/20'; icon = <TrendingDown size={14} /> }
 
   if (size === 'sm') {
     return (
@@ -457,10 +457,10 @@ export default function HistoryPage() {
 
         {/* การ์ดสรุปสถิติ (ADMIN เท่านั้น) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-sm lg:gap-lg mb-lg lg:mb-xl flex-shrink-0 role-admin-only">
-          <StatCard icon={<DollarOutlined />} iconBg="#e6f0ff" iconColor="#4b96ff" label="ยอดขายทั้งหมด" value={thbFormat(stats.totalSales)} />
-          <StatCard icon={<ProfileOutlined />} iconBg="#f3e8ff" iconColor="#a855f7" label="ออเดอร์ทั้งหมด" value={`${stats.ordersCount.toLocaleString('th-TH')} รายการ`} />
-          <StatCard icon={<AccountBookOutlined />} iconBg="#e6f4ea" iconColor="#1e8e3e" label="กำไรสุทธิ" value={thbFormat(stats.totalProfit)} />
-          <StatCard icon={<BarChartOutlined />} iconBg="#ffedd5" iconColor="#f97316" label="เฉลี่ยต่อออเดอร์" value={thbFormat(stats.avgSales)} />
+          <StatCard icon={<BadgeDollarSign size={24} />} iconBg="#e6f0ff" iconColor="#4b96ff" label="ยอดขายทั้งหมด" value={thbFormat(stats.totalSales)} />
+          <StatCard icon={<FileText size={24} />} iconBg="#f3e8ff" iconColor="#a855f7" label="ออเดอร์ทั้งหมด" value={`${stats.ordersCount.toLocaleString('th-TH')} รายการ`} />
+          <StatCard icon={<ReceiptText size={24} />} iconBg="#e6f4ea" iconColor="#1e8e3e" label="กำไรสุทธิ" value={thbFormat(stats.totalProfit)} />
+          <StatCard icon={<ChartBar size={24} />} iconBg="#ffedd5" iconColor="#f97316" label="เฉลี่ยต่อออเดอร์" value={thbFormat(stats.avgSales)} />
         </div>
 
         <div className="flex-initial bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col mb-8 lg:mb-0 lg:min-h-0">
@@ -472,7 +472,7 @@ export default function HistoryPage() {
                 danger
                 disabled={!deleteBtnActive}
                 onClick={confirmDeleteSelected}
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size={16} />}
                 title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
               >
                 {deleteBtnActive ? `ลบ (${selected.size})` : 'ลบ'}
@@ -480,7 +480,7 @@ export default function HistoryPage() {
             </div>
             <div className="flex flex-col lg:flex-row items-center gap-sm w-full xl:w-auto">
               <Input
-                prefix={<FilterOutlined className="text-on-surface-variant" />}
+                prefix={<Filter size={18} className="text-on-surface-variant" />}
                 value={filterText}
                 onChange={(e) => applyFilter(() => setFilterText(e.target.value))}
                 placeholder="ค้นหารหัสออเดอร์ หรือ สินค้า..."
@@ -610,7 +610,7 @@ export default function HistoryPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary flex-shrink-0">
-              <ProfileOutlined className="text-[20px]" />
+              <FileText size={20} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface font-bold">รายละเอียดออเดอร์</div>
@@ -620,7 +620,7 @@ export default function HistoryPage() {
         }
         footer={
           <div className="flex gap-3">
-            <Button danger block icon={<CloseCircleOutlined />} onClick={confirmCancelCurrentOrder} className="h-11">
+            <Button danger block icon={<CircleX size={16} />} onClick={confirmCancelCurrentOrder} className="h-11">
               ยกเลิกออเดอร์
             </Button>
             <Button block onClick={() => setDetailOrderId(null)} className="ant-btn-secondary-solid h-11">
@@ -715,7 +715,7 @@ export default function HistoryPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <ExclamationCircleOutlined className="text-[22px]" />
+              <CircleAlert size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">ยืนยันการลบประวัติ</div>
@@ -731,7 +731,7 @@ export default function HistoryPage() {
             }} className="h-11 ant-btn-cancel-soft">
               ยกเลิก
             </Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
+            <Button type="primary" danger block icon={<Trash2 size={16} />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>
@@ -744,7 +744,7 @@ export default function HistoryPage() {
         <ul className="space-y-2 max-h-48 overflow-y-auto bg-error-container/10 border border-error/15 rounded-xl p-3">
           {deleteDisplayList.map((i) => (
             <li key={i.orderId} className="flex items-center gap-2 text-sm text-on-surface">
-              <ProfileOutlined className="text-[14px] text-error flex-shrink-0" />
+              <FileText size={14} className="text-error flex-shrink-0" />
               <span className="font-semibold">{i.orderId}</span> - <span className="truncate max-w-[220px]" title={i.desc}>{i.desc}</span>
             </li>
           ))}

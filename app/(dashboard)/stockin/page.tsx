@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, DatePicker, Empty, Input, Modal, Pagination, Table } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
-import {
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  FilterOutlined,
-  InboxOutlined,
-} from '@ant-design/icons'
+import { CircleAlert, ClipboardList, Filter, Trash2 } from 'lucide-react'
 import { currentMonthRange, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
 
@@ -232,7 +227,7 @@ export default function StockInPage() {
                   setDeleteErrorMsg('')
                   setDeleteConfirmOpen(true)
                 }}
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size={16} />}
                 title={deleteBtnActive ? `ลบ ${selected.size} รายการที่เลือก` : 'ลบรายการที่เลือก'}
               >
                 {deleteBtnActive ? `ลบ (${selected.size})` : 'ลบ'}
@@ -241,7 +236,7 @@ export default function StockInPage() {
 
             <div className="flex flex-col lg:flex-row items-center gap-sm w-full xl:w-auto">
               <Input
-                prefix={<FilterOutlined className="text-on-surface-variant" />}
+                prefix={<Filter size={18} className="text-on-surface-variant" />}
                 value={filterText}
                 onChange={(e) => applyFilter(() => setFilterText(e.target.value))}
                 placeholder="ค้นหาชื่อสินค้า..."
@@ -328,7 +323,7 @@ export default function StockInPage() {
                   <div className="flex justify-between items-center w-full pl-6">
                     <div className="font-medium text-xs text-on-surface-variant">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                        <InboxOutlined className="text-[12px]" /> รับเข้าคลัง
+                        <ClipboardList size={12} /> รับเข้าคลัง
                       </span>
                     </div>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">สำเร็จ</span>
@@ -357,7 +352,7 @@ export default function StockInPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <ExclamationCircleOutlined className="text-[22px]" />
+              <CircleAlert size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">ยืนยันการลบประวัติ</div>
@@ -371,7 +366,7 @@ export default function StockInPage() {
               setDeleteErrorMsg('')
               setDeleteConfirmOpen(false)
             }} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
+            <Button type="primary" danger block icon={<Trash2 size={16} />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>
@@ -385,7 +380,7 @@ export default function StockInPage() {
           <ul className="space-y-1.5">
             {selectedRows.map((r) => (
               <li key={rowKey(r)} className="flex items-center gap-2 text-sm text-on-surface">
-                <InboxOutlined className="text-[14px] text-error flex-shrink-0" />
+                <ClipboardList size={14} className="text-error flex-shrink-0" />
                 {r.productName} ({new Date(r.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})
               </li>
             ))}

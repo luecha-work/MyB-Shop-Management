@@ -3,23 +3,23 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  DashboardOutlined,
-  TransactionOutlined,
-  HistoryOutlined,
-  AppstoreOutlined,
-  InboxOutlined,
-} from '@ant-design/icons'
+  ChartNoAxesCombined,
+  ClipboardList,
+  History,
+  Package,
+  Store,
+} from 'lucide-react'
 
 export default function Sidebar({ userRole }: { userRole: string }) {
   const pathname = usePathname()
   const isStaff = userRole === 'STAFF'
 
   const menuItems = [
-    { href: '/dashboard', icon: <DashboardOutlined className="text-[22px]" />, label: 'แดชบอร์ด', adminOnly: true },
-    { href: '/pos', icon: <TransactionOutlined className="text-[22px]" />, label: 'ขาย (POS)', adminOnly: false },
-    { href: '/history', icon: <HistoryOutlined className="text-[22px]" />, label: 'ประวัติการขาย', adminOnly: false },
-    { href: '/inventory', icon: <AppstoreOutlined className="text-[22px]" />, label: 'คลังสินค้า', adminOnly: false },
-    { href: '/stockin', icon: <InboxOutlined className="text-[22px]" />, label: 'บันทึกรับเข้าคลัง', adminOnly: false },
+    { href: '/dashboard', icon: <ChartNoAxesCombined size={22} />, label: 'แดชบอร์ด', adminOnly: true },
+    { href: '/pos', icon: <Store size={22} />, label: 'ขาย (POS)', adminOnly: false },
+    { href: '/history', icon: <History size={22} />, label: 'ประวัติการขาย', adminOnly: false },
+    { href: '/inventory', icon: <Package size={22} />, label: 'คลังสินค้า', adminOnly: false },
+    { href: '/stockin', icon: <ClipboardList size={22} />, label: 'บันทึกรับเข้าคลัง', adminOnly: false },
   ]
 
   return (

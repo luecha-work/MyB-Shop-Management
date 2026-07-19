@@ -3,23 +3,23 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  DashboardOutlined,
-  TransactionOutlined,
-  HistoryOutlined,
-  AppstoreOutlined,
-  InboxOutlined,
-} from '@ant-design/icons'
+  ChartNoAxesCombined,
+  ClipboardList,
+  History,
+  Package,
+  Store,
+} from 'lucide-react'
 
 export default function BottomNav({ userRole }: { userRole: string }) {
   const pathname = usePathname()
   const isStaff = userRole === 'STAFF'
 
   const navItems = [
-    { id: 'dashboard', href: '/dashboard', icon: <DashboardOutlined className="text-[22px]" />, label: 'แดชบอร์ด', adminOnly: true },
-    { id: 'pos', href: '/pos', icon: <TransactionOutlined className="text-[22px]" />, label: 'ขาย', adminOnly: false },
-    { id: 'history', href: '/history', icon: <HistoryOutlined className="text-[22px]" />, label: 'ประวัติ', adminOnly: false },
-    { id: 'inventory', href: '/inventory', icon: <AppstoreOutlined className="text-[22px]" />, label: 'คลัง', adminOnly: false },
-    { id: 'stockin', href: '/stockin', icon: <InboxOutlined className="text-[22px]" />, label: 'รับเข้า', adminOnly: false },
+    { id: 'dashboard', href: '/dashboard', icon: <ChartNoAxesCombined size={22} />, label: 'แดชบอร์ด', adminOnly: true },
+    { id: 'pos', href: '/pos', icon: <Store size={22} />, label: 'ขาย', adminOnly: false },
+    { id: 'history', href: '/history', icon: <History size={22} />, label: 'ประวัติ', adminOnly: false },
+    { id: 'inventory', href: '/inventory', icon: <Package size={22} />, label: 'คลัง', adminOnly: false },
+    { id: 'stockin', href: '/stockin', icon: <ClipboardList size={22} />, label: 'รับเข้า', adminOnly: false },
   ]
 
   return (

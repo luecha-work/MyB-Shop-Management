@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, Empty, Input, Modal, Pagination, Select, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { DeleteOutlined, EditOutlined, ExclamationCircleOutlined, EyeOutlined, PlusOutlined, SaveOutlined, ShopOutlined } from '@ant-design/icons'
+import { CircleAlert, Eye, Pencil, Plus, Save, Store, Trash2 } from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
 
 type BranchRow = {
@@ -299,7 +299,7 @@ export default function ManageBranchesPage() {
         <div className="flex items-center justify-center gap-1">
           <Button
             type="text"
-            icon={<EyeOutlined />}
+            icon={<Eye size={16} />}
             loading={viewingBranchId === branch.id}
             onClick={() => openViewModal(branch.id)}
             className="text-on-surface-variant hover:!text-secondary"
@@ -307,7 +307,7 @@ export default function ManageBranchesPage() {
           />
           <Button
             type="text"
-            icon={<EditOutlined />}
+            icon={<Pencil size={16} />}
             onClick={() => openEditModal(branch)}
             className="text-on-surface-variant hover:!text-secondary"
             title="แก้ไขสาขา"
@@ -360,12 +360,12 @@ export default function ManageBranchesPage() {
               <Button
                 danger
                 disabled={selected.size === 0}
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size={16} />}
                 onClick={() => setDeleteOpen(true)}
               >
                 {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+              <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
                 เพิ่มสาขา
               </Button>
             </div>
@@ -420,7 +420,7 @@ export default function ManageBranchesPage() {
                   <div className="flex justify-end items-center gap-1 pl-6">
                     <Button
                       type="text"
-                      icon={<EyeOutlined />}
+                      icon={<Eye size={16} />}
                       loading={viewingBranchId === branch.id}
                       onClick={() => openViewModal(branch.id)}
                       className="text-on-surface-variant hover:!text-secondary"
@@ -429,7 +429,7 @@ export default function ManageBranchesPage() {
                     </Button>
                     <Button
                       type="text"
-                      icon={<EditOutlined />}
+                      icon={<Pencil size={16} />}
                       onClick={() => openEditModal(branch)}
                       className="text-on-surface-variant hover:!text-secondary"
                     >
@@ -454,7 +454,7 @@ export default function ManageBranchesPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-              {editOpen ? <EditOutlined className="text-[18px]" /> : <ShopOutlined className="text-[18px]" />}
+              {editOpen ? <Pencil size={18} /> : <Store size={18} />}
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">{editOpen ? 'แก้ไขสาขา' : 'เพิ่มสาขา'}</div>
@@ -465,7 +465,7 @@ export default function ManageBranchesPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={closeFormModal} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<SaveOutlined />} loading={isSaving} onClick={submitBranch} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<Save size={16} />} loading={isSaving} onClick={submitBranch} className="ant-btn-secondary-solid h-11">
               {editOpen ? 'บันทึกการแก้ไข' : 'บันทึกสาขา'}
             </Button>
           </div>
@@ -535,7 +535,7 @@ export default function ManageBranchesPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-              <EyeOutlined className="text-[18px]" />
+              <Eye size={18} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">รายละเอียดสาขา</div>
@@ -614,7 +614,7 @@ export default function ManageBranchesPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <ExclamationCircleOutlined className="text-[22px]" />
+              <CircleAlert size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">ยืนยันการลบสาขา</div>
@@ -625,7 +625,7 @@ export default function ManageBranchesPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setDeleteOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
+            <Button type="primary" danger block icon={<Trash2 size={16} />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>

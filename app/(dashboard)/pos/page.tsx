@@ -3,18 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Drawer, Input, Modal, Pagination, Segmented } from 'antd'
 import {
-  CheckCircleOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  ExclamationCircleOutlined,
-  FilterOutlined,
-  FormOutlined,
-  MinusOutlined,
-  PlusOutlined,
-  ShoppingCartOutlined,
-  TagOutlined,
-  TransactionOutlined,
-} from '@ant-design/icons'
+  Check,
+  CircleAlert,
+  CircleCheck,
+  FilePenLine,
+  Filter,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Store,
+  Tag,
+  X,
+} from 'lucide-react'
 import { thbFormat } from '@/lib/format'
 import { gpRateForChannel, computeSaleLine, GP_RATE_PERCENT } from '@/lib/constants'
 import { Loader } from '@/components/UI/Loader'
@@ -355,7 +355,7 @@ export default function POSPage() {
     cart.length === 0 ? (
       compact ? (
         <div className="flex flex-col items-center justify-center py-10 text-on-surface-variant">
-          <ShoppingCartOutlined className="text-[48px] opacity-30 mb-3" />
+          <ShoppingCart size={48} className="opacity-30 mb-3" />
           <p className="font-body-sm">ตะกร้าว่างเปล่า</p>
         </div>
       ) : (
@@ -375,14 +375,14 @@ export default function POSPage() {
                 onClick={() => updateCartItemQty(item.productId, -1)}
                 className="w-7 h-7 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded-lg transition-colors font-extrabold"
               >
-                <MinusOutlined className="text-[14px] stroke-[2.5]" />
+                <Minus size={14} strokeWidth={2.5} />
               </button>
               <span className="w-7 text-center text-[15px] leading-7 font-extrabold tabular-nums text-primary">{item.qty}</span>
               <button
                 onClick={() => updateCartItemQty(item.productId, 1)}
                 className="w-7 h-7 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded-lg transition-colors font-extrabold"
               >
-                <PlusOutlined className="text-[14px] stroke-[2.5]" />
+                <Plus size={14} strokeWidth={2.5} />
               </button>
             </div>
           </div>
@@ -397,14 +397,14 @@ export default function POSPage() {
                 onClick={() => updateCartItemQty(item.productId, -1)}
                 className="w-6 h-6 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded transition-colors font-extrabold"
               >
-                <MinusOutlined className="text-[14px] stroke-[2.5]" />
+                <Minus size={14} strokeWidth={2.5} />
               </button>
               <span className="w-6 text-center text-[14px] leading-6 font-extrabold tabular-nums text-primary">{item.qty}</span>
               <button
                 onClick={() => updateCartItemQty(item.productId, 1)}
                 className="w-6 h-6 flex items-center justify-center text-on-surface hover:bg-surface-variant active:bg-secondary-container active:text-secondary rounded transition-colors font-extrabold"
               >
-                <PlusOutlined className="text-[14px] stroke-[2.5]" />
+                <Plus size={14} strokeWidth={2.5} />
               </button>
             </div>
           </div>
@@ -439,7 +439,7 @@ export default function POSPage() {
             {/* ช่องค้นหาชื่อสินค้า */}
             <div className="py-2 mb-sm flex-shrink-0 flex justify-center lg:justify-start pl-1 md:pl-2">
               <Input
-                prefix={<FilterOutlined className="text-on-surface-variant" />}
+                prefix={<Filter size={18} className="text-on-surface-variant" />}
                 placeholder="ค้นหาชื่อสินค้า..."
                 value={searchText}
                 onChange={(e) => handleSearch(e.target.value)}
@@ -564,7 +564,7 @@ export default function POSPage() {
                   <span className="bg-primary text-on-primary text-xs px-2 py-1 rounded-full font-label-sm">{totalItemsCount} รายการ</span>
                 </h2>
                 <Input
-                  prefix={<TagOutlined className="text-on-surface-variant" />}
+                  prefix={<Tag size={18} className="text-on-surface-variant" />}
                   placeholder="เลขออเดอร์..."
                   value={orderId}
                   onChange={(e) => setOrderId(e.target.value)}
@@ -576,7 +576,7 @@ export default function POSPage() {
 
               <div className="p-lg bg-surface-container-low border-t border-outline-variant/30">
                 <div className="relative mb-3">
-                  <FormOutlined className="absolute left-2.5 top-2.5 text-on-surface-variant text-[16px] pointer-events-none z-10" />
+                  <FilePenLine size={16} className="absolute left-2.5 top-2.5 text-on-surface-variant pointer-events-none z-10" />
                   <Input.TextArea
                     placeholder="ใส่หมายเหตุ..."
                     rows={2}
@@ -607,7 +607,7 @@ export default function POSPage() {
                 <Button
                   size="large"
                   block
-                  icon={<TransactionOutlined />}
+                  icon={<Store size={16} />}
                   onClick={checkoutOrder}
                   className="ant-btn-secondary-solid font-headline-sm interactive-press"
                 >
@@ -625,7 +625,7 @@ export default function POSPage() {
             className="w-full bg-secondary text-on-secondary rounded-xl py-md px-lg shadow-lg flex justify-between items-center interactive-press"
           >
             <div className="flex items-center gap-sm font-label-md text-label-md">
-              <ShoppingCartOutlined className="text-[18px]" />
+              <ShoppingCart size={18} />
               <span>{totalItemsCount} รายการ</span>
             </div>
             <div className="font-label-md text-label-md font-bold">ดูตะกร้า • <span>{thbFormat(gpAmount > 0 ? netRevenue : totalPriceSum)}</span></div>
@@ -661,7 +661,7 @@ export default function POSPage() {
               onClick={() => setMobileCartOpen(false)}
               className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors"
             >
-              <CloseOutlined className="text-[16px]" />
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -669,7 +669,7 @@ export default function POSPage() {
         {/* Order ID Input */}
         <div className="px-5 pt-3 pb-0 flex-shrink-0">
           <Input
-            prefix={<TagOutlined className="text-on-surface-variant" />}
+            prefix={<Tag size={18} className="text-on-surface-variant" />}
             placeholder="เลขออเดอร์ (ไม่ระบุ = รันอัตโนมัติ)"
             value={orderId}
             onChange={(e) => setOrderId(e.target.value)}
@@ -686,7 +686,7 @@ export default function POSPage() {
           style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
         >
           <div className="relative">
-            <FormOutlined className="absolute left-3 top-2.5 text-on-surface-variant text-[16px] pointer-events-none z-10" />
+            <FilePenLine size={16} className="absolute left-3 top-2.5 text-on-surface-variant pointer-events-none z-10" />
             <Input.TextArea
               placeholder="ใส่หมายเหตุ..."
               rows={2}
@@ -721,7 +721,7 @@ export default function POSPage() {
           <Button
             size="large"
             block
-            icon={<TransactionOutlined />}
+            icon={<Store size={16} />}
             onClick={checkoutOrderMobile}
             className="ant-btn-secondary-solid font-headline-sm interactive-press"
           >
@@ -740,7 +740,7 @@ export default function POSPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <ExclamationCircleOutlined className="text-[22px]" />
+              <CircleAlert size={22} />
             </div>
             <span className="font-headline-sm text-on-surface">{alertModal.title}</span>
           </div>
@@ -748,7 +748,7 @@ export default function POSPage() {
         footer={
           <Button
             block
-            icon={<CheckOutlined />}
+            icon={<Check size={16} />}
             onClick={() => setAlertModal({ ...alertModal, open: false })}
             className="ant-btn-secondary-solid h-11"
           >
@@ -769,7 +769,7 @@ export default function POSPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary flex-shrink-0">
-              <ShoppingCartOutlined className="text-[22px]" />
+              <ShoppingCart size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">ยืนยันการสั่งซื้อ</div>
@@ -782,7 +782,7 @@ export default function POSPage() {
             <Button block onClick={() => setConfirmOpen(false)} className="h-11 ant-btn-cancel-soft">
               ยกเลิก
             </Button>
-            <Button block icon={<CheckCircleOutlined />} loading={isCheckoutSaving} onClick={executeCheckout} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<CircleCheck size={16} />} loading={isCheckoutSaving} onClick={executeCheckout} className="ant-btn-secondary-solid h-11">
               ยืนยันการสั่งซื้อ
             </Button>
           </div>

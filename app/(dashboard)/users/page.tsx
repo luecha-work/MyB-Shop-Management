@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, Empty, Input, Modal, Pagination, Select, Space, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { CopyOutlined, DeleteOutlined, EditOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, ReloadOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
+import { CircleAlert, Copy, KeyRound, Pencil, Plus, RotateCw, Save, Trash2, UserPlus } from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
 
 type UserRow = {
@@ -388,7 +388,7 @@ export default function ManageUsersPage() {
         <div className="flex items-center justify-center gap-1">
           <Button
             type="text"
-            icon={<EditOutlined />}
+            icon={<Pencil size={16} />}
             onClick={() => openEditModal(user)}
             className="text-on-surface-variant hover:!text-secondary"
           >
@@ -397,7 +397,7 @@ export default function ManageUsersPage() {
           {canResetPasswords && (
             <Button
               type="text"
-              icon={<ReloadOutlined />}
+              icon={<RotateCw size={16} />}
               loading={resettingUserId === user.id}
               onClick={() => setResetUser(user)}
               className="text-error hover:!text-error"
@@ -453,12 +453,12 @@ export default function ManageUsersPage() {
               <Button
                 danger
                 disabled={selected.size === 0}
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size={16} />}
                 onClick={() => setDeleteOpen(true)}
               >
                 {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+              <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
                 เพิ่มผู้ใช้
               </Button>
             </div>
@@ -522,7 +522,7 @@ export default function ManageUsersPage() {
                   <div className="flex justify-end items-center gap-1 pl-6">
                     <Button
                       type="text"
-                      icon={<EditOutlined />}
+                      icon={<Pencil size={16} />}
                       onClick={() => openEditModal(user)}
                       className="text-on-surface-variant hover:!text-secondary"
                     >
@@ -531,7 +531,7 @@ export default function ManageUsersPage() {
                     {canResetPasswords && (
                       <Button
                         type="text"
-                        icon={<ReloadOutlined />}
+                        icon={<RotateCw size={16} />}
                         loading={resettingUserId === user.id}
                         onClick={() => setResetUser(user)}
                         className="text-error hover:!text-error"
@@ -558,7 +558,7 @@ export default function ManageUsersPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-secondary-container/30 flex items-center justify-center text-secondary">
-              {editOpen ? <EditOutlined className="text-[18px]" /> : <UserAddOutlined className="text-[18px]" />}
+              {editOpen ? <Pencil size={18} /> : <UserPlus size={18} />}
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">{editOpen ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้'}</div>
@@ -571,7 +571,7 @@ export default function ManageUsersPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={closeFormModal} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<SaveOutlined />} loading={isSaving} onClick={submitUser} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<Save size={16} />} loading={isSaving} onClick={submitUser} className="ant-btn-secondary-solid h-11">
               {editOpen ? 'บันทึกการแก้ไข' : 'บันทึกผู้ใช้'}
             </Button>
           </div>
@@ -615,7 +615,7 @@ export default function ManageUsersPage() {
                 <Button size="large" onClick={() => updateField('password', generateClientPassword())}>
                   Generate
                 </Button>
-                <Button size="large" icon={<CopyOutlined />} onClick={copyFormPassword}>
+                <Button size="large" icon={<Copy size={16} />} onClick={copyFormPassword}>
                   Copy
                 </Button>
               </Space.Compact>
@@ -663,7 +663,7 @@ export default function ManageUsersPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary">
-              <KeyOutlined className="text-[20px]" />
+              <KeyRound size={20} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">{passwordResult?.title}</div>
@@ -674,7 +674,7 @@ export default function ManageUsersPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setPasswordResult(null)} className="h-11">ปิด</Button>
-            <Button block icon={<CopyOutlined />} onClick={copyPassword} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<Copy size={16} />} onClick={copyPassword} className="ant-btn-secondary-solid h-11">
               Copy password
             </Button>
           </div>
@@ -700,7 +700,7 @@ export default function ManageUsersPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-secondary-container/40 flex items-center justify-center text-secondary flex-shrink-0">
-              <ReloadOutlined className="text-[22px]" />
+              <RotateCw size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">รีเซ็ตรหัสผ่าน</div>
@@ -711,7 +711,7 @@ export default function ManageUsersPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setResetUser(null)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button block icon={<KeyOutlined />} loading={!!resetUser && resettingUserId === resetUser.id} onClick={resetPassword} className="ant-btn-secondary-solid h-11">
+            <Button block icon={<KeyRound size={16} />} loading={!!resetUser && resettingUserId === resetUser.id} onClick={resetPassword} className="ant-btn-secondary-solid h-11">
               สร้างรหัสผ่านใหม่
             </Button>
           </div>
@@ -731,7 +731,7 @@ export default function ManageUsersPage() {
         title={
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-error-container/40 flex items-center justify-center text-error flex-shrink-0">
-              <ExclamationCircleOutlined className="text-[22px]" />
+              <CircleAlert size={22} />
             </div>
             <div>
               <div className="font-headline-sm text-on-surface">ยืนยันการลบผู้ใช้</div>
@@ -742,7 +742,7 @@ export default function ManageUsersPage() {
         footer={
           <div className="flex gap-3">
             <Button block onClick={() => setDeleteOpen(false)} className="h-11 ant-btn-cancel-soft">ยกเลิก</Button>
-            <Button type="primary" danger block icon={<DeleteOutlined />} loading={isDeleting} onClick={executeDelete} className="h-11">
+            <Button type="primary" danger block icon={<Trash2 size={16} />} loading={isDeleting} onClick={executeDelete} className="h-11">
               ยืนยันการลบ
             </Button>
           </div>

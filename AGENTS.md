@@ -12,7 +12,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 
 - **Framework:** Next.js 16 (App Router, Turbopack default dev server) + React 19
 - **Language:** TypeScript
-- **UI Components:** **Ant Design v6** (`antd` + `@ant-design/icons`) — themed via `ConfigProvider` in `components/Providers/AntdProvider.tsx` to preserve the original design (gold `#765a24` accent, black primary, 12px radius, Thai locale + dayjs `th`)
+- **UI Components:** **Ant Design v6** (`antd`) + **Lucide React** (`lucide-react`) icons — themed via `ConfigProvider` in `components/Providers/AntdProvider.tsx` to preserve the original design (gold `#765a24` accent, black primary, 12px radius, Thai locale + dayjs `th`)
 - **Styling/Layout:** Tailwind CSS v4 (configured in `app/globals.css` using `@theme`) — used for layout, spacing, and design tokens; antd handles interactive components
 - **State Management:** React Hooks (`useState`, `useMemo`, `useActionState`), Next.js Navigation
 - **Authentication:** Database-backed login in `lib/actions/auth.ts` using PostgreSQL `users.password_hash` with `pgcrypto crypt()`; route protection lives in Next.js `proxy.ts`. Login sets `access_token` for 1 hour and `refresh_token` for 24 hours.
@@ -65,7 +65,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 ## 3. UI/UX & Styling Guidelines
 
 - **Components:** Use antd for all cards, inputs, tables, buttons, modals, tags, pagination. Layout/spacing stays Tailwind. Mobile list views are custom Tailwind cards (antd Table is desktop-only, hidden below `lg`).
-- **Icons:** Use `@ant-design/icons` ONLY (Material Symbols was removed). Nav mapping: `DashboardOutlined`, `TransactionOutlined` (POS), `HistoryOutlined`, `AppstoreOutlined` (inventory), `InboxOutlined` (stock-in). Active nav state = gold color + `font-bold` (no filled variant).
+- **Icons:** Use `lucide-react` ONLY for source code icons (Material Symbols and direct `@ant-design/icons` imports are removed). Choose icons by feature/action meaning: dashboard = `ChartNoAxesCombined`, POS = `Store`, history = `History`, inventory = `Package`, stock-in = `ClipboardList`; CRUD/actions use Lucide equivalents such as `Plus`, `Pencil`, `Trash2`, `Save`, `Upload`, `Filter`, `CircleAlert`, `CircleCheck`, `CircleX`, `UserPlus`, `KeyRound`, and `Copy`. Active nav state = gold color + `font-bold`.
 - **Gold (secondary) buttons:** `className="ant-btn-secondary-solid"` on antd `Button` (e.g., checkout, modal confirm). Destructive confirm = `type="primary" danger`.
 - **Cancel buttons:** Modal cancel buttons labeled `ยกเลิก` use `className="ant-btn-cancel-soft"` for a light red treatment.
 - **Alerts:** antd v6 `Alert` uses `title={...}` instead of the deprecated `message={...}` prop. Page-level transient alerts float above modals at the top-right (`top: 88px`, `z-index: 1200`) and auto-dismiss after 3 seconds.

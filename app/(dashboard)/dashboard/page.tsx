@@ -4,16 +4,15 @@ import { useEffect, useState } from 'react'
 import { DatePicker, Pagination } from 'antd'
 import dayjs from 'dayjs'
 import {
-  DollarOutlined,
-  ShoppingCartOutlined,
-  WalletOutlined,
-  AccountBookOutlined,
-  AppstoreOutlined,
-  ShopOutlined,
-  RiseOutlined,
-  FallOutlined,
-  ProfileOutlined,
-} from '@ant-design/icons'
+  BadgeDollarSign,
+  Package,
+  ReceiptText,
+  ShoppingCart,
+  Store,
+  TrendingDown,
+  TrendingUp,
+  WalletCards,
+} from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
 
 type DashboardStats = {
@@ -211,29 +210,29 @@ export default function DashboardPage() {
       {/* Bento Grid: Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-6">
         <StatCard
-          icon={<DollarOutlined />} iconBg="#e6f0ff" iconColor="#4b96ff"
-          badgeIcon={<ShopOutlined />} badgeText={`${chCount} ช่องทาง`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
+          icon={<BadgeDollarSign size={26} />} iconBg="#e6f0ff" iconColor="#4b96ff"
+          badgeIcon={<Store size={13} />} badgeText={`${chCount} ช่องทาง`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
           label="ยอดขายรวม" value={thbFormat(data.totalSales)}
           sub={chCount > 0 ? 'จากทุกช่องทาง' : 'ยังไม่มียอดขาย'}
         />
         <StatCard
-          icon={<ShoppingCartOutlined />} iconBg="#e6f4ea" iconColor="#1e8e3e"
-          badgeIcon={<RiseOutlined />} badgeText={`${revenueRate.toFixed(1)}%`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
+          icon={<ShoppingCart size={26} />} iconBg="#e6f4ea" iconColor="#1e8e3e"
+          badgeIcon={<TrendingUp size={13} />} badgeText={`${revenueRate.toFixed(1)}%`} badgeClass="bg-[#e6f4ea] text-[#1e8e3e]"
           label="รายได้สุทธิ" value={thbFormat(data.netRevenue)} sub="หลังหักค่า GP"
         />
         <StatCard
-          icon={<WalletOutlined />} iconBg="#f3e8ff" iconColor="#a855f7"
-          badgeIcon={<ProfileOutlined />} badgeText={`${costRate.toFixed(1)}%`} badgeClass="bg-[#f3e8ff] text-[#a855f7]"
+          icon={<WalletCards size={26} />} iconBg="#f3e8ff" iconColor="#a855f7"
+          badgeIcon={<ReceiptText size={13} />} badgeText={`${costRate.toFixed(1)}%`} badgeClass="bg-[#f3e8ff] text-[#a855f7]"
           label="ต้นทุน" value={thbFormat(data.totalCost)} sub="ของยอดขายรวม"
         />
         <StatCard
-          icon={<AppstoreOutlined />} iconBg="#e0f2fe" iconColor="#0284c7"
-          badgeIcon={<ShopOutlined />} badgeText="คลังสินค้า" badgeClass="bg-[#e0f2fe] text-[#0284c7]"
+          icon={<Package size={26} />} iconBg="#e0f2fe" iconColor="#0284c7"
+          badgeIcon={<Store size={13} />} badgeText="คลังสินค้า" badgeClass="bg-[#e0f2fe] text-[#0284c7]"
           label="ต้นทุนรวมสินค้า" value={thbFormat(data.inventoryTotalCost)} sub="มูลค่าต้นทุนสต็อกปัจจุบัน"
         />
         <StatCard
-          icon={<AccountBookOutlined />} iconBg="#ffedd5" iconColor="#f97316"
-          badgeIcon={isProfitPositive ? <RiseOutlined /> : <FallOutlined />}
+          icon={<ReceiptText size={26} />} iconBg="#ffedd5" iconColor="#f97316"
+          badgeIcon={isProfitPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
           badgeText={`${profitMargin.toFixed(1)}%`}
           badgeClass={isProfitPositive ? 'bg-[#e6f4ea] text-[#1e8e3e]' : 'bg-[#fdeded] text-[#ba1a1a]'}
           label="กำไรสุทธิ" value={thbFormat(data.netProfit)} sub={ts > 0 ? 'กำไรขั้นต้น' : '-'}

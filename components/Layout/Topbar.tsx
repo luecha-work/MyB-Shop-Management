@@ -5,7 +5,7 @@ import { logout } from '@/lib/actions/auth'
 import { useRouter } from 'next/navigation'
 import { Avatar, Button, Menu, Popover, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
-import { LogoutOutlined, ShopOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
+import { LogOut, Store, User, UserCog } from 'lucide-react'
 
 type BranchOption = {
   id: string
@@ -79,7 +79,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
   const userMenuItems: Required<MenuProps>['items'] = [
     {
       key: 'profile',
-      icon: <UserOutlined />,
+      icon: <User size={16} />,
       label: 'Profile',
     },
     ...(canSelectBranch
@@ -87,7 +87,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
           { type: 'divider' as const },
           {
             key: 'branches',
-            icon: <ShopOutlined />,
+            icon: <Store size={16} />,
             label: 'เลือกดูสาขา',
             children: [
               {
@@ -107,12 +107,12 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
           { type: 'divider' as const },
           {
             key: 'add-user',
-            icon: <UserAddOutlined />,
+            icon: <UserCog size={16} />,
             label: 'จัดการ user',
           },
           {
             key: 'add-branch',
-            icon: <ShopOutlined />,
+            icon: <Store size={16} />,
             label: 'จัดการสาขา',
           },
         ] satisfies Required<MenuProps>['items'])
@@ -123,7 +123,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
       danger: true,
       label: (
         <span className="flex w-full items-center justify-center gap-2 font-semibold text-error">
-          <LogoutOutlined />
+          <LogOut size={16} />
           ออกจากระบบ
         </span>
       ),
@@ -256,7 +256,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
               >
                 <Avatar
                   size={40}
-                  icon={<UserOutlined />}
+                  icon={<User size={20} />}
                   className={isAdmin ? '!bg-secondary !text-on-secondary' : '!bg-primary !text-on-primary'}
                 />
               </button>

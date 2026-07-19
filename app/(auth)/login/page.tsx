@@ -3,7 +3,7 @@
 import { useActionState } from 'react'
 import { login } from '@/lib/actions/auth'
 import { Input, Button } from 'antd'
-import { MailOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
+import { LockKeyhole, LogIn, Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const [state, action, isPending] = useActionState(login, undefined)
@@ -28,7 +28,7 @@ export default function LoginPage() {
               type="email"
               name="email"
               required
-              prefix={<MailOutlined className="text-outline-variant mr-2" />}
+              prefix={<Mail size={18} className="text-outline-variant mr-2" />}
               placeholder="กรอกอีเมลของคุณ"
               className="font-body-md"
               size="large"
@@ -40,7 +40,7 @@ export default function LoginPage() {
             <Input.Password
               name="password"
               required
-              prefix={<LockOutlined className="text-outline-variant mr-2" />}
+              prefix={<LockKeyhole size={18} className="text-outline-variant mr-2" />}
               placeholder="กรอกรหัสผ่าน"
               className="font-body-md"
               size="large"
@@ -57,7 +57,7 @@ export default function LoginPage() {
             type="primary"
             htmlType="submit"
             loading={isPending}
-            icon={<LoginOutlined />}
+            icon={<LogIn size={18} />}
             className="w-full mt-4 font-bold text-body-md"
             size="large"
             style={{ height: 48, borderRadius: 8 }}
