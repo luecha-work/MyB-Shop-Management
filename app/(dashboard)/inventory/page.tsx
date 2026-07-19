@@ -905,8 +905,8 @@ export default function InventoryPage() {
                     <span className="text-xs font-semibold text-primary truncate pr-2">{product.name}</span>
                     <div className="flex-shrink-0"><StatusBadge product={product} /></div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="flex-shrink-0 mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex self-stretch items-center flex-shrink-0">
                       <Checkbox
                         checked={Boolean(product.id && selected.has(product.id))}
                         disabled={!product.id}

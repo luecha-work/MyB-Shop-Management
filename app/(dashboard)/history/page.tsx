@@ -598,8 +598,8 @@ export default function HistoryPage() {
                       {formatOrderDate(row.date).split(' | ')[0] || ''}
                     </span>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <div onClick={(e) => e.stopPropagation()} className="flex self-stretch items-center flex-shrink-0">
                       <Checkbox
                         checked={selected.has(row.orderId)}
                         onChange={(e) => toggleSelect(row.orderId, e.target.checked)}

@@ -310,8 +310,8 @@ export default function StockInPage() {
                     <span className="text-xs font-semibold text-primary">{formatStockInDate(row.date)}</span>
                     <span className="text-xs font-bold bg-secondary-container text-secondary px-2 py-0.5 rounded flex-shrink-0">+{formatNum(row.qty)}</span>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="flex-shrink-0 mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex self-stretch items-center flex-shrink-0">
                       <Checkbox
                         checked={selected.has(rowKey(row))}
                         disabled={!row.id}

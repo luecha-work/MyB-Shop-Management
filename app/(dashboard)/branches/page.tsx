@@ -446,9 +446,9 @@ export default function ManageBranchesPage() {
                     <span className="text-xs font-semibold text-primary break-words min-w-0">{branch.branchName}</span>
                     <div className="flex-shrink-0">{statusTag(branch.status)}</div>
                   </div>
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-center gap-2">
                     {canDeleteBranches && (
-                      <div className="flex-shrink-0 mt-0.5">
+                      <div className="flex self-stretch items-center flex-shrink-0">
                         <Checkbox
                           checked={selected.has(branch.id)}
                           onChange={(event) => toggleSelect(branch.id, event.target.checked)}

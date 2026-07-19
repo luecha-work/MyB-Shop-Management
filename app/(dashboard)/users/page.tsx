@@ -527,9 +527,9 @@ export default function ManageUsersPage() {
                     <span className="text-xs font-semibold text-primary break-words min-w-0">{user.name}</span>
                     <div className="flex-shrink-0">{statusTag(user.status)}</div>
                   </div>
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-center gap-2">
                     {canDeleteUsers && (
-                      <div className="flex-shrink-0 mt-0.5">
+                      <div className="flex self-stretch items-center flex-shrink-0">
                         <Checkbox
                           checked={selected.has(user.id)}
                           disabled={user.isCurrentUser}
