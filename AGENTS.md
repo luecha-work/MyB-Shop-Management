@@ -26,7 +26,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 ## 2. Codebase Structure
 
 - `app/layout.tsx`: Root layout configuring Google Fonts (Manrope, Inter, JetBrains Mono) + `AntdRegistry`/`AntdProvider`. `<body suppressHydrationWarning>` guards against browser-extension attribute injection.
-- `app/globals.css`: Tailwind v4 `@theme` (colors `--color-*`, spacing `xs/sm/base/md/lg/xl/margin-*`, radii, shadows `card/premium/sm-card/sidebar`), typography `@utility` classes, `glass-card`, `interactive-press`, `.role-staff .role-admin-only` (role-based hiding), and `.ant-btn-secondary-solid` (gold antd button).
+- `app/globals.css`: Tailwind v4 `@theme` (colors `--color-*`, spacing `xs/sm/base/md/lg/xl/margin-*`, radii, shadows `card/premium/sm-card/sidebar`), typography `@utility` classes, `glass-card`, `interactive-press`, `.role-staff .role-admin-only` / `.role-owner-only` (role-based hiding), and `.ant-btn-secondary-solid` (gold antd button).
 - `next.config.ts`: Next.js config. Development allows `*.trycloudflare.com` via `allowedDevOrigins` so Cloudflare Tunnel previews can load Next dev/HMR endpoints.
 - `vercel.json`: Vercel project config. Keeps the Next.js framework preset with `npm ci` and `npm run build` for hosted deploys.
 - `app/(auth)/login/page.tsx`: Login interface (antd Input/Button).
@@ -89,7 +89,7 @@ Welcome! This document provides crucial knowledge and context for any AI agents 
 ## 4. Current Authentication State
 
 The app uses PostgreSQL-backed authentication.
-- **Roles:** Dashboard is OWNER-only; `ADMIN` users are redirected to `/pos` and do not see dashboard nav items. History stat cards + Inventory edit buttons use `role-admin-only` and are hidden only for `.role-staff`.
+- **Roles:** Dashboard is OWNER-only; `ADMIN` users are redirected to `/pos` and do not see dashboard nav items. History stat cards use `role-owner-only` and are hidden for ADMIN/STAFF; Inventory edit buttons use `role-admin-only` and are hidden only for `.role-staff`.
 - **Proxy:** `proxy.ts` redirects unauthenticated users to `/login` and clears invalid/stale `access_token`, `refresh_token`, and `auth_session` cookies when token decoding fails.
 - **Admin-only pages:** `/users*` and `/branches*` are blocked for `STAFF` by `proxy.ts`. `/dashboard` is blocked for `ADMIN` and redirects to `/pos`; only OWNER uses dashboard as the authenticated home. User/branch management entry points live in the Topbar profile menu and are shown only to `OWNER` and `ADMIN`, not in Sidebar/BottomNav. The menu labels are "จัดการ user" (`/users`) and "จัดการสาขา" (`/branches`).
 - **User passwords / account forms:** Admins never type passwords manually. Add-user shows a generated read-only password with Generate/Copy controls before saving; required add-user fields must validate with red error states before submit. Reset-password is available to OWNER and ADMIN, generates a new password server-side, and shows it once in a copy modal; ADMIN reset/edit targets are limited to ADMIN/STAFF users. Owner accounts do not select a branch; STAFF must select a branch. The current logged-in user cannot be selected/deleted from the user table.

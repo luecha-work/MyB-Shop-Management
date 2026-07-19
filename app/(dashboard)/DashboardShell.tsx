@@ -21,6 +21,8 @@ export default function DashboardShell({
   session: Session
   children: React.ReactNode
 }) {
+  const roleClass = `role-${session.role.toLowerCase()}`
+
   return (
     <BranchProvider
       userRole={session.role}
@@ -30,7 +32,7 @@ export default function DashboardShell({
       <Topbar user={session} />
 
       <div
-        className={`flex-1 flex flex-row min-h-0 w-full h-full overflow-hidden relative ${session.role === 'STAFF' ? 'role-staff' : ''}`}
+        className={`flex-1 flex flex-row min-h-0 w-full h-full overflow-hidden relative ${roleClass}`}
       >
         <Sidebar userRole={session.role} />
 

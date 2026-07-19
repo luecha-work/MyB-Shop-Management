@@ -127,7 +127,7 @@ function MarginBadge({ totalSales, netProfit, size = 'md' }: { totalSales: numbe
   )
 }
 
-// การ์ดสรุปสถิติด้านบน (OWNER/ADMIN เท่านั้น)
+// การ์ดสรุปสถิติด้านบน (OWNER เท่านั้น)
 function StatCard({ icon, iconBg, iconColor, label, value }: { icon: React.ReactNode; iconBg: string; iconColor: string; label: string; value: string }) {
   return (
     <div className="bg-white p-4 lg:p-5 rounded-xl shadow-card border border-outline-variant/80 flex flex-col justify-between min-h-[140px] lg:min-h-0">
@@ -492,8 +492,8 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* การ์ดสรุปสถิติ (OWNER/ADMIN เท่านั้น) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-sm lg:gap-lg mb-lg lg:mb-xl flex-shrink-0 role-admin-only">
+        {/* การ์ดสรุปสถิติ (OWNER เท่านั้น) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-sm lg:gap-lg mb-lg lg:mb-xl flex-shrink-0 role-owner-only">
           <StatCard icon={<BadgeDollarSign size={24} />} iconBg="#e6f0ff" iconColor="#4b96ff" label="ยอดขายทั้งหมด" value={thbFormat(stats.totalSales)} />
           <StatCard icon={<FileText size={24} />} iconBg="#f3e8ff" iconColor="#a855f7" label="ออเดอร์ทั้งหมด" value={`${stats.ordersCount.toLocaleString('th-TH')} รายการ`} />
           <StatCard icon={<ReceiptText size={24} />} iconBg="#e6f4ea" iconColor="#1e8e3e" label="กำไรสุทธิ" value={thbFormat(stats.totalProfit)} />
