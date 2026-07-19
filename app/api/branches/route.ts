@@ -40,7 +40,8 @@ const toBranchResponse = (branch: BranchRecord, users: BranchUserRecord[] = []) 
 })
 
 export async function GET(request: NextRequest) {
-  if (!canManageSettings(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request)
+  if (!canManageSettings(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -57,6 +58,10 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         branches: branchRows.map((row) => toBranchResponse(row)),
+        permissions: {
+          canCreateBranches: session?.role === 'OWNER',
+          canDeleteBranches: session?.role === 'OWNER',
+        },
       })
     }
 
@@ -125,6 +130,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       branches: branchRows.map((row) => toBranchResponse(row, usersByBranch.get(row.id) ?? [])),
+      permissions: {
+        canCreateBranches: session?.role === 'OWNER',
+        canDeleteBranches: session?.role === 'OWNER',
+      },
     })
   } catch (error) {
     console.error('GET /api/branches failed', error)
@@ -133,7 +142,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!canManageSettings(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request)
+  if (session?.role !== 'OWNER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -245,7 +255,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!canManageSettings(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request)
+  if (session?.role !== 'OWNER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

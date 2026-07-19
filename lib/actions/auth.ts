@@ -98,7 +98,7 @@ export async function login(_prevState: LoginState, formData: FormData) {
     return { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลเพื่อเข้าสู่ระบบได้' }
   }
 
-  redirect(session.role === 'STAFF' ? '/pos' : '/dashboard')
+  redirect(session.role === 'OWNER' ? '/dashboard' : '/pos')
 }
 
 export async function logout() {

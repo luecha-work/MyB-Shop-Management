@@ -78,6 +78,9 @@ export default function ManageUsersPage() {
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [canResetPasswords, setCanResetPasswords] = useState(false)
+  const [canCreateUsers, setCanCreateUsers] = useState(false)
+  const [canDeleteUsers, setCanDeleteUsers] = useState(false)
+  const [canEditUserAccess, setCanEditUserAccess] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -114,6 +117,9 @@ export default function ManageUsersPage() {
     setRoles(data.roles)
     setBranches(data.branches)
     setCanResetPasswords(Boolean(data.permissions?.canResetPasswords))
+    setCanCreateUsers(Boolean(data.permissions?.canCreateUsers))
+    setCanDeleteUsers(Boolean(data.permissions?.canDeleteUsers))
+    setCanEditUserAccess(Boolean(data.permissions?.canEditUserAccess))
   }
 
   useEffect(() => {
@@ -122,7 +128,17 @@ export default function ManageUsersPage() {
       .then(async (response) => {
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ')
-        return data as { users: UserRow[]; roles: RoleOption[]; branches: BranchOption[]; permissions?: { canResetPasswords?: boolean } }
+        return data as {
+          users: UserRow[]
+          roles: RoleOption[]
+          branches: BranchOption[]
+          permissions?: {
+            canResetPasswords?: boolean
+            canCreateUsers?: boolean
+            canDeleteUsers?: boolean
+            canEditUserAccess?: boolean
+          }
+        }
       })
       .then((data) => {
         if (!active) return
@@ -130,6 +146,9 @@ export default function ManageUsersPage() {
         setRoles(data.roles)
         setBranches(data.branches)
         setCanResetPasswords(Boolean(data.permissions?.canResetPasswords))
+        setCanCreateUsers(Boolean(data.permissions?.canCreateUsers))
+        setCanDeleteUsers(Boolean(data.permissions?.canDeleteUsers))
+        setCanEditUserAccess(Boolean(data.permissions?.canEditUserAccess))
       })
       .catch((err) => {
         console.error(err)
@@ -150,6 +169,7 @@ export default function ManageUsersPage() {
   const isOwner = selectedRole === 'owner'
   const showBranchField = Boolean(selectedRole) && !isOwner
   const selectedUsers = users.filter((user) => selected.has(user.id))
+  const isAccessLocked = editOpen && !canEditUserAccess
   const pageItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
     return users.slice(startIndex, startIndex + itemsPerPage)
@@ -158,6 +178,7 @@ export default function ManageUsersPage() {
   const resetSelection = () => setSelected(new Set())
 
   const toggleSelect = (user: UserRow, checked: boolean) => {
+    if (!canDeleteUsers) return
     if (user.isCurrentUser) return
     const next = new Set(selected)
     if (checked) next.add(user.id)
@@ -182,6 +203,7 @@ export default function ManageUsersPage() {
   }
 
   const openAddModal = () => {
+    if (!canCreateUsers) return
     setEditingUserId('')
     setForm({ ...EMPTY_FORM, password: generateClientPassword() })
     setFormErrors(new Set())
@@ -217,7 +239,9 @@ export default function ManageUsersPage() {
 
   const submitUser = async () => {
     const isEdit = Boolean(editingUserId)
-    const required: (keyof UserForm)[] = isEdit
+    const required: (keyof UserForm)[] = isEdit && !canEditUserAccess
+      ? ['firstName', 'lastName', 'email']
+      : isEdit
       ? ['firstName', 'lastName', 'email', 'roleId']
       : ['firstName', 'lastName', 'email', 'password', 'roleId']
     const nextErrors = new Set<keyof UserForm>()
@@ -386,15 +410,17 @@ export default function ManageUsersPage() {
       align: 'center',
       render: (_, user) => (
         <div className="flex items-center justify-center gap-1">
-          <Button
-            type="text"
-            icon={<Pencil size={16} />}
-            onClick={() => openEditModal(user)}
-            className="text-on-surface-variant hover:!text-secondary"
-          >
-            แก้ไข
-          </Button>
-          {canResetPasswords && (
+          {(canEditUserAccess || ['admin', 'staff'].includes(user.roleName.toLowerCase())) && (
+            <Button
+              type="text"
+              icon={<Pencil size={16} />}
+              onClick={() => openEditModal(user)}
+              className="text-on-surface-variant hover:!text-secondary"
+            >
+              แก้ไข
+            </Button>
+          )}
+          {canResetPasswords && (canEditUserAccess || ['admin', 'staff'].includes(user.roleName.toLowerCase())) && (
             <Button
               type="text"
               icon={<RotateCw size={16} />}
@@ -450,17 +476,21 @@ export default function ManageUsersPage() {
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface/30 flex-shrink-0">
             <h3 className="font-headline-sm text-primary flex-shrink-0">รายชื่อผู้ใช้</h3>
             <div className="flex items-center gap-2">
-              <Button
-                danger
-                disabled={selected.size === 0}
-                icon={<Trash2 size={16} />}
-                onClick={() => setDeleteOpen(true)}
-              >
-                {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
-              </Button>
-              <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
-                เพิ่มผู้ใช้
-              </Button>
+              {canDeleteUsers && (
+                <Button
+                  danger
+                  disabled={selected.size === 0}
+                  icon={<Trash2 size={16} />}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
+                </Button>
+              )}
+              {canCreateUsers && (
+                <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
+                  เพิ่มผู้ใช้
+                </Button>
+              )}
             </div>
           </div>
 
@@ -471,7 +501,7 @@ export default function ManageUsersPage() {
               dataSource={users}
               pagination={paginationConfig}
               scroll={{ x: 900 }}
-              rowSelection={{
+              rowSelection={canDeleteUsers ? {
                 selectedRowKeys: Array.from(selected),
                 onChange: (keys) => setSelected(new Set(keys as string[])),
                 columnWidth: 50,
@@ -479,7 +509,7 @@ export default function ManageUsersPage() {
                   disabled: user.isCurrentUser,
                   title: user.isCurrentUser ? 'ไม่สามารถลบบัญชีของตัวเองได้' : undefined,
                 }),
-              }}
+              } : undefined}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลผู้ใช้" /> }}
             />
           </div>
@@ -498,13 +528,15 @@ export default function ManageUsersPage() {
                     <div className="flex-shrink-0">{statusTag(user.status)}</div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <div className="flex-shrink-0 mt-0.5">
-                      <Checkbox
-                        checked={selected.has(user.id)}
-                        disabled={user.isCurrentUser}
-                        onChange={(event) => toggleSelect(user, event.target.checked)}
-                      />
-                    </div>
+                    {canDeleteUsers && (
+                      <div className="flex-shrink-0 mt-0.5">
+                        <Checkbox
+                          checked={selected.has(user.id)}
+                          disabled={user.isCurrentUser}
+                          onChange={(event) => toggleSelect(user, event.target.checked)}
+                        />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="text-body-md font-semibold text-on-surface break-all">{user.email}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -520,15 +552,17 @@ export default function ManageUsersPage() {
                   </div>
                   <hr className="border-t border-outline-variant/10 my-1" />
                   <div className="flex justify-end items-center gap-1 pl-6">
-                    <Button
-                      type="text"
-                      icon={<Pencil size={16} />}
-                      onClick={() => openEditModal(user)}
-                      className="text-on-surface-variant hover:!text-secondary"
-                    >
-                      แก้ไข
-                    </Button>
-                    {canResetPasswords && (
+                    {(canEditUserAccess || ['admin', 'staff'].includes(user.roleName.toLowerCase())) && (
+                      <Button
+                        type="text"
+                        icon={<Pencil size={16} />}
+                        onClick={() => openEditModal(user)}
+                        className="text-on-surface-variant hover:!text-secondary"
+                      >
+                        แก้ไข
+                      </Button>
+                    )}
+                    {canResetPasswords && (canEditUserAccess || ['admin', 'staff'].includes(user.roleName.toLowerCase())) && (
                       <Button
                         type="text"
                         icon={<RotateCw size={16} />}
@@ -590,6 +624,7 @@ export default function ManageUsersPage() {
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">อีเมล</label>
             <Input size="large" status={formErrors.has('email') ? 'error' : undefined} type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} placeholder="user@example.com" />
           </div>
+          {!isAccessLocked && (
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">บทบาท</label>
             <Select
@@ -602,6 +637,7 @@ export default function ManageUsersPage() {
               options={roles.map((role) => ({ label: role.roleName.toUpperCase(), value: role.id }))}
             />
           </div>
+          )}
           {!editOpen && (
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รหัสผ่าน</label>
@@ -621,7 +657,7 @@ export default function ManageUsersPage() {
               </Space.Compact>
             </div>
           )}
-          {showBranchField && (
+          {!isAccessLocked && showBranchField && (
             <div>
               <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สาขาประจำ</label>
               <Select
@@ -639,6 +675,7 @@ export default function ManageUsersPage() {
               />
             </div>
           )}
+          {!isAccessLocked && (
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สถานะ</label>
             <Select
@@ -652,6 +689,7 @@ export default function ManageUsersPage() {
               ]}
             />
           </div>
+          )}
         </div>
       </Modal>
 

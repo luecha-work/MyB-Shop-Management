@@ -56,6 +56,8 @@ const roleTag = (roleName: string) => {
 
 export default function ManageBranchesPage() {
   const [branches, setBranches] = useState<BranchRow[]>([])
+  const [canCreateBranches, setCanCreateBranches] = useState(false)
+  const [canDeleteBranches, setCanDeleteBranches] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -88,6 +90,8 @@ export default function ManageBranchesPage() {
     const data = await response.json()
     if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลสาขาไม่สำเร็จ')
     setBranches(data.branches)
+    setCanCreateBranches(Boolean(data.permissions?.canCreateBranches))
+    setCanDeleteBranches(Boolean(data.permissions?.canDeleteBranches))
   }
 
   useEffect(() => {
@@ -96,10 +100,13 @@ export default function ManageBranchesPage() {
       .then(async (response) => {
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'โหลดข้อมูลสาขาไม่สำเร็จ')
-        return data as { branches: BranchRow[] }
+        return data as { branches: BranchRow[]; permissions?: { canCreateBranches?: boolean; canDeleteBranches?: boolean } }
       })
       .then((data) => {
-        if (active) setBranches(data.branches)
+        if (!active) return
+        setBranches(data.branches)
+        setCanCreateBranches(Boolean(data.permissions?.canCreateBranches))
+        setCanDeleteBranches(Boolean(data.permissions?.canDeleteBranches))
       })
       .catch((err) => {
         console.error(err)
@@ -123,6 +130,7 @@ export default function ManageBranchesPage() {
   }
 
   const openAddModal = () => {
+    if (!canCreateBranches) return
     setEditingBranchId('')
     setForm(EMPTY_FORM)
     setFormErrors(new Set())
@@ -248,6 +256,7 @@ export default function ManageBranchesPage() {
   const resetSelection = () => setSelected(new Set())
 
   const toggleSelect = (branchId: string, checked: boolean) => {
+    if (!canDeleteBranches) return
     const next = new Set(selected)
     if (checked) next.add(branchId)
     else next.delete(branchId)
@@ -357,17 +366,21 @@ export default function ManageBranchesPage() {
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface/30 flex-shrink-0">
             <h3 className="font-headline-sm text-primary flex-shrink-0">รายชื่อสาขา</h3>
             <div className="flex items-center gap-2">
-              <Button
-                danger
-                disabled={selected.size === 0}
-                icon={<Trash2 size={16} />}
-                onClick={() => setDeleteOpen(true)}
-              >
-                {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
-              </Button>
-              <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
-                เพิ่มสาขา
-              </Button>
+              {canDeleteBranches && (
+                <Button
+                  danger
+                  disabled={selected.size === 0}
+                  icon={<Trash2 size={16} />}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  {selected.size > 0 ? `ลบ (${selected.size})` : 'ลบ'}
+                </Button>
+              )}
+              {canCreateBranches && (
+                <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
+                  เพิ่มสาขา
+                </Button>
+              )}
             </div>
           </div>
 
@@ -378,11 +391,11 @@ export default function ManageBranchesPage() {
               dataSource={branches}
               pagination={paginationConfig}
               scroll={{ x: 1040 }}
-              rowSelection={{
+              rowSelection={canDeleteBranches ? {
                 selectedRowKeys: Array.from(selected),
                 onChange: (keys) => setSelected(new Set(keys as string[])),
                 columnWidth: 50,
-              }}
+              } : undefined}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลสาขา" /> }}
             />
           </div>
@@ -401,12 +414,14 @@ export default function ManageBranchesPage() {
                     <div className="flex-shrink-0">{statusTag(branch.status)}</div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <div className="flex-shrink-0 mt-0.5">
-                      <Checkbox
-                        checked={selected.has(branch.id)}
-                        onChange={(event) => toggleSelect(branch.id, event.target.checked)}
-                      />
-                    </div>
+                    {canDeleteBranches && (
+                      <div className="flex-shrink-0 mt-0.5">
+                        <Checkbox
+                          checked={selected.has(branch.id)}
+                          onChange={(event) => toggleSelect(branch.id, event.target.checked)}
+                        />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="text-body-md font-semibold text-on-surface break-words">{branch.branchCode}</div>
                       <div className="mt-1 grid grid-cols-1 gap-1 text-xs text-on-surface-variant">

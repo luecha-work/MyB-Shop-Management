@@ -12,10 +12,10 @@ import {
 
 export default function Sidebar({ userRole }: { userRole: string }) {
   const pathname = usePathname()
-  const isStaff = userRole === 'STAFF'
+  const isOwner = userRole === 'OWNER'
 
   const menuItems = [
-    { href: '/dashboard', icon: <ChartNoAxesCombined size={22} />, label: 'แดชบอร์ด', adminOnly: true },
+    { href: '/dashboard', icon: <ChartNoAxesCombined size={22} />, label: 'แดชบอร์ด', ownerOnly: true },
     { href: '/pos', icon: <Store size={22} />, label: 'ขาย (POS)', adminOnly: false },
     { href: '/history', icon: <History size={22} />, label: 'ประวัติการขาย', adminOnly: false },
     { href: '/inventory', icon: <Package size={22} />, label: 'คลังสินค้า', adminOnly: false },
@@ -26,7 +26,7 @@ export default function Sidebar({ userRole }: { userRole: string }) {
     <nav className="hidden lg:flex flex-col bg-surface h-full w-[72px] xl:w-[280px] border-r border-outline-variant/80 py-md z-20 shadow-card transition-all duration-300 flex-shrink-0">
       <ul className="flex flex-col gap-sm px-2 xl:px-md flex-1">
         {menuItems.map((item) => {
-          if (item.adminOnly && isStaff) return null
+          if (item.ownerOnly && !isOwner) return null
 
           const isActive = pathname.startsWith(item.href)
           return (

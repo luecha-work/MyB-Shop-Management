@@ -80,7 +80,7 @@ export async function proxy(request: NextRequest) {
 
   const role = session?.role ?? null
 
-  const authenticatedHome = () => (role === 'STAFF' ? '/pos' : '/dashboard')
+  const authenticatedHome = () => (role === 'OWNER' ? '/dashboard' : '/pos')
 
   if (!session && hasAuthCookie) {
     response.cookies.delete('access_token')
@@ -105,6 +105,10 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/branches')
 
   if (role === 'STAFF' && isAdminRoute) {
+    return NextResponse.redirect(new URL('/pos', request.url))
+  }
+
+  if (role === 'ADMIN' && request.nextUrl.pathname === '/dashboard') {
     return NextResponse.redirect(new URL('/pos', request.url))
   }
 

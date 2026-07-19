@@ -12,10 +12,10 @@ import {
 
 export default function BottomNav({ userRole }: { userRole: string }) {
   const pathname = usePathname()
-  const isStaff = userRole === 'STAFF'
+  const isOwner = userRole === 'OWNER'
 
   const navItems = [
-    { id: 'dashboard', href: '/dashboard', icon: <ChartNoAxesCombined size={22} />, label: 'แดชบอร์ด', adminOnly: true },
+    { id: 'dashboard', href: '/dashboard', icon: <ChartNoAxesCombined size={22} />, label: 'แดชบอร์ด', ownerOnly: true },
     { id: 'pos', href: '/pos', icon: <Store size={22} />, label: 'ขาย', adminOnly: false },
     { id: 'history', href: '/history', icon: <History size={22} />, label: 'ประวัติ', adminOnly: false },
     { id: 'inventory', href: '/inventory', icon: <Package size={22} />, label: 'คลัง', adminOnly: false },
@@ -25,7 +25,7 @@ export default function BottomNav({ userRole }: { userRole: string }) {
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 w-full z-40 flex justify-around items-center px-4 py-3 bg-surface/90 backdrop-blur-xl rounded-t-xl border-t border-outline-variant/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
       {navItems.map((item) => {
-        if (item.adminOnly && isStaff) return null
+        if (item.ownerOnly && !isOwner) return null
 
         const isActive = pathname.startsWith(item.href)
         return (

@@ -151,8 +151,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = await sessionFromRequest(request)
-  if (!canManageSettings(session)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
@@ -165,14 +165,36 @@ export async function POST(request: NextRequest) {
     const stockIn = toNonNegativeInteger(body.stockIn)
     const minStock = toNonNegativeInteger(body.minStock)
     const imageUrl = String(body.imageUrl ?? '').trim() || null
+    const branchId = session.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : toUuidParam(String(body.branchId ?? '').trim())
 
     if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || stockIn == null || minStock == null) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลสินค้าให้ครบถ้วนและถูกต้อง' }, { status: 400 })
     }
 
+    if (!branchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาที่ต้องการลงสินค้า' }, { status: 400 })
+    }
+
     const client = await db.connect()
     try {
       await client.query('BEGIN')
+
+      const { rowCount: branchCount } = await client.query(
+        `
+          SELECT 1
+          FROM branches
+          WHERE id = $1::uuid
+            AND status = 'active'
+        `,
+        [branchId],
+      )
+
+      if (!branchCount) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'ไม่พบสาขาที่เลือก หรือสาขาไม่ได้เปิดใช้งาน' }, { status: 400 })
+      }
 
       const { rows } = await client.query(
         `
@@ -216,29 +238,35 @@ export async function POST(request: NextRequest) {
 
       const newProduct = rows[0]
 
-      // Auto-create branch_inventory rows for all active branches.
-      // Initial stock goes to the first active branch; other branches start at 0.
+      // Create initial stock only in the selected/current branch.
       await client.query(
         `
-          INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
-          SELECT
+          INSERT INTO branch_inventory (
+            product_id,
+            branch_id,
+            current_stock,
+            stock_in,
+            stock_out,
+            number_of_times_received,
+            min_stock,
+            status
+          )
+          VALUES (
             $1::uuid,
-            b.id,
-            CASE WHEN b.id = (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) THEN $2 ELSE 0 END,
-            CASE WHEN b.id = (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) THEN $2 ELSE 0 END,
+            $4::uuid,
+            $2,
+            $2,
             0,
-            CASE WHEN b.id = (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) AND $2 > 0 THEN 1 ELSE 0 END,
+            CASE WHEN $2 > 0 THEN 1 ELSE 0 END,
             $3,
             CASE
-              WHEN b.id != (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) THEN 'Out of Stock'
               WHEN $2 <= 0 THEN 'Out of Stock'
               WHEN $2 <= $3 THEN 'Low Stock'
               ELSE 'Active'
             END
-          FROM branches b
-          WHERE b.status = 'active'
+          )
         `,
-        [newProduct.id, stockIn, minStock],
+        [newProduct.id, stockIn, minStock, branchId],
       )
 
       await client.query('COMMIT')

@@ -11,14 +11,11 @@ export async function GET(request: NextRequest) {
   const startDate = toDateParam(request.nextUrl.searchParams.get('startDate'), firstDay)
   const endDate = toDateParam(request.nextUrl.searchParams.get('endDate'), lastDay)
   const session = await sessionFromRequest(request)
-  const branchId = session?.role === 'STAFF'
-    ? toUuidParam(session.branchId)
-    : toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())
-  const branchFilter = session?.role === 'STAFF' && !branchId
-    ? 'AND FALSE'
-    : branchId
-      ? 'AND sales.branch_id = $3::uuid'
-      : ''
+  if (session?.role !== 'OWNER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const branchId = toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())
+  const branchFilter = branchId ? 'AND sales.branch_id = $3::uuid' : ''
   const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate]
 
   try {

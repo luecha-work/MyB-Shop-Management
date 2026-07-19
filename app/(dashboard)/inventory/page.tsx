@@ -305,6 +305,7 @@ export default function InventoryPage() {
         stockIn: parseInt(editForm.stockIn) || 0,
         minStock: parseInt(editForm.minStock) || 0,
         imageUrl,
+        branchId: selectedBranchId,
       }
 
       const response = await fetch('/api/products', {

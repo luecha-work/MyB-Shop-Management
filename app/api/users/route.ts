@@ -73,6 +73,9 @@ export async function GET(request: NextRequest) {
       })),
       permissions: {
         canResetPasswords: canResetPasswords(session),
+        canCreateUsers: session?.role === 'OWNER',
+        canDeleteUsers: session?.role === 'OWNER',
+        canEditUserAccess: session?.role === 'OWNER',
       },
     })
   } catch (error) {
@@ -82,7 +85,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!canManageSettings(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request)
+  if (session?.role !== 'OWNER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -148,15 +152,55 @@ export async function PATCH(request: NextRequest) {
       const firstName = String(body.firstName ?? '').trim()
       const lastName = String(body.lastName ?? '').trim()
       const email = String(body.email ?? '').trim().toLowerCase()
-      const roleId = String(body.roleId ?? '').trim()
-      let branchId = String(body.branchId ?? '').trim() || null
-      const status = String(body.status ?? 'active').trim() || 'active'
 
       if (!userId) {
         return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการแก้ไข' }, { status: 400 })
       }
 
-      if (!firstName || !lastName || !email || !roleId) {
+      if (!firstName || !lastName || !email) {
+        return NextResponse.json({ error: 'กรุณากรอกข้อมูลผู้ใช้ให้ครบถ้วน' }, { status: 400 })
+      }
+
+      if (session?.role === 'ADMIN') {
+        const targetResult = await db.query(
+          `
+            SELECT r.role_name
+            FROM users u
+            JOIN roles r ON r.id = u.role_id
+            WHERE u.id = $1
+            LIMIT 1
+          `,
+          [userId],
+        )
+        const targetRole = String(targetResult.rows[0]?.role_name ?? '').toLowerCase()
+        if (!targetRole) {
+          return NextResponse.json({ error: 'ไม่พบผู้ใช้ที่ต้องการแก้ไข' }, { status: 404 })
+        }
+        if (targetRole !== 'admin' && targetRole !== 'staff') {
+          return NextResponse.json({ error: 'ADMIN แก้ไขได้เฉพาะผู้ใช้ role ADMIN/STAFF เท่านั้น' }, { status: 403 })
+        }
+
+        const { rows } = await db.query(
+          `
+            UPDATE users
+            SET first_name = $2,
+                last_name = $3,
+                email = $4,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            RETURNING id, first_name, last_name, email, role_id, branch_id, status
+          `,
+          [userId, firstName, lastName, email],
+        )
+
+        return NextResponse.json({ user: rows[0] })
+      }
+
+      const roleId = String(body.roleId ?? '').trim()
+      let branchId = String(body.branchId ?? '').trim() || null
+      const status = String(body.status ?? 'active').trim() || 'active'
+
+      if (!roleId) {
         return NextResponse.json({ error: 'กรุณากรอกข้อมูลผู้ใช้ให้ครบถ้วน' }, { status: 400 })
       }
 
@@ -203,6 +247,26 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'กรุณาเลือกผู้ใช้ที่ต้องการ reset password' }, { status: 400 })
     }
 
+    if (session?.role === 'ADMIN') {
+      const targetResult = await db.query(
+        `
+          SELECT r.role_name
+          FROM users u
+          JOIN roles r ON r.id = u.role_id
+          WHERE u.id = $1
+          LIMIT 1
+        `,
+        [userId],
+      )
+      const targetRole = String(targetResult.rows[0]?.role_name ?? '').toLowerCase()
+      if (!targetRole) {
+        return NextResponse.json({ error: 'ไม่พบผู้ใช้ที่ต้องการ reset password' }, { status: 404 })
+      }
+      if (targetRole !== 'admin' && targetRole !== 'staff') {
+        return NextResponse.json({ error: 'ADMIN reset password ได้เฉพาะผู้ใช้ role ADMIN/STAFF เท่านั้น' }, { status: 403 })
+      }
+    }
+
     const temporaryPassword = generateTemporaryPassword()
     const { rows } = await db.query(
       `
@@ -235,7 +299,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const session = await sessionFromRequest(request)
-  if (!canManageSettings(session)) {
+  if (session?.role !== 'OWNER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
+import { sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
 
@@ -26,8 +26,8 @@ const storageClient = () => {
 
 export async function POST(request: NextRequest) {
   const session = await sessionFromRequest(request)
-  if (!canManageSettings(session)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
