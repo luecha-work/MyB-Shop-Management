@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import { CircleAlert, ClipboardList, Filter, Trash2 } from 'lucide-react'
 import { currentMonthRange, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
+import { useBranch } from '@/components/Providers/BranchProvider'
 
 // ==========================================
 // Types
@@ -32,6 +33,7 @@ export default function StockInPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
   const [isLoading, setIsLoading] = useState(true)
   const [allData, setAllData] = useState<StockInRow[]>([])
+  const { selectedBranchId } = useBranch()
   const [loadError, setLoadError] = useState('')
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
@@ -48,6 +50,7 @@ export default function StockInPage() {
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
+    if (selectedBranchId) params.set('branchId', selectedBranchId)
     fetch(`/api/stock-in?${params.toString()}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load stock-in history')
@@ -66,7 +69,7 @@ export default function StockInPage() {
         if (active) setIsLoading(false)
       })
     return () => { active = false }
-  }, [startDate, endDate])
+  }, [startDate, endDate, selectedBranchId])
 
   // กรองตามชื่อสินค้า + ช่วงวันที่ (logic เดิมจาก renderStockInTable)
   const filtered = useMemo(() => {
@@ -132,6 +135,7 @@ export default function StockInPage() {
       const params = new URLSearchParams()
       if (startDate) params.set('startDate', startDate)
       if (endDate) params.set('endDate', endDate)
+      if (selectedBranchId) params.set('branchId', selectedBranchId)
       const reload = await fetch(`/api/stock-in?${params.toString()}`, { cache: 'no-store' })
       if (!reload.ok) throw new Error('ลบแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ')
       const latest = await reload.json() as { rows: StockInRow[] }

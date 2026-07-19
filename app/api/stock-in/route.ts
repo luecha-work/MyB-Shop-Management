@@ -73,31 +73,48 @@ export async function POST(request: NextRequest) {
     const productId = toUuidParam(String(body.productId ?? '').trim())
     const quantity = toPositiveInteger(body.quantity)
     const note = String(body.note ?? '').trim() || null
-    const branchId = toUuidParam(session.branchId)
+    // STAFF always use their session branch; OWNER/ADMIN can pass a specific branchId
+    const branchId = session.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : (toUuidParam(String(body.branchId ?? '').trim()) || toUuidParam(session.branchId))
 
     if (!productId || quantity == null) {
       return NextResponse.json({ error: 'กรุณาเลือกสินค้าและระบุจำนวนรับเข้าให้ถูกต้อง' }, { status: 400 })
+    }
+
+    if (!branchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาที่ต้องการรับสินค้าเข้า' }, { status: 400 })
     }
 
     const client = await db.connect()
     try {
       await client.query('BEGIN')
 
-      const { rows: productRows } = await client.query<{ id: string }>(
+      // Lock the branch_inventory row (or create one) to prevent race conditions
+      const { rows: invRows } = await client.query<{ id: string, min_stock: number, current_stock: number }>(
         `
-          SELECT id
-          FROM products
-          WHERE id = $1
-          FOR UPDATE
+          INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
+          VALUES ($1, $2, 0, 0, 0, 0, 0, 'Out of Stock')
+          ON CONFLICT (product_id, branch_id) DO NOTHING
+          RETURNING id, min_stock, current_stock
         `,
-        [productId],
+        [productId, branchId],
       )
 
-      if (!productRows[0]) {
-        await client.query('ROLLBACK')
-        return NextResponse.json({ error: 'ไม่พบสินค้าที่ต้องการรับเข้า' }, { status: 404 })
+      // If the row already existed, lock it
+      if (invRows.length === 0) {
+        const { rows: existing } = await client.query<{ id: string, min_stock: number, current_stock: number }>(
+          `SELECT id, min_stock, current_stock FROM branch_inventory WHERE product_id = $1 AND branch_id = $2 FOR UPDATE`,
+          [productId, branchId],
+        )
+        if (existing.length === 0) {
+          await client.query('ROLLBACK')
+          return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
+        }
+        invRows.push(existing[0])
       }
 
+      // Insert the stock_in history record
       const { rows } = await client.query(
         `
           INSERT INTO stock_in (
@@ -114,9 +131,10 @@ export async function POST(request: NextRequest) {
         [branchId, productId, quantity, String(quantity), note],
       )
 
+      // Update branch_inventory (primary stock counter)
       await client.query(
         `
-          UPDATE products
+          UPDATE branch_inventory
           SET current_stock = current_stock + $2,
               stock_in = stock_in + $2,
               number_of_times_received = number_of_times_received + 1,
@@ -126,9 +144,47 @@ export async function POST(request: NextRequest) {
                 ELSE 'Active'
               END,
               updated_at = CURRENT_TIMESTAMP
+          WHERE product_id = $1 AND branch_id = $3
+        `,
+        [productId, quantity, branchId],
+      )
+
+      // Sync aggregate stock cache on products from branch_inventory.
+      await client.query(
+        `
+          UPDATE products
+          SET total_current_stock = (
+            SELECT COALESCE(SUM(bi.current_stock), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          total_stock_in = (
+            SELECT COALESCE(SUM(bi.stock_in), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          total_number_of_times_received = (
+            SELECT COALESCE(SUM(bi.number_of_times_received), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          aggregate_status = CASE
+            WHEN (
+              SELECT COALESCE(SUM(bi.current_stock), 0)
+              FROM branch_inventory bi
+              WHERE bi.product_id = products.id
+            ) <= 0 THEN 'Out of Stock'
+            WHEN (
+              SELECT COALESCE(SUM(bi.current_stock), 0)
+              FROM branch_inventory bi
+              WHERE bi.product_id = products.id
+            ) <= products.default_min_stock THEN 'Low Stock'
+            ELSE 'Active'
+          END,
+          updated_at = CURRENT_TIMESTAMP
           WHERE id = $1
         `,
-        [productId, quantity],
+        [productId],
       )
 
       await client.query('COMMIT')

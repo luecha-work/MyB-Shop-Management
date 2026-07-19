@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { thbFormat, formatNum } from '@/lib/format'
 import { Loader } from '@/components/UI/Loader'
+import { useBranch } from '@/components/Providers/BranchProvider'
 
 // ==========================================
 // Types
@@ -104,13 +105,17 @@ export default function InventoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [loadError, setLoadError] = useState('')
+  const { selectedBranchId, selectedBranchLabel } = useBranch()
 
   const loadProducts = useCallback(async () => {
-    const res = await fetch('/api/products', { cache: 'no-store' })
+    const params = new URLSearchParams()
+    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    const url = `/api/products${params.toString() ? `?${params.toString()}` : ''}`
+    const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) throw new Error('Failed to load products')
     const data = await res.json() as { products: Product[] }
     return data.products
-  }, [])
+  }, [selectedBranchId])
 
   useEffect(() => {
     let active = true
@@ -357,6 +362,7 @@ export default function InventoryPage() {
           productId: stockInModal.productId,
           quantity: parseInt(qty),
           note: stockInNote.trim(),
+          branchId: selectedBranchId,
         }),
       })
       const data = await response.json()
@@ -469,7 +475,12 @@ export default function InventoryPage() {
             <div className="w-[6px] bg-gradient-to-b from-secondary to-secondary/30 rounded-full flex-shrink-0 shadow-[0_2px_8px_rgba(118,90,36,0.2)]"></div>
             <div>
               <h2 className="font-headline-xl text-headline-xl text-primary font-bold tracking-tight mb-xs">การจัดการคลังสินค้า</h2>
-              <p className="font-body-lg text-body-lg text-on-surface-variant mt-0.5">ภาพรวมและรายการสินค้าทั้งหมด</p>
+              <p className="font-body-lg text-body-lg text-on-surface-variant mt-0.5">
+                 ภาพรวมและรายการสินค้าทั้งหมด
+                {selectedBranchId && (
+                  <Tag color="gold" className="ml-2 align-middle">{selectedBranchLabel}</Tag>
+                )}
+              </p>
             </div>
           </div>
 

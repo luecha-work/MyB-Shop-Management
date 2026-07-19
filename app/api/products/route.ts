@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { db, toNumber } from '@/lib/db'
+import { db, toNumber, toUuidParam } from '@/lib/db'
 import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
@@ -57,10 +57,10 @@ const productSelect = `
   cash_price,
   grab_price,
   line_man_price,
-  current_stock,
-  stock_in,
-  min_stock,
-  status,
+  total_current_stock AS current_stock,
+  total_stock_in AS stock_in,
+  default_min_stock AS min_stock,
+  aggregate_status AS status,
   image_url
 `
 
@@ -106,14 +106,66 @@ const storagePathFromPublicUrl = (imageUrl: string | null) => {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const session = await sessionFromRequest(request)
+  // STAFF always see their own branch; OWNER/ADMIN can pass ?branchId= to filter
+  const branchId = session?.role === 'STAFF'
+    ? toUuidParam(session.branchId)
+    : toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())
+
   try {
-    const { rows } = await db.query(`
-      SELECT
-        ${productSelect}
-      FROM products
-      ORDER BY product_name ASC
-    `)
+    // When a branch is selected, JOIN branch_inventory for that branch's stock.
+    // When branchId is null (OWNER/ADMIN viewing "all branches"), aggregate SUM.
+    const { rows } = branchId
+      ? await db.query(
+          `
+            SELECT
+              p.id,
+              p.product_code,
+              p.product_name,
+              p.cost,
+              p.cash_price,
+              p.grab_price,
+              p.line_man_price,
+              COALESCE(bi.current_stock, 0) AS current_stock,
+              COALESCE(bi.stock_in, 0) AS stock_in,
+              COALESCE(bi.min_stock, 0) AS min_stock,
+              COALESCE(bi.status, 'Out of Stock') AS status,
+              p.image_url
+            FROM products p
+            LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $1::uuid
+            ORDER BY p.product_name ASC
+          `,
+          [branchId],
+        )
+      : await db.query(
+          `
+            SELECT
+              p.id,
+              p.product_code,
+              p.product_name,
+              p.cost,
+              p.cash_price,
+              p.grab_price,
+              p.line_man_price,
+              COALESCE(SUM(bi.current_stock), 0) AS current_stock,
+              COALESCE(SUM(bi.stock_in), 0) AS stock_in,
+              COALESCE(MAX(bi.min_stock), p.default_min_stock) AS min_stock,
+              CASE
+                WHEN COUNT(bi.id) = 0 THEN 'Out of Stock'
+                WHEN COALESCE(SUM(bi.current_stock), 0) <= 0 THEN 'Out of Stock'
+                WHEN COALESCE(SUM(bi.current_stock), 0) <= COALESCE(MAX(bi.min_stock), p.default_min_stock) THEN 'Low Stock'
+                WHEN COUNT(bi.id) FILTER (WHERE bi.status = 'Low Stock') > 0 THEN 'Low Stock'
+                WHEN COUNT(bi.id) FILTER (WHERE bi.status = 'Active') > 0 THEN 'Active'
+                ELSE 'Out of Stock'
+              END AS status,
+              p.image_url
+            FROM products p
+            LEFT JOIN branch_inventory bi ON bi.product_id = p.id
+            GROUP BY p.id, p.product_code, p.product_name, p.cost, p.cash_price, p.grab_price, p.line_man_price, p.default_min_stock, p.image_url
+            ORDER BY p.product_name ASC
+          `,
+        )
 
     return NextResponse.json({
       products: rows.map(toProductResponse),
@@ -145,32 +197,85 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลสินค้าให้ครบถ้วนและถูกต้อง' }, { status: 400 })
     }
 
-    const { rows } = await db.query(
-      `
-        WITH next_code AS (
-          ${nextProductCodeQuery}
-        )
-        INSERT INTO products (
-          product_code,
-          product_name,
-          cost,
-          cash_price,
-          grab_price,
-          line_man_price,
-          current_stock,
-          stock_in,
-          min_stock,
-          status,
-          image_url
-        )
-        SELECT next_code.product_code, $1, $2, $3, $4, $5, $6, $6, $7, 'Active', $8
-        FROM next_code
-        RETURNING ${productSelect}
-      `,
-      [name, cost, priceCash, priceGrab, priceLineman, stockIn, minStock, imageUrl],
-    )
+    const client = await db.connect()
+    try {
+      await client.query('BEGIN')
 
-    return NextResponse.json({ product: toProductResponse(rows[0]) }, { status: 201 })
+      const { rows } = await client.query(
+        `
+          WITH next_code AS (
+            ${nextProductCodeQuery}
+          )
+          INSERT INTO products (
+            product_code,
+            product_name,
+            cost,
+            cash_price,
+            grab_price,
+            line_man_price,
+            total_current_stock,
+            total_stock_in,
+            default_min_stock,
+            aggregate_status,
+            image_url
+          )
+          SELECT
+            next_code.product_code,
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $6,
+            $7,
+            CASE
+              WHEN $6 <= 0 THEN 'Out of Stock'
+              WHEN $6 <= $7 THEN 'Low Stock'
+              ELSE 'Active'
+            END,
+            $8
+          FROM next_code
+          RETURNING ${productSelect}
+        `,
+        [name, cost, priceCash, priceGrab, priceLineman, stockIn, minStock, imageUrl],
+      )
+
+      const newProduct = rows[0]
+
+      // Auto-create branch_inventory rows for all active branches.
+      // Initial stock goes to the first active branch; other branches start at 0.
+      await client.query(
+        `
+          INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
+          SELECT
+            $1::uuid,
+            b.id,
+            CASE WHEN b.id = (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) THEN $2 ELSE 0 END,
+            CASE WHEN b.id = (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) THEN $2 ELSE 0 END,
+            0,
+            CASE WHEN b.id = (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) AND $2 > 0 THEN 1 ELSE 0 END,
+            $3,
+            CASE
+              WHEN b.id != (SELECT id FROM branches WHERE status = 'active' ORDER BY created_at ASC LIMIT 1) THEN 'Out of Stock'
+              WHEN $2 <= 0 THEN 'Out of Stock'
+              WHEN $2 <= $3 THEN 'Low Stock'
+              ELSE 'Active'
+            END
+          FROM branches b
+          WHERE b.status = 'active'
+        `,
+        [newProduct.id, stockIn, minStock],
+      )
+
+      await client.query('COMMIT')
+      return NextResponse.json({ product: toProductResponse(newProduct) }, { status: 201 })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   } catch (error) {
     const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
     if (code === '23514') {
@@ -218,14 +323,13 @@ export async function PATCH(request: NextRequest) {
               cash_price = $4,
               grab_price = $5,
               line_man_price = $6,
-              stock_in = $7,
-              min_stock = $8,
-              image_url = $9,
+              default_min_stock = $7,
+              image_url = $8,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = $1
           RETURNING ${productSelect}
         `,
-        [id, name, cost, priceCash, priceGrab, priceLineman, stockIn, minStock, imageUrl],
+        [id, name, cost, priceCash, priceGrab, priceLineman, minStock, imageUrl],
       )
 
       if (!rows[0]) {

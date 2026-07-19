@@ -1,16 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { logout } from '@/lib/actions/auth'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { logout } from '@/lib/actions/auth'
 import { Avatar, Button, Menu, Popover, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import { LogOut, Store, User, UserCog } from 'lucide-react'
-
-type BranchOption = {
-  id: string
-  branchName: string
-}
+import { useBranch } from '@/components/Providers/BranchProvider'
 
 const userMenuTooltip = (
   <span className="text-xs font-normal">
@@ -24,10 +20,16 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
   const normalizedRole = user.role.toUpperCase()
   const isAdmin = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
   const canSelectBranch = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
+  const isStaff = normalizedRole === 'STAFF'
   const canManageUsersAndBranches = normalizedRole === 'ADMIN' || normalizedRole === 'OWNER'
-  const [branches, setBranches] = useState<BranchOption[]>([])
-  const [selectedBranch, setSelectedBranch] = useState('all')
-  const [selectedBranchLabel, setSelectedBranchLabel] = useState('ทุกสาขา')
+
+  const {
+    selectedBranchId,
+    selectedBranchLabel,
+    setSelectedBranch,
+    branches,
+  } = useBranch()
+
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openMenuKeys, setOpenMenuKeys] = useState<string[]>([])
@@ -55,26 +57,6 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
     setDesktopMenuOpen(false)
     setMobileMenuOpen(false)
   }
-
-  useEffect(() => {
-    if (!canSelectBranch) return
-
-    let active = true
-    fetch('/api/branches?options=1', { cache: 'no-store' })
-      .then(async (response) => {
-        const data = await response.json()
-        if (!response.ok) return { branches: [] }
-        return data as { branches: BranchOption[] }
-      })
-      .then((data) => {
-        if (active) setBranches(data.branches)
-      })
-      .catch(() => {
-        if (active) setBranches([])
-      })
-
-    return () => { active = false }
-  }, [canSelectBranch])
 
   const userMenuItems: Required<MenuProps>['items'] = [
     {
@@ -153,14 +135,14 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
     }
     if (key.startsWith('branch:')) {
       const branchId = key.replace('branch:', '')
-      const branchLabel = branchId === 'all'
-        ? 'ทุกสาขา'
-        : branches.find((branch) => branch.id === branchId)?.branchName ?? 'ทุกสาขา'
-      setSelectedBranch(branchId)
-      setSelectedBranchLabel(branchLabel)
+      setSelectedBranch(branchId === 'all' ? null : branchId)
       closeUserMenu()
     }
   }
+
+  const selectedMenuKey = canSelectBranch
+    ? (selectedBranchId ? `branch:${selectedBranchId}` : 'branch:all')
+    : undefined
 
   const userMenu = (
     <div className="profile-menu-popover w-64 rounded-xl bg-surface" onMouseLeave={closeUserMenu}>
@@ -173,7 +155,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
         key={menuInstanceKey}
         mode="inline"
         selectable
-        selectedKeys={canSelectBranch ? [`branch:${selectedBranch}`] : []}
+        selectedKeys={selectedMenuKey ? [selectedMenuKey] : []}
         openKeys={openMenuKeys}
         onOpenChange={(keys) => setOpenMenuKeys(keys as string[])}
         onClick={handleUserMenuClick}
@@ -187,7 +169,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
 
   return (
     <>
-      {/* Desktop Header (ยาวตลอดจอ และโลโก้ชิดซ้าย) */}
+      {/* Desktop Header */}
       <header className="hidden lg:flex justify-between items-center h-[72px] px-margin-desktop w-full bg-surface border-b border-outline-variant/80 shadow-card z-30 flex-shrink-0">
         {/* Logo / Branding */}
         <div className="flex items-center gap-3">
@@ -222,7 +204,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
                   <div className="flex flex-col items-start">
                     <span className="font-body-md font-medium leading-none">{user.name}</span>
                     <span className="text-[10px] text-secondary font-bold leading-none mt-1">
-                      {canSelectBranch ? `${user.role} · ${selectedBranchLabel}` : user.role}
+                      {isStaff ? user.role : `${user.role} · ${selectedBranchLabel}`}
                     </span>
                   </div>
                 </div>
@@ -232,7 +214,7 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
         </div>
       </header>
 
-      {/* Mobile Header (แสดงเฉพาะบน Mobile) */}
+      {/* Mobile Header */}
       <header className="lg:hidden sticky top-0 z-40 bg-surface/90 backdrop-blur-md px-margin-mobile py-4 border-b border-outline-variant/80 flex justify-between items-center shadow-card">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary font-bold text-sm">M</div>

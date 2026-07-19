@@ -24,12 +24,12 @@ CREATE TABLE IF NOT EXISTS products (
   cash_price numeric(10, 2) DEFAULT 0 NOT NULL,
   grab_price numeric(10, 2) DEFAULT 0 NOT NULL,
   line_man_price numeric(10, 2) DEFAULT 0 NOT NULL,
-  current_stock int4 DEFAULT 0 NOT NULL,
-  stock_in int4 DEFAULT 0 NOT NULL,
-  stock_out int4 DEFAULT 0 NOT NULL,
-  min_stock int4 DEFAULT 0 NOT NULL,
-  status varchar(50) NULL,
-  number_of_times_received int4 DEFAULT 0 NOT NULL,
+  total_current_stock int4 DEFAULT 0 NOT NULL,
+  total_stock_in int4 DEFAULT 0 NOT NULL,
+  total_stock_out int4 DEFAULT 0 NOT NULL,
+  default_min_stock int4 DEFAULT 0 NOT NULL,
+  aggregate_status varchar(50) NULL,
+  total_number_of_times_received int4 DEFAULT 0 NOT NULL,
   image_url text NULL,
   created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -39,11 +39,11 @@ CREATE TABLE IF NOT EXISTS products (
   CONSTRAINT products_cash_price_check CHECK (cash_price >= 0),
   CONSTRAINT products_grab_price_check CHECK (grab_price >= 0),
   CONSTRAINT products_line_man_price_check CHECK (line_man_price >= 0),
-  CONSTRAINT products_current_stock_non_negative CHECK (current_stock >= 0),
-  CONSTRAINT products_stock_in_non_negative CHECK (stock_in >= 0),
-  CONSTRAINT products_stock_out_non_negative CHECK (stock_out >= 0),
-  CONSTRAINT products_min_stock_check CHECK (min_stock >= 0),
-  CONSTRAINT products_number_of_times_received_non_negative CHECK (number_of_times_received >= 0)
+  CONSTRAINT products_total_current_stock_non_negative CHECK (total_current_stock >= 0),
+  CONSTRAINT products_total_stock_in_non_negative CHECK (total_stock_in >= 0),
+  CONSTRAINT products_total_stock_out_non_negative CHECK (total_stock_out >= 0),
+  CONSTRAINT products_default_min_stock_check CHECK (default_min_stock >= 0),
+  CONSTRAINT products_total_number_of_times_received_non_negative CHECK (total_number_of_times_received >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -101,6 +101,33 @@ CREATE TABLE IF NOT EXISTS stock_in (
   CONSTRAINT stock_in_quantity_non_negative CHECK (quantity >= 0)
 );
 
+CREATE TABLE IF NOT EXISTS branch_inventory (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  product_id uuid NOT NULL,
+  branch_id uuid NOT NULL,
+  current_stock int4 DEFAULT 0 NOT NULL,
+  stock_in int4 DEFAULT 0 NOT NULL,
+  stock_out int4 DEFAULT 0 NOT NULL,
+  number_of_times_received int4 DEFAULT 0 NOT NULL,
+  min_stock int4 DEFAULT 0 NOT NULL,
+  status varchar(50) DEFAULT 'Out of Stock'::varchar NULL,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  CONSTRAINT branch_inventory_pkey PRIMARY KEY (id),
+  CONSTRAINT branch_inventory_product_branch_unique UNIQUE (product_id, branch_id),
+  CONSTRAINT branch_inventory_current_stock_non_negative CHECK (current_stock >= 0),
+  CONSTRAINT branch_inventory_stock_in_non_negative CHECK (stock_in >= 0),
+  CONSTRAINT branch_inventory_stock_out_non_negative CHECK (stock_out >= 0),
+  CONSTRAINT branch_inventory_number_of_times_received_non_negative CHECK (number_of_times_received >= 0),
+  CONSTRAINT branch_inventory_min_stock_non_negative CHECK (min_stock >= 0),
+  CONSTRAINT branch_inventory_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT branch_inventory_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_branch_inventory_product_id ON branch_inventory USING btree (product_id);
+CREATE INDEX IF NOT EXISTS idx_branch_inventory_branch_id ON branch_inventory USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_branch_inventory_product_branch ON branch_inventory USING btree (product_id, branch_id);
+
 CREATE TABLE IF NOT EXISTS users (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   first_name varchar(100) NOT NULL,
@@ -122,7 +149,7 @@ CREATE INDEX IF NOT EXISTS idx_branches_branch_code ON branches USING btree (bra
 CREATE INDEX IF NOT EXISTS idx_branches_status ON branches USING btree (status);
 CREATE INDEX IF NOT EXISTS idx_products_product_code ON products USING btree (product_code);
 CREATE INDEX IF NOT EXISTS idx_products_product_name ON products USING btree (product_name);
-CREATE INDEX IF NOT EXISTS idx_products_status ON products USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_products_aggregate_status ON products USING btree (aggregate_status);
 CREATE INDEX IF NOT EXISTS idx_roles_role_name ON roles USING btree (role_name);
 CREATE INDEX IF NOT EXISTS idx_sales_branch_id ON sales USING btree (branch_id);
 CREATE INDEX IF NOT EXISTS idx_sales_channel ON sales USING btree (channel);

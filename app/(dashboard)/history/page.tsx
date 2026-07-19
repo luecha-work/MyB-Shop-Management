@@ -22,6 +22,7 @@ import {
 import { thbFormat, currentMonthRange } from '@/lib/format'
 import { GP_RATE_PERCENT } from '@/lib/constants'
 import { Loader } from '@/components/UI/Loader'
+import { useBranch } from '@/components/Providers/BranchProvider'
 
 // ==========================================
 // Types
@@ -144,6 +145,7 @@ export default function HistoryPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
   const [isLoading, setIsLoading] = useState(true)
   const [allData, setAllData] = useState<HistoryRow[]>([])
+  const { selectedBranchId } = useBranch()
   const [loadError, setLoadError] = useState('')
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
@@ -160,6 +162,7 @@ export default function HistoryPage() {
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
+    if (selectedBranchId) params.set('branchId', selectedBranchId)
     params.set('_', String(Date.now()))
 
     const res = await fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store', signal })
@@ -168,7 +171,7 @@ export default function HistoryPage() {
 
     setLoadError('')
     setAllData(data.rows)
-  }, [startDate, endDate])
+  }, [startDate, endDate, selectedBranchId])
 
   useEffect(() => {
     const controller = new AbortController()

@@ -18,6 +18,7 @@ import {
 import { thbFormat } from '@/lib/format'
 import { gpRateForChannel, computeSaleLine, GP_RATE_PERCENT } from '@/lib/constants'
 import { Loader } from '@/components/UI/Loader'
+import { useBranch } from '@/components/Providers/BranchProvider'
 
 // ==========================================
 // Types
@@ -108,10 +109,14 @@ export default function POSPage() {
 
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
+  const { selectedBranchId } = useBranch()
 
   useEffect(() => {
     let active = true
-    fetch('/api/products', { cache: 'no-store' })
+    const params = new URLSearchParams()
+    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    const url = `/api/products${params.toString() ? `?${params.toString()}` : ''}`
+    fetch(url, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load products')
         return res.json() as Promise<{ products: Product[] }>
@@ -127,7 +132,7 @@ export default function POSPage() {
         if (active) setIsLoading(false)
       })
     return () => { active = false }
-  }, [])
+  }, [selectedBranchId])
 
   // 10 แถว/หน้า: 3 คอลัมน์ = 30 รายการ, จอ xl 4 คอลัมน์ = 40 รายการ
   useEffect(() => {
@@ -282,7 +287,10 @@ export default function POSPage() {
   }
 
   const loadProducts = async () => {
-    const res = await fetch('/api/products', { cache: 'no-store' })
+    const params = new URLSearchParams()
+    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    const url = `/api/products${params.toString() ? `?${params.toString()}` : ''}`
+    const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) throw new Error('Failed to load products')
     const data = await res.json() as { products: Product[] }
     setProducts(data.products)
@@ -327,6 +335,7 @@ export default function POSPage() {
           channel,
           note: orderNote.trim(),
           items: cart.map((item) => ({ productId: item.productId, qty: item.qty })),
+          branchId: selectedBranchId,
         }),
       })
       const data = await response.json()

@@ -100,7 +100,14 @@ export async function POST(request: NextRequest) {
     const channel = String(body.channel ?? '').trim()
     const note = String(body.note ?? '').trim() || null
     const items: unknown[] = Array.isArray(body.items) ? body.items : []
-    const branchId = toUuidParam(session.branchId)
+    // STAFF always use their session branch; OWNER/ADMIN can pass a specific branchId
+    const branchId = session.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : (toUuidParam(String(body.branchId ?? '').trim()) || toUuidParam(session.branchId))
+
+    if (!branchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาที่ต้องการขาย' }, { status: 400 })
+    }
 
     if (!channel || items.length === 0) {
       return NextResponse.json({ error: 'กรุณาเลือกสินค้าและช่องทางขายให้ครบถ้วน' }, { status: 400 })
@@ -144,12 +151,21 @@ export async function POST(request: NextRequest) {
         min_stock: unknown
       }>(
         `
-          SELECT id, product_name, cost, cash_price, grab_price, line_man_price, current_stock, min_stock
-          FROM products
-          WHERE id = ANY($1::uuid[])
-          FOR UPDATE
+          SELECT
+            p.id,
+            p.product_name,
+            p.cost,
+            p.cash_price,
+            p.grab_price,
+            p.line_man_price,
+            COALESCE(bi.current_stock, 0) AS current_stock,
+            COALESCE(bi.min_stock, p.default_min_stock) AS min_stock
+          FROM products p
+          LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $2::uuid
+          WHERE p.id = ANY($1::uuid[])
+          FOR UPDATE OF p
         `,
-        [productIds],
+        [productIds, branchId],
       )
 
       const productsById = new Map(productRows.map((product) => [product.id, product]))
@@ -222,9 +238,19 @@ export async function POST(request: NextRequest) {
         )
         insertedRows.push(rows[0])
 
+        // Ensure branch_inventory row exists
+        await client.query(
+          `
+            INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
+            VALUES ($1, $2, 0, 0, 0, 0, 0, 'Out of Stock')
+            ON CONFLICT (product_id, branch_id) DO NOTHING
+          `,
+          [item.productId, branchId],
+        )
+
         const { rowCount } = await client.query(
           `
-            UPDATE products
+            UPDATE branch_inventory
             SET current_stock = current_stock - $2,
                 stock_out = stock_out + $2,
                 status = CASE
@@ -233,16 +259,50 @@ export async function POST(request: NextRequest) {
                   ELSE 'Active'
                 END,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $1
+            WHERE product_id = $1
+              AND branch_id = $3
               AND current_stock >= $2
           `,
-          [item.productId, item.qty],
+          [item.productId, item.qty, branchId],
         )
 
         if (!rowCount) {
           await client.query('ROLLBACK')
           return NextResponse.json({ error: `สต็อกไม่พอ: ${product.product_name}` }, { status: 400 })
         }
+
+        // Sync aggregate stock cache on products from branch_inventory.
+        await client.query(
+          `
+            UPDATE products
+            SET total_current_stock = (
+              SELECT COALESCE(SUM(bi.current_stock), 0)
+              FROM branch_inventory bi
+              WHERE bi.product_id = products.id
+            ),
+            total_stock_out = (
+              SELECT COALESCE(SUM(bi.stock_out), 0)
+              FROM branch_inventory bi
+              WHERE bi.product_id = products.id
+            ),
+            aggregate_status = CASE
+              WHEN (
+                SELECT COALESCE(SUM(bi.current_stock), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ) <= 0 THEN 'Out of Stock'
+              WHEN (
+                SELECT COALESCE(SUM(bi.current_stock), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ) <= products.default_min_stock THEN 'Low Stock'
+              ELSE 'Active'
+            END,
+            updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `,
+          [item.productId],
+        )
       }
 
       await client.query('COMMIT')
@@ -293,33 +353,79 @@ export async function DELETE(request: NextRequest) {
         [orderIds],
       )
 
-      const { rows: restoreRows } = await client.query<{ product_id: string; qty: number }>(
+      const { rows: restoreRows } = await client.query<{ product_id: string; qty: number; branch_id: string | null }>(
         `
-          SELECT product_id, SUM(qty)::int AS qty
+          SELECT product_id, SUM(qty)::int AS qty, branch_id
           FROM sales
           WHERE order_id = ANY($1::text[])
             AND product_id IS NOT NULL
-          GROUP BY product_id
+          GROUP BY product_id, branch_id
         `,
         [orderIds],
       )
 
       for (const row of restoreRows) {
-        await client.query(
-          `
-            UPDATE products
-            SET current_stock = current_stock + $2,
-                stock_out = GREATEST(stock_out - $2, 0),
-                status = CASE
-                  WHEN current_stock + $2 <= 0 THEN 'Out of Stock'
-                  WHEN current_stock + $2 <= min_stock THEN 'Low Stock'
-                  ELSE 'Active'
-                END,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $1
-          `,
-          [row.product_id, row.qty],
-        )
+        const restoreBranchId = row.branch_id
+        if (restoreBranchId) {
+          // Restore stock back to the branch that made the sale
+          await client.query(
+            `
+              INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
+              VALUES ($1, $2, 0, 0, 0, 0, 0, 'Out of Stock')
+              ON CONFLICT (product_id, branch_id) DO NOTHING
+            `,
+            [row.product_id, restoreBranchId],
+          )
+
+          await client.query(
+            `
+              UPDATE branch_inventory
+              SET current_stock = current_stock + $2,
+                  stock_out = GREATEST(stock_out - $2, 0),
+                  status = CASE
+                    WHEN current_stock + $2 <= 0 THEN 'Out of Stock'
+                    WHEN current_stock + $2 <= min_stock THEN 'Low Stock'
+                    ELSE 'Active'
+                  END,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE product_id = $1 AND branch_id = $3
+            `,
+            [row.product_id, row.qty, restoreBranchId],
+          )
+
+          // Sync products table
+          await client.query(
+            `
+              UPDATE products
+              SET total_current_stock = (
+                SELECT COALESCE(SUM(bi.current_stock), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              total_stock_out = (
+                SELECT COALESCE(SUM(bi.stock_out), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              aggregate_status = CASE
+                WHEN (
+                  SELECT COALESCE(SUM(bi.current_stock), 0)
+                  FROM branch_inventory bi
+                  WHERE bi.product_id = products.id
+                ) <= 0 THEN 'Out of Stock'
+                WHEN (
+                  SELECT COALESCE(SUM(bi.current_stock), 0)
+                  FROM branch_inventory bi
+                  WHERE bi.product_id = products.id
+                ) <= products.default_min_stock THEN 'Low Stock'
+                ELSE 'Active'
+              END,
+              updated_at = CURRENT_TIMESTAMP
+              WHERE id = $1
+            `,
+            [row.product_id],
+          )
+        }
       }
 
       const { rowCount } = await client.query(

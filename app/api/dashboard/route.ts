@@ -71,9 +71,12 @@ export async function GET(request: NextRequest) {
       db.query(
         `
           SELECT
-            COALESCE(SUM(cost * current_stock), 0) AS inventory_total_cost
-          FROM products
+            COALESCE(SUM(p.cost * bi.current_stock), 0) AS inventory_total_cost
+          FROM branch_inventory bi
+          JOIN products p ON p.id = bi.product_id
+          ${branchId ? 'WHERE bi.branch_id = $1::uuid' : ''}
         `,
+        branchId ? [branchId] : [],
       ),
     ])
 

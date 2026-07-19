@@ -14,6 +14,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
+import { useBranch } from '@/components/Providers/BranchProvider'
 
 type DashboardStats = {
   totalSales: number
@@ -118,12 +119,14 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loadError, setLoadError] = useState('')
   const [topProductsPage, setTopProductsPage] = useState(1)
+  const { selectedBranchId } = useBranch()
 
   useEffect(() => {
     let active = true
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
+    if (selectedBranchId) params.set('branchId', selectedBranchId)
     fetch(`/api/dashboard?${params.toString()}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load dashboard stats')
@@ -142,7 +145,7 @@ export default function DashboardPage() {
         setStats(EMPTY_STATS)
       })
     return () => { active = false }
-  }, [startDate, endDate])
+  }, [startDate, endDate, selectedBranchId])
 
   // แสดง loading ระหว่างรอโหลดข้อมูล
   if (!stats) return <Loader text="โหลดข้อมูลแดชบอร์ด..." />
