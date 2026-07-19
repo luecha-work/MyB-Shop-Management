@@ -44,9 +44,13 @@ export async function GET(request: NextRequest) {
           s.net_revenue,
           s.unit_price,
           s.unit_cost,
-          s.total_cost
+          s.total_cost,
+          s.branch_id,
+          b.branch_name,
+          b.branch_code
         FROM sales s
         LEFT JOIN products p ON p.id = s.product_id
+        LEFT JOIN branches b ON b.id = s.branch_id
         WHERE s.order_datetime >= $1::date
           AND s.order_datetime < ($2::date + INTERVAL '1 day')
           ${branchFilter}
@@ -72,6 +76,9 @@ export async function GET(request: NextRequest) {
         unitPrice: toNumber(row.unit_price),
         unitCost: toNumber(row.unit_cost),
         totalCost: toNumber(row.total_cost),
+        branchId: row.branch_id || '',
+        branchName: row.branch_name || '',
+        branchCode: row.branch_code || '',
       })),
     })
   } catch (error) {
@@ -338,10 +345,19 @@ export async function DELETE(request: NextRequest) {
     const orderIds: string[] = Array.isArray(body.orderIds)
       ? body.orderIds.map((id: unknown) => String(id).trim()).filter(Boolean)
       : []
+    const branchId = session?.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : toUuidParam(String(body.branchId ?? '').trim())
 
     if (orderIds.length === 0) {
       return NextResponse.json({ error: 'กรุณาเลือกออเดอร์ที่ต้องการลบ' }, { status: 400 })
     }
+
+    if (!branchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาก่อนลบประวัติการขาย' }, { status: 400 })
+    }
+
+    const uniqueOrderIds = Array.from(new Set(orderIds))
 
     const client = await db.connect()
     try {
@@ -352,20 +368,37 @@ export async function DELETE(request: NextRequest) {
           SELECT id
           FROM sales
           WHERE order_id = ANY($1::text[])
+            AND branch_id = $2::uuid
           FOR UPDATE
         `,
-        [orderIds],
+        [uniqueOrderIds, branchId],
       )
 
-      const { rows: restoreRows } = await client.query<{ product_id: string; qty: number; branch_id: string | null }>(
+      const { rows: matchedRows } = await client.query<{ order_id: string }>(
+        `
+          SELECT DISTINCT order_id
+          FROM sales
+          WHERE order_id = ANY($1::text[])
+            AND branch_id = $2::uuid
+        `,
+        [uniqueOrderIds, branchId],
+      )
+
+      if (matchedRows.length !== uniqueOrderIds.length) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'พบรายการขายที่ไม่ได้อยู่ในสาขาที่เลือก หรือไม่มีอยู่ในระบบ' }, { status: 400 })
+      }
+
+      const { rows: restoreRows } = await client.query<{ product_id: string; qty: number; branch_id: string }>(
         `
           SELECT product_id, SUM(qty)::int AS qty, branch_id
           FROM sales
           WHERE order_id = ANY($1::text[])
+            AND branch_id = $2::uuid
             AND product_id IS NOT NULL
           GROUP BY product_id, branch_id
         `,
-        [orderIds],
+        [uniqueOrderIds, branchId],
       )
 
       for (const row of restoreRows) {
@@ -436,8 +469,9 @@ export async function DELETE(request: NextRequest) {
         `
           DELETE FROM sales
           WHERE order_id = ANY($1::text[])
+            AND branch_id = $2::uuid
         `,
-        [orderIds],
+        [uniqueOrderIds, branchId],
       )
 
       await client.query('COMMIT')

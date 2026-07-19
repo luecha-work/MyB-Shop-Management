@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox } from 'antd'
+import { Alert, Button, DatePicker, Empty, Input, Modal, Pagination, Table, Checkbox, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
 import dayjs from 'dayjs'
 import {
@@ -44,6 +44,9 @@ type HistoryRow = {
   unitPrice: number
   unitCost: number
   totalCost: number
+  branchId: string
+  branchName: string
+  branchCode: string
 }
 
 type OrderGroup = {
@@ -51,6 +54,8 @@ type OrderGroup = {
   date: string
   channel: string
   note: string
+  branchName: string
+  branchCode: string
   items: { productName: string; qty: number; totalSales: number; netProfit: number }[]
   totalSales: number
   netProfit: number
@@ -145,7 +150,7 @@ export default function HistoryPage() {
   const monthRange = useMemo(() => currentMonthRange(), [])
   const [isLoading, setIsLoading] = useState(true)
   const [allData, setAllData] = useState<HistoryRow[]>([])
-  const { selectedBranchId } = useBranch()
+  const { selectedBranchId, selectedBranchLabel } = useBranch()
   const [loadError, setLoadError] = useState('')
   const [filterText, setFilterText] = useState('')
   const [startDate, setStartDate] = useState(monthRange.start)
@@ -174,6 +179,8 @@ export default function HistoryPage() {
     setAllData(data.rows)
   }, [startDate, endDate, selectedBranchId])
 
+  const resetSelection = useCallback(() => setSelected(new Set()), [])
+
   useEffect(() => {
     if (!selectedBranchId) return
     const controller = new AbortController()
@@ -190,6 +197,16 @@ export default function HistoryPage() {
 
     return () => controller.abort()
   }, [loadHistory, selectedBranchId])
+
+  useEffect(() => {
+    // Clear stale branch-specific UI state as soon as the Topbar branch changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional branch context reset
+    resetSelection()
+    setDetailOrderId(null)
+    setDeleteConfirm({ open: false, orderIds: [] })
+    setDeleteErrorMsg('')
+    setCurrentPage(1)
+  }, [selectedBranchId, resetSelection])
 
   useEffect(() => {
     const refresh = () => {
@@ -217,7 +234,17 @@ export default function HistoryPage() {
     allData.forEach((row) => {
       const id = row.orderId
       if (!groups[id]) {
-        groups[id] = { orderId: id, date: row.date, channel: row.channel, note: row.note, items: [], totalSales: 0, netProfit: 0 }
+        groups[id] = {
+          orderId: id,
+          date: row.date,
+          channel: row.channel,
+          note: row.note,
+          branchName: row.branchName,
+          branchCode: row.branchCode,
+          items: [],
+          totalSales: 0,
+          netProfit: 0,
+        }
         list.push(groups[id])
       }
       groups[id].items.push({ productName: row.productName, qty: Number(row.qty) || 0, totalSales: Number(row.totalSales) || 0, netProfit: Number(row.netProfit) || 0 })
@@ -290,8 +317,6 @@ export default function HistoryPage() {
     }
   }, [allData, startDate, endDate])
 
-  const resetSelection = () => setSelected(new Set())
-
   const applyFilter = (fn: () => void) => {
     fn()
     setCurrentPage(1)
@@ -321,6 +346,10 @@ export default function HistoryPage() {
 
   const executeDelete = async () => {
     if (deleteConfirm.orderIds.length === 0) return
+    if (!selectedBranchId) {
+      setDeleteErrorMsg('กรุณาเลือกสาขาก่อนลบประวัติการขาย')
+      return
+    }
 
     setIsDeleting(true)
     setDeleteErrorMsg('')
@@ -329,7 +358,7 @@ export default function HistoryPage() {
       const response = await fetch('/api/sales-history', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds: deleteConfirm.orderIds }),
+        body: JSON.stringify({ orderIds: deleteConfirm.orderIds, branchId: selectedBranchId }),
       })
       const data = await response.json()
 
@@ -455,7 +484,10 @@ export default function HistoryPage() {
             <div className="w-[6px] bg-gradient-to-b from-secondary to-secondary/30 rounded-full flex-shrink-0 shadow-[0_2px_8px_rgba(118,90,36,0.2)]"></div>
             <div>
               <h2 className="font-headline-xl text-headline-xl text-primary font-bold tracking-tight mb-xs">ประวัติการขาย</h2>
-              <p className="font-body-lg text-body-lg text-on-surface-variant mt-0.5">ภาพรวมยอดขายและรายการธุรกรรมทั้งหมด</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-body-lg text-body-lg text-on-surface-variant mt-0.5">ภาพรวมยอดขายและรายการธุรกรรมทั้งหมด</p>
+                <Tag color="gold" className="font-bold">สาขา: {selectedBranchLabel}</Tag>
+              </div>
             </div>
           </div>
         </div>
@@ -472,7 +504,10 @@ export default function HistoryPage() {
           {/* Toolbar: ค้นหา + ช่วงวันที่ + ปุ่มลบ */}
           <div className="p-4 lg:p-lg border-b border-outline-variant/30 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-surface/30 flex-shrink-0">
             <div className="flex items-center justify-between gap-3 w-full xl:w-auto">
-              <h3 className="font-headline-sm text-primary flex-shrink-0">รายการล่าสุด</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-headline-sm text-primary flex-shrink-0">รายการล่าสุด</h3>
+                <Tag color="gold" className="font-bold">สาขา: {selectedBranchLabel}</Tag>
+              </div>
               <Button
                 danger
                 disabled={!deleteBtnActive}
@@ -644,6 +679,12 @@ export default function HistoryPage() {
             <div>
               <span className="text-xs text-on-surface-variant block mb-1">ช่องทางการขาย</span>
               <span className="block mt-0.5">{detailFirst ? <ChannelBadge channel={detailFirst.channel} /> : '-'}</span>
+            </div>
+            <div className="col-span-2 border-t border-outline-variant/20 pt-2">
+              <span className="text-xs text-on-surface-variant block mb-1">สาขา</span>
+              <span className="font-semibold text-sm text-on-surface">
+                {detailFirst?.branchName ? `${detailFirst.branchName}${detailFirst.branchCode ? ` (${detailFirst.branchCode})` : ''}` : selectedBranchLabel}
+              </span>
             </div>
             {detailFirst?.note && detailFirst.note.trim() !== '' && (
               <div className="col-span-2 border-t border-outline-variant/20 pt-2">

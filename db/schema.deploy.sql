@@ -152,6 +152,7 @@ CREATE INDEX IF NOT EXISTS idx_products_product_name ON products USING btree (pr
 CREATE INDEX IF NOT EXISTS idx_products_aggregate_status ON products USING btree (aggregate_status);
 CREATE INDEX IF NOT EXISTS idx_roles_role_name ON roles USING btree (role_name);
 CREATE INDEX IF NOT EXISTS idx_sales_branch_id ON sales USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_sales_branch_order_datetime ON sales USING btree (branch_id, order_datetime DESC);
 CREATE INDEX IF NOT EXISTS idx_sales_channel ON sales USING btree (channel);
 CREATE INDEX IF NOT EXISTS idx_sales_order_datetime ON sales USING btree (order_datetime);
 CREATE INDEX IF NOT EXISTS idx_sales_order_id ON sales USING btree (order_id);

@@ -74,6 +74,8 @@ CREATE TABLE public.sales ( id uuid DEFAULT gen_random_uuid() NOT NULL, branch_i
 
 CREATE INDEX idx_sales_branch_id ON public.sales USING btree (branch_id);
 
+CREATE INDEX idx_sales_branch_order_datetime ON public.sales USING btree (branch_id, order_datetime DESC);
+
 CREATE INDEX idx_sales_channel ON public.sales USING btree (channel);
 
 CREATE INDEX idx_sales_order_datetime ON public.sales USING btree (order_datetime);
