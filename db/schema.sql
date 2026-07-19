@@ -27,7 +27,7 @@ GRANT ALL ON TABLE public.branches TO "admin";
 
 -- DROP TABLE public.products;
 
-CREATE TABLE public.products ( id uuid DEFAULT gen_random_uuid() NOT NULL, product_code varchar(50) NULL, product_name varchar(255) NOT NULL, "cost" numeric(10, 2) DEFAULT 0 NOT NULL, cash_price numeric(10, 2) DEFAULT 0 NOT NULL, grab_price numeric(10, 2) DEFAULT 0 NOT NULL, line_man_price numeric(10, 2) DEFAULT 0 NOT NULL, current_stock int4 DEFAULT 0 NOT NULL, stock_in int4 DEFAULT 0 NOT NULL, stock_out int4 DEFAULT 0 NOT NULL, min_stock int4 DEFAULT 0 NOT NULL, status varchar(50) NULL, number_of_times_received int4 DEFAULT 0 NOT NULL, image_url text NULL, created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT products_cash_price_check CHECK ((cash_price >= (0)::numeric)), CONSTRAINT products_cost_check CHECK ((cost >= (0)::numeric)), CONSTRAINT products_grab_price_check CHECK ((grab_price >= (0)::numeric)), CONSTRAINT products_line_man_price_check CHECK ((line_man_price >= (0)::numeric)), CONSTRAINT products_min_stock_check CHECK ((min_stock >= 0)), CONSTRAINT products_pkey PRIMARY KEY (id), CONSTRAINT products_product_code_key UNIQUE (product_code));
+CREATE TABLE public.products ( id uuid DEFAULT gen_random_uuid() NOT NULL, product_code varchar(50) NULL, product_name varchar(255) NOT NULL, "cost" numeric(10, 2) DEFAULT 0 NOT NULL, cash_price numeric(10, 2) DEFAULT 0 NOT NULL, grab_price numeric(10, 2) DEFAULT 0 NOT NULL, line_man_price numeric(10, 2) DEFAULT 0 NOT NULL, current_stock int4 DEFAULT 0 NOT NULL, stock_in int4 DEFAULT 0 NOT NULL, stock_out int4 DEFAULT 0 NOT NULL, min_stock int4 DEFAULT 0 NOT NULL, status varchar(50) NULL, number_of_times_received int4 DEFAULT 0 NOT NULL, image_url text NULL, created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, CONSTRAINT products_cash_price_check CHECK ((cash_price >= (0)::numeric)), CONSTRAINT products_cost_check CHECK ((cost >= (0)::numeric)), CONSTRAINT products_current_stock_non_negative CHECK ((current_stock >= 0)), CONSTRAINT products_grab_price_check CHECK ((grab_price >= (0)::numeric)), CONSTRAINT products_line_man_price_check CHECK ((line_man_price >= (0)::numeric)), CONSTRAINT products_min_stock_check CHECK ((min_stock >= 0)), CONSTRAINT products_number_of_times_received_non_negative CHECK ((number_of_times_received >= 0)), CONSTRAINT products_pkey PRIMARY KEY (id), CONSTRAINT products_product_code_key UNIQUE (product_code), CONSTRAINT products_stock_in_non_negative CHECK ((stock_in >= 0)), CONSTRAINT products_stock_out_non_negative CHECK ((stock_out >= 0)));
 
 CREATE INDEX idx_products_product_code ON public.products USING btree (product_code);
 
@@ -104,6 +104,7 @@ CREATE TABLE public.stock_in (
     note text NULL,
     created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT stock_in_pkey PRIMARY KEY (id),
+    CONSTRAINT stock_in_quantity_non_negative CHECK ((quantity >= 0)),
     CONSTRAINT stock_in_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT stock_in_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products (id) ON DELETE SET NULL ON UPDATE CASCADE
 );

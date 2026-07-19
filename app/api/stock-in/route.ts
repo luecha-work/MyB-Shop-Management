@@ -148,6 +148,10 @@ export async function POST(request: NextRequest) {
       client.release()
     }
   } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '23514') {
+      return NextResponse.json({ error: 'จำนวนรับเข้าต้องไม่ติดลบ' }, { status: 400 })
+    }
     console.error('POST /api/stock-in failed', error)
     return NextResponse.json({ error: 'Failed to save stock-in record' }, { status: 500 })
   }

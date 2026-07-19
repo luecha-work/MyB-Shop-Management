@@ -172,6 +172,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ product: toProductResponse(rows[0]) }, { status: 201 })
   } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '23514') {
+      return NextResponse.json({ error: 'จำนวนสต็อกและราคาต้องไม่ติดลบ' }, { status: 400 })
+    }
     console.error('POST /api/products failed', error)
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
   }
@@ -262,6 +266,10 @@ export async function PATCH(request: NextRequest) {
       },
     })
   } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '23514') {
+      return NextResponse.json({ error: 'จำนวนสต็อกและราคาต้องไม่ติดลบ' }, { status: 400 })
+    }
     console.error('PATCH /api/products failed', error)
     return NextResponse.json({ error: 'Failed to update product image' }, { status: 500 })
   }

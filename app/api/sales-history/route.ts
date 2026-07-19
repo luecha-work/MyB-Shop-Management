@@ -122,11 +122,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'รายการสินค้าในตะกร้าไม่ถูกต้อง' }, { status: 400 })
     }
 
+    const quantityByProductId = new Map<string, number>()
+    for (const item of normalizedItems) {
+      quantityByProductId.set(item.productId, (quantityByProductId.get(item.productId) ?? 0) + item.qty)
+    }
+    const saleItems = Array.from(quantityByProductId, ([productId, qty]) => ({ productId, qty }))
+
     const client = await db.connect()
     try {
       await client.query('BEGIN')
 
-      const productIds = normalizedItems.map((item) => item.productId)
+      const productIds = saleItems.map((item) => item.productId)
       const { rows: productRows } = await client.query<{
         id: string
         product_name: string
@@ -148,7 +154,7 @@ export async function POST(request: NextRequest) {
 
       const productsById = new Map(productRows.map((product) => [product.id, product]))
 
-      for (const item of normalizedItems) {
+      for (const item of saleItems) {
         const product = productsById.get(item.productId)
         if (!product) {
           await client.query('ROLLBACK')
@@ -163,7 +169,7 @@ export async function POST(request: NextRequest) {
       const gpRate = gpRateForChannel(channel)
       const insertedRows = []
 
-      for (const item of normalizedItems) {
+      for (const item of saleItems) {
         const product = productsById.get(item.productId)
         if (!product) continue
 
@@ -216,7 +222,7 @@ export async function POST(request: NextRequest) {
         )
         insertedRows.push(rows[0])
 
-        await client.query(
+        const { rowCount } = await client.query(
           `
             UPDATE products
             SET current_stock = current_stock - $2,
@@ -228,9 +234,15 @@ export async function POST(request: NextRequest) {
                 END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
+              AND current_stock >= $2
           `,
           [item.productId, item.qty],
         )
+
+        if (!rowCount) {
+          await client.query('ROLLBACK')
+          return NextResponse.json({ error: `สต็อกไม่พอ: ${product.product_name}` }, { status: 400 })
+        }
       }
 
       await client.query('COMMIT')
@@ -242,6 +254,10 @@ export async function POST(request: NextRequest) {
       client.release()
     }
   } catch (error) {
+    const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
+    if (code === '23514') {
+      return NextResponse.json({ error: 'จำนวนขายหรือสต็อกต้องไม่ติดลบ' }, { status: 400 })
+    }
     console.error('POST /api/sales-history failed', error)
     return NextResponse.json({ error: 'Failed to save sale' }, { status: 500 })
   }

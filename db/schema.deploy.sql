@@ -39,7 +39,11 @@ CREATE TABLE IF NOT EXISTS products (
   CONSTRAINT products_cash_price_check CHECK (cash_price >= 0),
   CONSTRAINT products_grab_price_check CHECK (grab_price >= 0),
   CONSTRAINT products_line_man_price_check CHECK (line_man_price >= 0),
-  CONSTRAINT products_min_stock_check CHECK (min_stock >= 0)
+  CONSTRAINT products_current_stock_non_negative CHECK (current_stock >= 0),
+  CONSTRAINT products_stock_in_non_negative CHECK (stock_in >= 0),
+  CONSTRAINT products_stock_out_non_negative CHECK (stock_out >= 0),
+  CONSTRAINT products_min_stock_check CHECK (min_stock >= 0),
+  CONSTRAINT products_number_of_times_received_non_negative CHECK (number_of_times_received >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -93,7 +97,8 @@ CREATE TABLE IF NOT EXISTS stock_in (
   created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
   CONSTRAINT stock_in_pkey PRIMARY KEY (id),
   CONSTRAINT stock_in_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT stock_in_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT stock_in_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT stock_in_quantity_non_negative CHECK (quantity >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS users (
