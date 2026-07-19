@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DatePicker, Pagination } from 'antd'
+import { DatePicker, Pagination, Select } from 'antd'
 import dayjs from 'dayjs'
 import {
   BadgeDollarSign,
@@ -119,15 +119,15 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loadError, setLoadError] = useState('')
   const [topProductsPage, setTopProductsPage] = useState(1)
-  const { selectedBranchId } = useBranch()
+  const { branches, isBranchLoading } = useBranch()
+  const [dashboardBranchId, setDashboardBranchId] = useState<string>('all')
 
   useEffect(() => {
-    if (!selectedBranchId) return
     let active = true
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
-    params.set('branchId', selectedBranchId)
+    if (dashboardBranchId !== 'all') params.set('branchId', dashboardBranchId)
     fetch(`/api/dashboard?${params.toString()}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load dashboard stats')
@@ -146,7 +146,7 @@ export default function DashboardPage() {
         setStats(EMPTY_STATS)
       })
     return () => { active = false }
-  }, [startDate, endDate, selectedBranchId])
+  }, [startDate, endDate, dashboardBranchId])
 
   // แสดง loading ระหว่างรอโหลดข้อมูล
   if (!stats) return <Loader text="โหลดข้อมูลแดชบอร์ด..." />
@@ -186,6 +186,20 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white p-3 md:p-4 rounded-xl border border-outline-variant/80 shadow-card w-full">
+          <div className="flex items-center gap-3 justify-start flex-1">
+            <label htmlFor="dash-branch-filter" className="w-[70px] flex-shrink-0 font-body-md font-bold text-on-surface-variant whitespace-nowrap">สาขา:</label>
+            <Select
+              id="dash-branch-filter"
+              value={dashboardBranchId}
+              onChange={setDashboardBranchId}
+              loading={isBranchLoading}
+              className="h-11 flex-1"
+              options={[
+                { value: 'all', label: 'ทุกสาขา' },
+                ...branches.map((branch) => ({ value: branch.id, label: branch.branchName })),
+              ]}
+            />
+          </div>
           <div className="flex items-center gap-3 justify-start flex-1">
             <label htmlFor="dash-start-date" className="w-[70px] flex-shrink-0 font-body-md font-bold text-on-surface-variant whitespace-nowrap">เริ่มต้น:</label>
             <DatePicker

@@ -21,10 +21,6 @@ export async function GET(request: NextRequest) {
       : ''
   const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate]
 
-  if (!branchId) {
-    return NextResponse.json({ error: 'กรุณาเลือกสาขา' }, { status: 400 })
-  }
-
   try {
     const [summary, channelSales, topProducts, inventoryCost] = await Promise.all([
       db.query(
@@ -78,9 +74,9 @@ export async function GET(request: NextRequest) {
             COALESCE(SUM(p.cost * bi.current_stock), 0) AS inventory_total_cost
           FROM branch_inventory bi
           JOIN products p ON p.id = bi.product_id
-          WHERE bi.branch_id = $1::uuid
+          ${branchId ? 'WHERE bi.branch_id = $1::uuid' : ''}
         `,
-        [branchId],
+        branchId ? [branchId] : [],
       ),
     ])
 
