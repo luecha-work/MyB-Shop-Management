@@ -204,6 +204,40 @@ body {
   background: color-mix(in srgb, var(--color-error) 10%, white) !important;
 }
 
+.import-products-table .ant-table-tbody > tr.ant-table-row-selected > td,
+.import-products-table .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: color-mix(in srgb, #10b981 10%, white) !important;
+}
+
+.import-products-table .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: color-mix(in srgb, #10b981 14%, white) !important;
+}
+
+.import-products-table .ant-checkbox-checked .ant-checkbox-inner,
+.import-products-checkbox.ant-checkbox-wrapper .ant-checkbox-checked .ant-checkbox-inner,
+.import-products-checkbox.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #10b981 !important;
+  border-color: #10b981 !important;
+}
+
+.import-products-table .ant-checkbox-indeterminate .ant-checkbox-inner::after,
+.import-products-checkbox.ant-checkbox-wrapper .ant-checkbox-indeterminate .ant-checkbox-inner::after,
+.import-products-checkbox.ant-checkbox-indeterminate .ant-checkbox-inner::after {
+  background-color: #10b981 !important;
+}
+
+.import-products-table .ant-checkbox-wrapper:hover .ant-checkbox-inner,
+.import-products-table .ant-checkbox:hover .ant-checkbox-inner,
+.import-products-checkbox.ant-checkbox-wrapper:hover .ant-checkbox-inner,
+.import-products-checkbox.ant-checkbox:hover .ant-checkbox-inner {
+  border-color: #10b981 !important;
+}
+
+.import-products-checkbox.ant-checkbox-wrapper .ant-checkbox-input:focus-visible + .ant-checkbox-inner,
+.import-products-checkbox.ant-checkbox .ant-checkbox-input:focus-visible + .ant-checkbox-inner {
+  outline-color: #10b981 !important;
+}
+
 /* Footer/pagination ของ antd Table ให้ดูเป็นส่วนเดียวกับ table card */
 .ant-table-wrapper .ant-table-pagination.ant-pagination {
   display: flex;

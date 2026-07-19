@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Alert, Button, Checkbox, Empty, Input, InputNumber, Modal, Pagination, Select, Table, Tag, Upload } from 'antd'
+import { Alert, Button, Checkbox, ConfigProvider, Empty, Input, InputNumber, Modal, Pagination, Select, Table, Tag, Upload } from 'antd'
 import type { TableColumnsType } from 'antd'
 import {
+  ArrowLeft,
   ArrowRight,
   CircleAlert,
   CircleStop,
@@ -80,6 +81,7 @@ type EditForm = {
 const EMPTY_FORM: EditForm = { name: '', cost: '', priceCash: '', priceGrab: '', priceLineman: '', stockIn: '', minStock: '', image: '', imagePreview: '' }
 
 const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
+const IMPORT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
 
 // InputNumber แบบ string state (ฟอร์มเดิมเก็บเป็น string)
 function NumberField({
@@ -425,7 +427,7 @@ export default function InventoryPage() {
     pageSize: itemsPerPage,
     total: filtered.length,
     showSizeChanger: true,
-    pageSizeOptions: PAGE_SIZE_OPTIONS,
+    pageSizeOptions: isImportMode ? IMPORT_PAGE_SIZE_OPTIONS : PAGE_SIZE_OPTIONS,
     showTotal: (total: number, range: [number, number]) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
     onChange: (page: number, pageSize: number) => {
       setCurrentPage(pageSize !== itemsPerPage ? 1 : page)
@@ -596,11 +598,28 @@ export default function InventoryPage() {
 
   if (isImportMode) {
     return (
-      <>
+      <ConfigProvider
+        theme={{
+          components: {
+            Checkbox: {
+              colorPrimary: '#10b981',
+              colorPrimaryHover: '#059669',
+            },
+          },
+        }}
+      >
         <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
           {loadError && <Alert title={loadError} type="error" showIcon className="mb-md" />}
 
-          <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl flex-shrink-0">
+          <div className="hidden md:flex flex-col items-start gap-sm mb-xl flex-shrink-0">
+            <Button
+              type="text"
+              icon={<ArrowLeft size={16} />}
+              onClick={() => router.push('/branches')}
+              className="!-ml-2 text-on-surface-variant hover:!text-secondary"
+            >
+              กลับไปจัดการสาขา
+            </Button>
             <div className="flex items-stretch gap-4">
               <div className="w-[6px] bg-gradient-to-b from-secondary to-secondary/30 rounded-full flex-shrink-0 shadow-[0_2px_8px_rgba(118,90,36,0.2)]"></div>
               <div>
@@ -612,9 +631,6 @@ export default function InventoryPage() {
                 </div>
               </div>
             </div>
-            <Button onClick={() => router.push('/branches')} className="h-10">
-              กลับไปจัดการสาขา
-            </Button>
           </div>
 
           <div className="bg-surface-container-lowest rounded-xl shadow-card border border-outline-variant/80 flex flex-col">
@@ -639,6 +655,7 @@ export default function InventoryPage() {
 
             <div className="hidden lg:block">
               <Table<Product>
+                className="import-products-table"
                 rowKey="id"
                 columns={importColumns}
                 dataSource={pageItems}
@@ -648,7 +665,11 @@ export default function InventoryPage() {
                   selectedRowKeys: Array.from(selected),
                   onChange: (keys) => setSelected(new Set(keys as string[])),
                   columnWidth: 50,
+                  getCheckboxProps: () => ({
+                    className: 'import-products-checkbox',
+                  }),
                 }}
+                rowClassName={(record) => (record.id && selected.has(record.id) ? 'bg-emerald-500/[0.08]' : '')}
                 locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้าจากสาขาต้นทาง" /> }}
               />
             </div>
@@ -658,13 +679,23 @@ export default function InventoryPage() {
                 <div className="p-lg text-center text-on-surface-variant">ไม่พบสินค้าจากสาขาต้นทาง</div>
               ) : (
                 pageItems.map((product) => (
-                  <article key={product.id ?? product.name} className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border border-outline-variant/80 flex flex-col gap-2 ${product.id && selected.has(product.id) ? 'bg-error/[0.04]' : ''}`}>
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={Boolean(product.id && selected.has(product.id))}
-                        disabled={!product.id}
-                        onChange={(event) => toggleSelect(product.id, event.target.checked)}
-                      />
+                  <article
+                    key={product.id ?? product.name}
+                    onClick={() => {
+                      if (!product.id) return
+                      toggleSelect(product.id, !selected.has(product.id))
+                    }}
+                    className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border flex flex-col gap-2 transition-all duration-200 ${product.id ? 'cursor-pointer' : ''} ${product.id && selected.has(product.id) ? 'border-emerald-300 bg-emerald-500/[0.08]' : 'border-outline-variant/80'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div onClick={(event) => event.stopPropagation()} className="flex self-stretch items-center">
+                        <Checkbox
+                          className="import-products-checkbox"
+                          checked={Boolean(product.id && selected.has(product.id))}
+                          disabled={!product.id}
+                          onChange={(event) => toggleSelect(product.id, event.target.checked)}
+                        />
+                      </div>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={productImageSrc(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-outline-variant/30 shadow-sm flex-shrink-0" onError={(e) => { e.currentTarget.src = FALLBACK_IMG }} />
                       <div className="min-w-0 flex-1">
@@ -728,7 +759,7 @@ export default function InventoryPage() {
             {importErrorMsg && <Alert title={importErrorMsg} type="error" showIcon className="rounded-xl" />}
           </div>
         </Modal>
-      </>
+      </ConfigProvider>
     )
   }
 
