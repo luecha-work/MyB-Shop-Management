@@ -108,64 +108,37 @@ const storagePathFromPublicUrl = (imageUrl: string | null) => {
 
 export async function GET(request: NextRequest) {
   const session = await sessionFromRequest(request)
-  // STAFF always see their own branch; OWNER/ADMIN can pass ?branchId= to filter
+  // STAFF always see their own branch; OWNER/ADMIN must pass ?branchId=.
   const branchId = session?.role === 'STAFF'
     ? toUuidParam(session.branchId)
     : toUuidParam(request.nextUrl.searchParams.get('branchId')?.trim())
 
+  if (!branchId) {
+    return NextResponse.json({ error: 'กรุณาเลือกสาขา' }, { status: 400 })
+  }
+
   try {
-    // When a branch is selected, JOIN branch_inventory for that branch's stock.
-    // When branchId is null (OWNER/ADMIN viewing "all branches"), aggregate SUM.
-    const { rows } = branchId
-      ? await db.query(
-          `
-            SELECT
-              p.id,
-              p.product_code,
-              p.product_name,
-              p.cost,
-              p.cash_price,
-              p.grab_price,
-              p.line_man_price,
-              COALESCE(bi.current_stock, 0) AS current_stock,
-              COALESCE(bi.stock_in, 0) AS stock_in,
-              COALESCE(bi.min_stock, 0) AS min_stock,
-              COALESCE(bi.status, 'Out of Stock') AS status,
-              p.image_url
-            FROM products p
-            LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $1::uuid
-            ORDER BY p.product_name ASC
-          `,
-          [branchId],
-        )
-      : await db.query(
-          `
-            SELECT
-              p.id,
-              p.product_code,
-              p.product_name,
-              p.cost,
-              p.cash_price,
-              p.grab_price,
-              p.line_man_price,
-              COALESCE(SUM(bi.current_stock), 0) AS current_stock,
-              COALESCE(SUM(bi.stock_in), 0) AS stock_in,
-              COALESCE(MAX(bi.min_stock), p.default_min_stock) AS min_stock,
-              CASE
-                WHEN COUNT(bi.id) = 0 THEN 'Out of Stock'
-                WHEN COALESCE(SUM(bi.current_stock), 0) <= 0 THEN 'Out of Stock'
-                WHEN COALESCE(SUM(bi.current_stock), 0) <= COALESCE(MAX(bi.min_stock), p.default_min_stock) THEN 'Low Stock'
-                WHEN COUNT(bi.id) FILTER (WHERE bi.status = 'Low Stock') > 0 THEN 'Low Stock'
-                WHEN COUNT(bi.id) FILTER (WHERE bi.status = 'Active') > 0 THEN 'Active'
-                ELSE 'Out of Stock'
-              END AS status,
-              p.image_url
-            FROM products p
-            LEFT JOIN branch_inventory bi ON bi.product_id = p.id
-            GROUP BY p.id, p.product_code, p.product_name, p.cost, p.cash_price, p.grab_price, p.line_man_price, p.default_min_stock, p.image_url
-            ORDER BY p.product_name ASC
-          `,
-        )
+    const { rows } = await db.query(
+      `
+        SELECT
+          p.id,
+          p.product_code,
+          p.product_name,
+          p.cost,
+          p.cash_price,
+          p.grab_price,
+          p.line_man_price,
+          COALESCE(bi.current_stock, 0) AS current_stock,
+          COALESCE(bi.stock_in, 0) AS stock_in,
+          COALESCE(bi.min_stock, p.default_min_stock) AS min_stock,
+          COALESCE(bi.status, 'Out of Stock') AS status,
+          p.image_url
+        FROM products p
+        LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $1::uuid
+        ORDER BY p.product_name ASC
+      `,
+      [branchId],
+    )
 
     return NextResponse.json({
       products: rows.map(toProductResponse),

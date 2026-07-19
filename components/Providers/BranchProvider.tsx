@@ -8,11 +8,11 @@ export type BranchOption = {
 }
 
 type BranchContextType = {
-  /** Current selected branch ID — null means "all branches" */
+  /** Current selected branch ID. Null only while loading or when no branch exists. */
   selectedBranchId: string | null
   /** Human-readable label for the current selection (derived) */
   selectedBranchLabel: string
-  /** Change the selected branch. No-op for STAFF. Pass null for "all branches". */
+  /** Change the selected branch. No-op for STAFF. */
   setSelectedBranch: (branchId: string | null) => void
   /** All active branches loaded from /api/branches?options=1 */
   branches: BranchOption[]
@@ -24,7 +24,7 @@ type BranchContextType = {
 
 const BranchContext = createContext<BranchContextType>({
   selectedBranchId: null,
-  selectedBranchLabel: 'ทุกสาขา',
+  selectedBranchLabel: 'กำลังโหลดสาขา',
   setSelectedBranch: () => {},
   branches: [],
   refreshBranches: async () => {},
@@ -65,7 +65,11 @@ export function BranchProvider({
     try {
       const res = await fetch('/api/branches?options=1', { cache: 'no-store' })
       const data = await res.json()
-      if (res.ok) setBranches(data.branches ?? [])
+      if (res.ok) {
+        const nextBranches = data.branches ?? []
+        setBranches(nextBranches)
+        setSelectedBranchId((current) => current ?? nextBranches[0]?.id ?? null)
+      }
     } catch {
       // ignore — keep stale list
     } finally {
@@ -85,7 +89,10 @@ export function BranchProvider({
         return res.json() as Promise<{ branches: BranchOption[] }>
       })
       .then((data) => {
-        if (active) setBranches(data.branches)
+        if (!active) return
+        const nextBranches = data.branches ?? []
+        setBranches(nextBranches)
+        setSelectedBranchId((current) => current ?? nextBranches[0]?.id ?? null)
       })
       .catch(() => {
         if (active) setBranches([])
@@ -99,10 +106,10 @@ export function BranchProvider({
   // Derived label — no extra state or effect needed
   const selectedBranchLabel = useMemo(() => {
     if (isLocked) return userBranchName ?? 'สาขาของฉัน'
-    if (!selectedBranchId) return 'ทุกสาขา'
+    if (!selectedBranchId) return isBranchLoading ? 'กำลังโหลดสาขา' : 'ยังไม่มีสาขา'
     const branch = branches.find((b) => b.id === selectedBranchId)
-    return branch?.branchName ?? 'ทุกสาขา'
-  }, [isLocked, userBranchName, selectedBranchId, branches])
+    return branch?.branchName ?? 'ยังไม่มีสาขา'
+  }, [isLocked, userBranchName, selectedBranchId, branches, isBranchLoading])
 
   const setSelectedBranch = useCallback(
     (branchId: string | null) => {

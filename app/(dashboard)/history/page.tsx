@@ -159,10 +159,11 @@ export default function HistoryPage() {
   const [deleteErrorMsg, setDeleteErrorMsg] = useState('')
 
   const loadHistory = useCallback(async (signal?: AbortSignal) => {
+    if (!selectedBranchId) return
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
-    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    params.set('branchId', selectedBranchId)
     params.set('_', String(Date.now()))
 
     const res = await fetch(`/api/sales-history?${params.toString()}`, { cache: 'no-store', signal })
@@ -174,6 +175,7 @@ export default function HistoryPage() {
   }, [startDate, endDate, selectedBranchId])
 
   useEffect(() => {
+    if (!selectedBranchId) return
     const controller = new AbortController()
     Promise.resolve()
       .then(() => loadHistory(controller.signal))
@@ -187,7 +189,7 @@ export default function HistoryPage() {
       })
 
     return () => controller.abort()
-  }, [loadHistory])
+  }, [loadHistory, selectedBranchId])
 
   useEffect(() => {
     const refresh = () => {

@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
       : ''
   const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate]
 
+  if (!branchId) {
+    return NextResponse.json({ error: 'กรุณาเลือกสาขา' }, { status: 400 })
+  }
+
   try {
     const { rows } = await db.query(
       `

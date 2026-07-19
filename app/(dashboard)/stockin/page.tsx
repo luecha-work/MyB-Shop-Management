@@ -46,11 +46,12 @@ export default function StockInPage() {
   const [deleteErrorMsg, setDeleteErrorMsg] = useState('')
 
   useEffect(() => {
+    if (!selectedBranchId) return
     let active = true
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
-    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    params.set('branchId', selectedBranchId)
     fetch(`/api/stock-in?${params.toString()}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load stock-in history')
@@ -135,7 +136,8 @@ export default function StockInPage() {
       const params = new URLSearchParams()
       if (startDate) params.set('startDate', startDate)
       if (endDate) params.set('endDate', endDate)
-      if (selectedBranchId) params.set('branchId', selectedBranchId)
+      if (!selectedBranchId) throw new Error('กรุณาเลือกสาขาก่อนโหลดข้อมูลล่าสุด')
+      params.set('branchId', selectedBranchId)
       const reload = await fetch(`/api/stock-in?${params.toString()}`, { cache: 'no-store' })
       if (!reload.ok) throw new Error('ลบแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ')
       const latest = await reload.json() as { rows: StockInRow[] }

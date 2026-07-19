@@ -112,9 +112,10 @@ export default function POSPage() {
   const { selectedBranchId } = useBranch()
 
   useEffect(() => {
+    if (!selectedBranchId) return
     let active = true
     const params = new URLSearchParams()
-    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    params.set('branchId', selectedBranchId)
     const url = `/api/products${params.toString() ? `?${params.toString()}` : ''}`
     fetch(url, { cache: 'no-store' })
       .then(async (res) => {
@@ -287,8 +288,9 @@ export default function POSPage() {
   }
 
   const loadProducts = async () => {
+    if (!selectedBranchId) return
     const params = new URLSearchParams()
-    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    params.set('branchId', selectedBranchId)
     const url = `/api/products${params.toString() ? `?${params.toString()}` : ''}`
     const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) throw new Error('Failed to load products')
@@ -297,6 +299,11 @@ export default function POSPage() {
   }
 
   const executeCheckout = async () => {
+    if (!selectedBranchId) {
+      showAlertModal('ยังไม่ได้เลือกสาขา', 'กรุณาเลือกสาขาก่อนทำรายการขาย')
+      return
+    }
+
     setConfirmOpen(false)
     setIsCheckoutSaving(true)
 

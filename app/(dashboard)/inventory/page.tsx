@@ -108,8 +108,9 @@ export default function InventoryPage() {
   const { selectedBranchId, selectedBranchLabel } = useBranch()
 
   const loadProducts = useCallback(async () => {
+    if (!selectedBranchId) return []
     const params = new URLSearchParams()
-    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    params.set('branchId', selectedBranchId)
     const url = `/api/products${params.toString() ? `?${params.toString()}` : ''}`
     const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) throw new Error('Failed to load products')
@@ -118,6 +119,7 @@ export default function InventoryPage() {
   }, [selectedBranchId])
 
   useEffect(() => {
+    if (!selectedBranchId) return
     let active = true
     loadProducts()
       .then((nextProducts) => {
@@ -132,7 +134,7 @@ export default function InventoryPage() {
         if (active) setIsLoading(false)
       })
     return () => { active = false }
-  }, [loadProducts])
+  }, [loadProducts, selectedBranchId])
 
   const [filterText, setFilterText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -349,6 +351,10 @@ export default function InventoryPage() {
     }
     if (!stockInModal.productId) {
       setStockInError('ไม่พบรหัสสินค้าที่ต้องการรับเข้า')
+      return
+    }
+    if (!selectedBranchId) {
+      setStockInError('กรุณาเลือกสาขาที่ต้องการรับสินค้าเข้า')
       return
     }
 

@@ -122,11 +122,12 @@ export default function DashboardPage() {
   const { selectedBranchId } = useBranch()
 
   useEffect(() => {
+    if (!selectedBranchId) return
     let active = true
     const params = new URLSearchParams()
     if (startDate) params.set('startDate', startDate)
     if (endDate) params.set('endDate', endDate)
-    if (selectedBranchId) params.set('branchId', selectedBranchId)
+    params.set('branchId', selectedBranchId)
     fetch(`/api/dashboard?${params.toString()}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load dashboard stats')

@@ -72,10 +72,6 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
             icon: <Store size={16} />,
             label: 'เลือกดูสาขา',
             children: [
-              {
-                key: 'branch:all',
-                label: 'ทุกสาขา',
-              },
               ...branches.map((branch) => ({
                 key: `branch:${branch.id}`,
                 label: branch.branchName,
@@ -135,13 +131,13 @@ export default function Topbar({ user }: { user: { name: string, role: string, e
     }
     if (key.startsWith('branch:')) {
       const branchId = key.replace('branch:', '')
-      setSelectedBranch(branchId === 'all' ? null : branchId)
+      setSelectedBranch(branchId)
       closeUserMenu()
     }
   }
 
   const selectedMenuKey = canSelectBranch
-    ? (selectedBranchId ? `branch:${selectedBranchId}` : 'branch:all')
+    ? (selectedBranchId ? `branch:${selectedBranchId}` : undefined)
     : undefined
 
   const userMenu = (
