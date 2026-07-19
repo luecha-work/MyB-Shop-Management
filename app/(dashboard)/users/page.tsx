@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Empty, Input, Modal, Select, Space, Table, Tag } from 'antd'
+import { Alert, Button, Checkbox, Empty, Input, Modal, Pagination, Select, Space, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { CopyOutlined, DeleteOutlined, EditOutlined, ExclamationCircleOutlined, KeyOutlined, PlusOutlined, ReloadOutlined, SaveOutlined, UserAddOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
@@ -53,6 +53,8 @@ const EMPTY_FORM: UserForm = {
   status: 'active',
 }
 
+const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
+
 type PasswordResult = {
   title: string
   email: string
@@ -91,6 +93,8 @@ export default function ManageUsersPage() {
   const [formErrors, setFormErrors] = useState<Set<keyof UserForm>>(new Set())
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   useEffect(() => {
     if (!error && !success) return
@@ -146,6 +150,20 @@ export default function ManageUsersPage() {
   const isOwner = selectedRole === 'owner'
   const showBranchField = Boolean(selectedRole) && !isOwner
   const selectedUsers = users.filter((user) => selected.has(user.id))
+  const pageItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return users.slice(startIndex, startIndex + itemsPerPage)
+  }, [users, currentPage, itemsPerPage])
+
+  const resetSelection = () => setSelected(new Set())
+
+  const toggleSelect = (user: UserRow, checked: boolean) => {
+    if (user.isCurrentUser) return
+    const next = new Set(selected)
+    if (checked) next.add(user.id)
+    else next.delete(user.id)
+    setSelected(next)
+  }
 
   const updateField = (key: keyof UserForm, value: string) => {
     setForm((current) => {
@@ -316,7 +334,7 @@ export default function ManageUsersPage() {
       if (!response.ok) throw new Error(data.error || 'ลบผู้ใช้ไม่สำเร็จ')
 
       await loadUsers()
-      setSelected(new Set())
+      resetSelection()
       setDeleteOpen(false)
       setSuccess(`ลบผู้ใช้แล้ว ${data.deletedCount ?? 0} รายการ`)
     } catch (err) {
@@ -394,6 +412,20 @@ export default function ManageUsersPage() {
 
   if (isLoading) return <Loader text="โหลดข้อมูลผู้ใช้..." />
 
+  const paginationConfig = {
+    current: currentPage,
+    pageSize: itemsPerPage,
+    total: users.length,
+    showSizeChanger: true,
+    pageSizeOptions: PAGE_SIZE_OPTIONS,
+    showTotal: (total: number, range: [number, number]) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
+    onChange: (page: number, pageSize: number) => {
+      setCurrentPage(pageSize !== itemsPerPage ? 1 : page)
+      setItemsPerPage(pageSize)
+      resetSelection()
+    },
+  }
+
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
@@ -432,28 +464,89 @@ export default function ManageUsersPage() {
             </div>
           </div>
 
-          <Table<UserRow>
-            rowKey="id"
-            columns={columns}
-            dataSource={users}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              pageSizeOptions: [10, 15, 20, 25, 30],
-              showTotal: (total, range) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
-            }}
-            scroll={{ x: 900 }}
-            rowSelection={{
-              selectedRowKeys: Array.from(selected),
-              onChange: (keys) => setSelected(new Set(keys as string[])),
-              columnWidth: 50,
-              getCheckboxProps: (user) => ({
-                disabled: user.isCurrentUser,
-                title: user.isCurrentUser ? 'ไม่สามารถลบบัญชีของตัวเองได้' : undefined,
-              }),
-            }}
-            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลผู้ใช้" /> }}
-          />
+          <div className="hidden xl:block">
+            <Table<UserRow>
+              rowKey="id"
+              columns={columns}
+              dataSource={users}
+              pagination={paginationConfig}
+              scroll={{ x: 900 }}
+              rowSelection={{
+                selectedRowKeys: Array.from(selected),
+                onChange: (keys) => setSelected(new Set(keys as string[])),
+                columnWidth: 50,
+                getCheckboxProps: (user) => ({
+                  disabled: user.isCurrentUser,
+                  title: user.isCurrentUser ? 'ไม่สามารถลบบัญชีของตัวเองได้' : undefined,
+                }),
+              }}
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลผู้ใช้" /> }}
+            />
+          </div>
+
+          <div className="xl:hidden flex flex-col gap-sm p-sm bg-background">
+            {pageItems.length === 0 ? (
+              <div className="p-lg text-center text-on-surface-variant">ไม่พบข้อมูลผู้ใช้</div>
+            ) : (
+              pageItems.map((user) => (
+                <article
+                  key={user.id}
+                  className={`bg-surface-container-lowest hover:border-secondary/50 rounded-xl p-md shadow-sm border border-outline-variant/80 relative flex flex-col gap-2 transition-all duration-200 ${selected.has(user.id) ? 'bg-error/[0.04]' : ''}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-primary break-words min-w-0">{user.name}</span>
+                    <div className="flex-shrink-0">{statusTag(user.status)}</div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Checkbox
+                        checked={selected.has(user.id)}
+                        disabled={user.isCurrentUser}
+                        onChange={(event) => toggleSelect(user, event.target.checked)}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-body-md font-semibold text-on-surface break-all">{user.email}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <Tag className="rounded-full border-secondary/30 bg-secondary-container/30 !text-secondary font-bold">{user.roleName.toUpperCase()}</Tag>
+                        <span className="text-xs text-on-surface-variant break-words">
+                          {user.branchName ? `${user.branchName} (${user.branchCode})` : 'ทุกสาขา'}
+                        </span>
+                      </div>
+                      {user.isCurrentUser && (
+                        <div className="text-[11px] text-on-surface-variant mt-1">บัญชีที่กำลังใช้งานอยู่</div>
+                      )}
+                    </div>
+                  </div>
+                  <hr className="border-t border-outline-variant/10 my-1" />
+                  <div className="flex justify-end items-center gap-1 pl-6">
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      onClick={() => openEditModal(user)}
+                      className="text-on-surface-variant hover:!text-secondary"
+                    >
+                      แก้ไข
+                    </Button>
+                    {canResetPasswords && (
+                      <Button
+                        type="text"
+                        icon={<ReloadOutlined />}
+                        loading={resettingUserId === user.id}
+                        onClick={() => setResetUser(user)}
+                        className="text-error hover:!text-error"
+                      >
+                        รีเซ็ต
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
+            <div className="flex justify-center py-3">
+              <Pagination {...paginationConfig} size="small" showTotal={undefined} />
+            </div>
+          </div>
         </div>
       </div>
 

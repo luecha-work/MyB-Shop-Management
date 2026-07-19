@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Alert, Button, Empty, Input, Modal, Select, Table, Tag } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
+import { Alert, Button, Checkbox, Empty, Input, Modal, Pagination, Select, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { DeleteOutlined, EditOutlined, ExclamationCircleOutlined, EyeOutlined, PlusOutlined, SaveOutlined, ShopOutlined } from '@ant-design/icons'
 import { Loader } from '@/components/UI/Loader'
@@ -40,6 +40,8 @@ const EMPTY_FORM: BranchForm = {
   status: 'active',
 }
 
+const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
+
 const statusTag = (status: string) => {
   if (status === 'active') return <Tag className="rounded-full border-emerald-300 bg-emerald-50 !text-emerald-700 font-bold">Active</Tag>
   return <Tag className="rounded-full border-slate-300 bg-slate-50 !text-slate-600 font-bold">Inactive</Tag>
@@ -68,6 +70,8 @@ export default function ManageBranchesPage() {
   const [formErrors, setFormErrors] = useState<Set<keyof BranchForm>>(new Set())
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   useEffect(() => {
     if (!error && !success) return
@@ -224,7 +228,7 @@ export default function ManageBranchesPage() {
       if (!response.ok) throw new Error(data.error || 'ลบสาขาไม่สำเร็จ')
 
       await loadBranches()
-      setSelected(new Set())
+      resetSelection()
       setDeleteOpen(false)
       setSuccess(`ลบสาขาแล้ว ${data.deletedCount ?? 0} รายการ`)
     } catch (err) {
@@ -236,6 +240,19 @@ export default function ManageBranchesPage() {
   }
 
   const selectedBranches = branches.filter((branch) => selected.has(branch.id))
+  const pageItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return branches.slice(startIndex, startIndex + itemsPerPage)
+  }, [branches, currentPage, itemsPerPage])
+
+  const resetSelection = () => setSelected(new Set())
+
+  const toggleSelect = (branchId: string, checked: boolean) => {
+    const next = new Set(selected)
+    if (checked) next.add(branchId)
+    else next.delete(branchId)
+    setSelected(next)
+  }
 
   const columns: TableColumnsType<BranchRow> = [
     {
@@ -302,6 +319,20 @@ export default function ManageBranchesPage() {
 
   if (isLoading) return <Loader text="โหลดข้อมูลสาขา..." />
 
+  const paginationConfig = {
+    current: currentPage,
+    pageSize: itemsPerPage,
+    total: branches.length,
+    showSizeChanger: true,
+    pageSizeOptions: PAGE_SIZE_OPTIONS,
+    showTotal: (total: number, range: [number, number]) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
+    onChange: (page: number, pageSize: number) => {
+      setCurrentPage(pageSize !== itemsPerPage ? 1 : page)
+      setItemsPerPage(pageSize)
+      resetSelection()
+    },
+  }
+
   return (
     <>
       <div className="h-full flex flex-col p-margin-mobile pb-24 md:p-margin-desktop md:pb-28 lg:pb-margin-desktop w-full overflow-y-auto bg-background">
@@ -340,24 +371,78 @@ export default function ManageBranchesPage() {
             </div>
           </div>
 
-          <Table<BranchRow>
-            rowKey="id"
-            columns={columns}
-            dataSource={branches}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              pageSizeOptions: [10, 15, 20, 25, 30],
-              showTotal: (total, range) => `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
-            }}
-            scroll={{ x: 1040 }}
-            rowSelection={{
-              selectedRowKeys: Array.from(selected),
-              onChange: (keys) => setSelected(new Set(keys as string[])),
-              columnWidth: 50,
-            }}
-            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลสาขา" /> }}
-          />
+          <div className="hidden xl:block">
+            <Table<BranchRow>
+              rowKey="id"
+              columns={columns}
+              dataSource={branches}
+              pagination={paginationConfig}
+              scroll={{ x: 1040 }}
+              rowSelection={{
+                selectedRowKeys: Array.from(selected),
+                onChange: (keys) => setSelected(new Set(keys as string[])),
+                columnWidth: 50,
+              }}
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบข้อมูลสาขา" /> }}
+            />
+          </div>
+
+          <div className="xl:hidden flex flex-col gap-sm p-sm bg-background">
+            {pageItems.length === 0 ? (
+              <div className="p-lg text-center text-on-surface-variant">ไม่พบข้อมูลสาขา</div>
+            ) : (
+              pageItems.map((branch) => (
+                <article
+                  key={branch.id}
+                  className={`bg-surface-container-lowest hover:border-secondary/50 rounded-xl p-md shadow-sm border border-outline-variant/80 relative flex flex-col gap-2 transition-all duration-200 ${selected.has(branch.id) ? 'bg-error/[0.04]' : ''}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-primary break-words min-w-0">{branch.branchName}</span>
+                    <div className="flex-shrink-0">{statusTag(branch.status)}</div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Checkbox
+                        checked={selected.has(branch.id)}
+                        onChange={(event) => toggleSelect(branch.id, event.target.checked)}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-body-md font-semibold text-on-surface break-words">{branch.branchCode}</div>
+                      <div className="mt-1 grid grid-cols-1 gap-1 text-xs text-on-surface-variant">
+                        <div>เบอร์โทร: <span className="font-medium text-on-surface">{branch.phone || '-'}</span></div>
+                        <div className="break-words">ที่อยู่: <span className="font-medium text-on-surface">{branch.address || '-'}</span></div>
+                        <div>ผู้ใช้ในสาขา: <span className="font-medium text-on-surface">{branch.users.length.toLocaleString('th-TH')} คน</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="border-t border-outline-variant/10 my-1" />
+                  <div className="flex justify-end items-center gap-1 pl-6">
+                    <Button
+                      type="text"
+                      icon={<EyeOutlined />}
+                      loading={viewingBranchId === branch.id}
+                      onClick={() => openViewModal(branch.id)}
+                      className="text-on-surface-variant hover:!text-secondary"
+                    >
+                      ดู
+                    </Button>
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      onClick={() => openEditModal(branch)}
+                      className="text-on-surface-variant hover:!text-secondary"
+                    >
+                      แก้ไข
+                    </Button>
+                  </div>
+                </article>
+              ))
+            )}
+            <div className="flex justify-center py-3">
+              <Pagination {...paginationConfig} size="small" showTotal={undefined} />
+            </div>
+          </div>
         </div>
       </div>
 
