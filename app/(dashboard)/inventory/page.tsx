@@ -685,7 +685,7 @@ export default function InventoryPage() {
                       if (!product.id) return
                       toggleSelect(product.id, !selected.has(product.id))
                     }}
-                    className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border flex flex-col gap-2 transition-all duration-200 ${product.id ? 'cursor-pointer' : ''} ${product.id && selected.has(product.id) ? 'border-emerald-300 bg-emerald-500/[0.08]' : 'border-outline-variant/80'}`}
+                    className={`rounded-xl p-md shadow-sm border flex flex-col gap-2 transition-all duration-200 ${product.id ? 'cursor-pointer' : ''} ${product.id && selected.has(product.id) ? 'border-emerald-400 bg-emerald-500/[0.08]' : 'border-outline-variant/80 bg-surface-container-lowest'}`}
                   >
                     <div className="flex items-center gap-3">
                       <div onClick={(event) => event.stopPropagation()} className="flex self-stretch items-center">
