@@ -1202,6 +1202,7 @@ export default function InventoryPage() {
               status={stockInError ? 'error' : undefined}
               placeholder="ระบุจำนวนตัวเลขมากกว่า 0"
               className="w-full"
+              style={{ width: '100%' }}
             />
           </div>
           <div>
