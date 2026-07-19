@@ -495,7 +495,7 @@ export default function InventoryPage() {
             type="text"
             icon={<Pencil size={18} />}
             onClick={() => openEditModalForProduct(product)}
-            className="text-on-surface-variant hover:!text-secondary role-admin-only"
+            className="text-on-surface-variant hover:!text-secondary"
             title="แก้ไขข้อมูล"
           />
         </div>
@@ -932,7 +932,7 @@ export default function InventoryPage() {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <Button type="text" icon={<PackagePlus size={18} />} onClick={() => openStockInModal(product)} className="text-emerald-600" title="รับเข้าสต็อก" />
-                      <Button type="text" icon={<Pencil size={18} />} onClick={() => openEditModalForProduct(product)} className="text-on-surface-variant role-admin-only" />
+                      <Button type="text" icon={<Pencil size={18} />} onClick={() => openEditModalForProduct(product)} className="text-on-surface-variant" />
                     </div>
                   </div>
                 </article>

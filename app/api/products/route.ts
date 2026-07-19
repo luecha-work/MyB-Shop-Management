@@ -334,8 +334,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const session = await sessionFromRequest(request)
-  if (!canManageSettings(session)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
@@ -344,6 +344,10 @@ export async function PATCH(request: NextRequest) {
     const id = String(body.id ?? '').trim()
 
     if (action === 'import-products') {
+      if (!canManageSettings(session)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
       const sourceBranchId = toUuidParam(String(body.sourceBranchId ?? '').trim())
       const targetBranchId = toUuidParam(String(body.targetBranchId ?? '').trim())
       const mode = String(body.mode ?? 'copy')
@@ -486,6 +490,9 @@ export async function PATCH(request: NextRequest) {
       const stockIn = toNonNegativeInteger(body.stockIn)
       const minStock = toNonNegativeInteger(body.minStock)
       const imageUrl = String(body.imageUrl ?? '').trim() || null
+      const branchId = session.role === 'STAFF'
+        ? toUuidParam(session.branchId)
+        : toUuidParam(String(body.branchId ?? '').trim())
 
       if (!id) {
         return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการแก้ไข' }, { status: 400 })
@@ -495,32 +502,116 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'กรุณากรอกข้อมูลสินค้าให้ครบถ้วนและถูกต้อง' }, { status: 400 })
       }
 
-      const { rows } = await db.query(
-        `
-          UPDATE products
-          SET product_name = $2,
-              cost = $3,
-              cash_price = $4,
-              grab_price = $5,
-              line_man_price = $6,
-              default_min_stock = $7,
-              image_url = $8,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-          RETURNING ${productSelect}
-        `,
-        [id, name, cost, priceCash, priceGrab, priceLineman, minStock, imageUrl],
-      )
-
-      if (!rows[0]) {
-        return NextResponse.json({ error: 'ไม่พบสินค้าที่ต้องการแก้ไข' }, { status: 404 })
+      if (session.role === 'STAFF' && !branchId) {
+        return NextResponse.json({ error: 'ไม่พบสาขาของผู้ใช้ STAFF' }, { status: 403 })
       }
 
-      return NextResponse.json({ product: toProductResponse(rows[0]) })
+      const client = await db.connect()
+      try {
+        await client.query('BEGIN')
+
+        if (branchId) {
+          const { rowCount: inventoryCount } = await client.query(
+            `
+              SELECT 1
+              FROM branch_inventory
+              WHERE product_id = $1::uuid
+                AND branch_id = $2::uuid
+              LIMIT 1
+            `,
+            [id, branchId],
+          )
+
+          if (!inventoryCount) {
+            await client.query('ROLLBACK')
+            return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
+          }
+        }
+
+        const { rows } = await client.query(
+          `
+            UPDATE products
+            SET product_name = $2,
+                cost = $3,
+                cash_price = $4,
+                grab_price = $5,
+                line_man_price = $6,
+                default_min_stock = $7,
+                image_url = $8,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            RETURNING id
+          `,
+          [id, name, cost, priceCash, priceGrab, priceLineman, minStock, imageUrl],
+        )
+
+        if (!rows[0]) {
+          await client.query('ROLLBACK')
+          return NextResponse.json({ error: 'ไม่พบสินค้าที่ต้องการแก้ไข' }, { status: 404 })
+        }
+
+        if (branchId) {
+          await client.query(
+            `
+              UPDATE branch_inventory
+              SET min_stock = $3,
+                  status = CASE
+                    WHEN current_stock <= 0 THEN 'Out of Stock'
+                    WHEN current_stock <= $3 THEN 'Low Stock'
+                    ELSE 'Active'
+                  END,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE product_id = $1::uuid
+                AND branch_id = $2::uuid
+            `,
+            [id, branchId, minStock],
+          )
+        }
+
+        const { rows: productRows } = await client.query(
+          branchId
+            ? `
+              SELECT
+                p.id,
+                p.product_code,
+                p.product_name,
+                p.cost,
+                p.cash_price,
+                p.grab_price,
+                p.line_man_price,
+                COALESCE(bi.current_stock, 0) AS current_stock,
+                COALESCE(bi.stock_in, 0) AS stock_in,
+                COALESCE(bi.min_stock, p.default_min_stock) AS min_stock,
+                COALESCE(bi.status, 'Out of Stock') AS status,
+                p.image_url
+              FROM products p
+              LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $2::uuid
+              WHERE p.id = $1::uuid
+            `
+            : `
+              SELECT ${productSelect}
+              FROM products
+              WHERE id = $1::uuid
+            `,
+          branchId ? [id, branchId] : [id],
+        )
+
+        await client.query('COMMIT')
+        return NextResponse.json({ product: toProductResponse(productRows[0]) })
+      } catch (error) {
+        await client.query('ROLLBACK')
+        throw error
+      } finally {
+        client.release()
+      }
     }
 
     if (action !== 'update-image') {
       return NextResponse.json({ error: 'Unsupported action' }, { status: 400 })
+    }
+
+    if (!canManageSettings(session)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const imageUrl = String(body.imageUrl ?? '').trim()
