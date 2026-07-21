@@ -482,7 +482,7 @@ export async function PATCH(request: NextRequest) {
       const priceCash = toNonNegativeNumber(body.priceCash)
       const priceGrab = toNonNegativeNumber(body.priceGrab)
       const priceLineman = toNonNegativeNumber(body.priceLineman)
-      const currentStock = toNonNegativeInteger(body.currentStock)
+      const requestedCurrentStock = toNonNegativeInteger(body.currentStock)
       const minStock = toNonNegativeInteger(body.minStock)
       const imageUrl = toImageUrl(body.imageUrl)
       const rawImageUrl = String(body.imageUrl ?? '').trim()
@@ -494,8 +494,12 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการแก้ไข' }, { status: 400 })
       }
 
-      if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || currentStock == null || minStock == null) {
+      if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || minStock == null) {
         return NextResponse.json({ error: 'กรุณากรอกข้อมูลสินค้าให้ครบถ้วนและถูกต้อง' }, { status: 400 })
+      }
+
+      if (session.role !== 'STAFF' && requestedCurrentStock == null) {
+        return NextResponse.json({ error: 'กรุณาระบุสต็อกปัจจุบันให้ถูกต้อง' }, { status: 400 })
       }
 
       if (session.role === 'STAFF' && !branchId) {
@@ -562,7 +566,10 @@ export async function PATCH(request: NextRequest) {
             [id, branchId],
           )
           const previousStock = toNumber(inventoryRows[0]?.current_stock)
-          const stockDelta = currentStock - previousStock
+          const nextCurrentStock = session.role === 'STAFF'
+            ? previousStock
+            : requestedCurrentStock ?? previousStock
+          const stockDelta = nextCurrentStock - previousStock
 
           await client.query(
             `
@@ -580,7 +587,7 @@ export async function PATCH(request: NextRequest) {
               WHERE product_id = $1::uuid
                 AND branch_id = $2::uuid
             `,
-            [id, branchId, currentStock, minStock],
+            [id, branchId, nextCurrentStock, minStock],
           )
 
           if (stockDelta > 0) {

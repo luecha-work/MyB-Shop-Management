@@ -8,6 +8,8 @@ export type BranchOption = {
 }
 
 type BranchContextType = {
+  /** Current user role from the dashboard session. */
+  userRole: string
   /** Current selected branch ID. Null only while loading or when no branch exists. */
   selectedBranchId: string | null
   /** Human-readable label for the current selection (derived) */
@@ -23,6 +25,7 @@ type BranchContextType = {
 }
 
 const BranchContext = createContext<BranchContextType>({
+  userRole: 'STAFF',
   selectedBranchId: null,
   selectedBranchLabel: 'กำลังโหลดสาขา',
   setSelectedBranch: () => {},
@@ -41,9 +44,9 @@ export function useBranch() {
 
 export function BranchProvider({
   children,
-  userRole,
-  userBranchId,
-  userBranchName,
+        userRole,
+        userBranchId,
+        userBranchName,
 }: {
   children: ReactNode
   userRole: string
@@ -122,6 +125,7 @@ export function BranchProvider({
   return (
     <BranchContext.Provider
       value={{
+        userRole: normalizedRole,
         selectedBranchId,
         selectedBranchLabel,
         setSelectedBranch,

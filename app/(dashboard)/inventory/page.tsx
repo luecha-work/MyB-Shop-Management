@@ -114,7 +114,8 @@ export default function InventoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [loadError, setLoadError] = useState('')
-  const { selectedBranchId, selectedBranchLabel, setSelectedBranch, branches } = useBranch()
+  const { userRole, selectedBranchId, selectedBranchLabel, setSelectedBranch, branches } = useBranch()
+  const isStaff = userRole === 'STAFF'
 
   const loadProducts = useCallback(async () => {
     if (isImportMode) {
@@ -321,7 +322,9 @@ export default function InventoryPage() {
 
   const saveProductEdit = async () => {
     const required: (keyof EditForm)[] = editModal.isEdit
-      ? ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'currentStock', 'minStock']
+      ? isStaff
+        ? ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'minStock']
+        : ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'currentStock', 'minStock']
       : ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'stockIn', 'minStock']
     const errors = new Set<string>()
     required.forEach((k) => { if (!editForm[k].trim()) errors.add(k) })
@@ -1170,7 +1173,17 @@ export default function InventoryPage() {
                 {editModal.isEdit ? 'สต็อกปัจจุบัน (ชิ้น)' : 'รับเข้าจำนวน (ชิ้น)'}
               </label>
               {editModal.isEdit ? (
-                <NumberField value={editForm.currentStock} onChange={(v) => setEditForm({ ...editForm, currentStock: v })} hasError={editErrors.has('currentStock')} step={1} />
+                isStaff ? (
+                  <InputNumber
+                    value={editForm.currentStock === '' ? null : Number(editForm.currentStock)}
+                    disabled
+                    className="w-full"
+                    style={{ width: '100%' }}
+                    size="large"
+                  />
+                ) : (
+                  <NumberField value={editForm.currentStock} onChange={(v) => setEditForm({ ...editForm, currentStock: v })} hasError={editErrors.has('currentStock')} step={1} />
+                )
               ) : (
                 <NumberField value={editForm.stockIn} onChange={(v) => setEditForm({ ...editForm, stockIn: v })} hasError={editErrors.has('stockIn')} step={1} />
               )}
