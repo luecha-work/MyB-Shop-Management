@@ -277,6 +277,21 @@ export async function POST(request: NextRequest) {
         [newProduct.id, stockIn, minStock, branchId],
       )
 
+      await client.query(
+        `
+          INSERT INTO stock_in (
+            branch_id,
+            transaction_timestamp,
+            product_id,
+            quantity,
+            restock,
+            note
+          )
+          VALUES ($1::uuid, CURRENT_TIMESTAMP, $2::uuid, $3, $4, $5)
+        `,
+        [branchId, newProduct.id, stockIn, String(stockIn), 'เพิ่มสินค้าใหม่'],
+      )
+
       await client.query('COMMIT')
       return NextResponse.json({ product: toProductResponse(newProduct) }, { status: 201 })
     } catch (error) {
