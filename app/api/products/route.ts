@@ -465,6 +465,7 @@ export async function PATCH(request: NextRequest) {
       const priceCash = toNonNegativeNumber(body.priceCash)
       const priceGrab = toNonNegativeNumber(body.priceGrab)
       const priceLineman = toNonNegativeNumber(body.priceLineman)
+      const currentStock = toNonNegativeInteger(body.currentStock)
       const minStock = toNonNegativeInteger(body.minStock)
       const imageUrl = String(body.imageUrl ?? '').trim() || null
       const branchId = session.role === 'STAFF'
@@ -475,7 +476,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการแก้ไข' }, { status: 400 })
       }
 
-      if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || minStock == null) {
+      if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || currentStock == null || minStock == null) {
         return NextResponse.json({ error: 'กรุณากรอกข้อมูลสินค้าให้ครบถ้วนและถูกต้อง' }, { status: 400 })
       }
 
@@ -488,9 +489,9 @@ export async function PATCH(request: NextRequest) {
         await client.query('BEGIN')
 
         if (branchId) {
-          const { rowCount: inventoryCount } = await client.query(
+          const { rows: inventoryRows } = await client.query<{ current_stock: number }>(
             `
-              SELECT 1
+              SELECT current_stock
               FROM branch_inventory
               WHERE product_id = $1::uuid
                 AND branch_id = $2::uuid
@@ -499,7 +500,7 @@ export async function PATCH(request: NextRequest) {
             [id, branchId],
           )
 
-          if (!inventoryCount) {
+          if (inventoryRows.length === 0) {
             await client.query('ROLLBACK')
             return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
           }
@@ -528,20 +529,90 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (branchId) {
+          const { rows: inventoryRows } = await client.query<{ current_stock: number }>(
+            `
+              SELECT current_stock
+              FROM branch_inventory
+              WHERE product_id = $1::uuid
+                AND branch_id = $2::uuid
+              FOR UPDATE
+            `,
+            [id, branchId],
+          )
+          const previousStock = toNumber(inventoryRows[0]?.current_stock)
+          const stockDelta = currentStock - previousStock
+
           await client.query(
             `
               UPDATE branch_inventory
-              SET min_stock = $3,
+              SET current_stock = $3,
+                  stock_in = CASE WHEN $3 > current_stock THEN stock_in + ($3 - current_stock) ELSE stock_in END,
+                  number_of_times_received = CASE WHEN $3 > current_stock THEN number_of_times_received + 1 ELSE number_of_times_received END,
+                  min_stock = $4,
                   status = CASE
-                    WHEN current_stock <= 0 THEN 'Out of Stock'
-                    WHEN current_stock <= $3 THEN 'Low Stock'
+                    WHEN $3 <= 0 THEN 'Out of Stock'
+                    WHEN $3 <= $4 THEN 'Low Stock'
                     ELSE 'Active'
                   END,
                   updated_at = CURRENT_TIMESTAMP
               WHERE product_id = $1::uuid
                 AND branch_id = $2::uuid
             `,
-            [id, branchId, minStock],
+            [id, branchId, currentStock, minStock],
+          )
+
+          if (stockDelta > 0) {
+            await client.query(
+              `
+                INSERT INTO stock_in (
+                  branch_id,
+                  transaction_timestamp,
+                  product_id,
+                  quantity,
+                  restock,
+                  note
+                )
+                VALUES ($1::uuid, CURRENT_TIMESTAMP, $2::uuid, $3, $4, $5)
+              `,
+              [branchId, id, stockDelta, String(stockDelta), 'แก้ไขสต็อกสินค้า'],
+            )
+          }
+
+          await client.query(
+            `
+              UPDATE products
+              SET total_current_stock = (
+                SELECT COALESCE(SUM(bi.current_stock), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              total_stock_in = (
+                SELECT COALESCE(SUM(bi.stock_in), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              total_number_of_times_received = (
+                SELECT COALESCE(SUM(bi.number_of_times_received), 0)
+                FROM branch_inventory bi
+                WHERE bi.product_id = products.id
+              ),
+              aggregate_status = CASE
+                WHEN (
+                  SELECT COALESCE(SUM(bi.current_stock), 0)
+                  FROM branch_inventory bi
+                  WHERE bi.product_id = products.id
+                ) <= 0 THEN 'Out of Stock'
+                WHEN (
+                  SELECT COALESCE(SUM(bi.current_stock), 0)
+                  FROM branch_inventory bi
+                  WHERE bi.product_id = products.id
+                ) <= products.default_min_stock THEN 'Low Stock'
+                ELSE 'Active'
+              END,
+              updated_at = CURRENT_TIMESTAMP
+              WHERE id = $1::uuid
+            `,
+            [id],
           )
         }
 
