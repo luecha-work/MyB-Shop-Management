@@ -43,6 +43,18 @@ const toNonNegativeInteger = (value: unknown) => {
   return Number.isInteger(n) && n >= 0 ? n : null
 }
 
+const toImageUrl = (value: unknown) => {
+  const imageUrl = String(value ?? '').trim()
+  if (!imageUrl) return null
+
+  try {
+    const url = new URL(imageUrl)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? imageUrl : null
+  } catch {
+    return null
+  }
+}
+
 const productSelect = `
   id,
   product_code,
@@ -172,7 +184,8 @@ export async function POST(request: NextRequest) {
     const priceLineman = toNonNegativeNumber(body.priceLineman)
     const stockIn = toNonNegativeInteger(body.stockIn)
     const minStock = toNonNegativeInteger(body.minStock)
-    const imageUrl = String(body.imageUrl ?? '').trim() || null
+    const imageUrl = toImageUrl(body.imageUrl)
+    const rawImageUrl = String(body.imageUrl ?? '').trim()
     const branchId = session.role === 'STAFF'
       ? toUuidParam(session.branchId)
       : toUuidParam(String(body.branchId ?? '').trim())
@@ -183,6 +196,10 @@ export async function POST(request: NextRequest) {
 
     if (!branchId) {
       return NextResponse.json({ error: 'กรุณาเลือกสาขาที่ต้องการลงสินค้า' }, { status: 400 })
+    }
+
+    if (rawImageUrl && !imageUrl) {
+      return NextResponse.json({ error: 'URL รูปภาพสินค้าไม่ถูกต้อง' }, { status: 400 })
     }
 
     const client = await db.connect()
@@ -467,7 +484,8 @@ export async function PATCH(request: NextRequest) {
       const priceLineman = toNonNegativeNumber(body.priceLineman)
       const currentStock = toNonNegativeInteger(body.currentStock)
       const minStock = toNonNegativeInteger(body.minStock)
-      const imageUrl = String(body.imageUrl ?? '').trim() || null
+      const imageUrl = toImageUrl(body.imageUrl)
+      const rawImageUrl = String(body.imageUrl ?? '').trim()
       const branchId = session.role === 'STAFF'
         ? toUuidParam(session.branchId)
         : toUuidParam(String(body.branchId ?? '').trim())
@@ -482,6 +500,10 @@ export async function PATCH(request: NextRequest) {
 
       if (session.role === 'STAFF' && !branchId) {
         return NextResponse.json({ error: 'ไม่พบสาขาของผู้ใช้ STAFF' }, { status: 403 })
+      }
+
+      if (rawImageUrl && !imageUrl) {
+        return NextResponse.json({ error: 'URL รูปภาพสินค้าไม่ถูกต้อง' }, { status: 400 })
       }
 
       const client = await db.connect()

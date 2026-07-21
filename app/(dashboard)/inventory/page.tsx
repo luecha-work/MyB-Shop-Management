@@ -292,10 +292,10 @@ export default function InventoryPage() {
       setEditErrorMsg('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB')
       return
     }
+    setEditImageFile(file)
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = String(e.target?.result || '')
-      setEditImageFile(file)
       setEditForm((f) => ({ ...f, imagePreview: result }))
       setEditErrorMsg('')
     }
@@ -314,7 +314,9 @@ export default function InventoryPage() {
     const data = await response.json()
 
     if (!response.ok) throw new Error(data.error || 'อัปโหลดรูปภาพไม่สำเร็จ')
-    return String(data.publicUrl || '')
+    const publicUrl = String(data.publicUrl || '').trim()
+    if (!publicUrl) throw new Error('อัปโหลดรูปภาพสำเร็จแต่ไม่ได้รับ URL รูปภาพ')
+    return publicUrl
   }
 
   const saveProductEdit = async () => {
@@ -333,6 +335,9 @@ export default function InventoryPage() {
 
     try {
       const imageUrl = editImageFile ? await uploadProductImage(editImageFile) : editForm.image
+      if (editImageFile) {
+        setEditForm((current) => ({ ...current, image: imageUrl, imagePreview: imageUrl }))
+      }
 
       const data = {
         name: editForm.name.trim(),
