@@ -8,7 +8,7 @@ const PRODUCT_IMAGE_BUCKET = 'images'
 const PRODUCT_IMAGE_FOLDER = 'products'
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const storageClient = () => {
@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_IMAGE_SIZE) {
       return NextResponse.json({ error: 'ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB' }, { status: 400 })
+    }
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: 'ยังไม่ได้ตั้งค่า Supabase Storage สำหรับอัปโหลดรูปภาพ' },
+        { status: 500 },
+      )
     }
 
     const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'

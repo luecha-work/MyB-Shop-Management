@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { db, toNumber, toUuidParam } from '@/lib/db'
 import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
-
-const PRODUCT_IMAGE_BUCKET = 'images'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const toProductResponse = (row: {
   id: string
@@ -73,38 +67,6 @@ const nextProductCodeQuery = `
   )::text AS product_code
   FROM products
 `
-
-const storageClient = () => {
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Supabase Storage environment variables are not configured')
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  })
-}
-
-const storagePathFromPublicUrl = (imageUrl: string | null) => {
-  if (!imageUrl || !supabaseUrl) return null
-
-  try {
-    const url = new URL(imageUrl)
-    const storageUrl = new URL(supabaseUrl)
-    if (url.host !== storageUrl.host) return null
-
-    const marker = `/storage/v1/object/public/${PRODUCT_IMAGE_BUCKET}/`
-    const markerIndex = url.pathname.indexOf(marker)
-    if (markerIndex === -1) return null
-
-    const path = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
-    return path.startsWith('products/') ? path : null
-  } catch {
-    return null
-  }
-}
 
 export async function GET(request: NextRequest) {
   const session = await sessionFromRequest(request)
@@ -178,8 +140,9 @@ export async function GET(request: NextRequest) {
           COALESCE(bi.min_stock, p.default_min_stock) AS min_stock,
           COALESCE(bi.status, 'Out of Stock') AS status,
           p.image_url
-        FROM products p
-        LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $1::uuid
+        FROM branch_inventory bi
+        JOIN products p ON p.id = bi.product_id
+        WHERE bi.branch_id = $1::uuid
         ORDER BY p.product_name ASC
       `,
       [branchId],
@@ -487,7 +450,6 @@ export async function PATCH(request: NextRequest) {
       const priceCash = toNonNegativeNumber(body.priceCash)
       const priceGrab = toNonNegativeNumber(body.priceGrab)
       const priceLineman = toNonNegativeNumber(body.priceLineman)
-      const stockIn = toNonNegativeInteger(body.stockIn)
       const minStock = toNonNegativeInteger(body.minStock)
       const imageUrl = String(body.imageUrl ?? '').trim() || null
       const branchId = session.role === 'STAFF'
@@ -498,7 +460,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการแก้ไข' }, { status: 400 })
       }
 
-      if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || stockIn == null || minStock == null) {
+      if (!name || cost == null || priceCash == null || priceGrab == null || priceLineman == null || minStock == null) {
         return NextResponse.json({ error: 'กรุณากรอกข้อมูลสินค้าให้ครบถ้วนและถูกต้อง' }, { status: 400 })
       }
 
@@ -584,9 +546,10 @@ export async function PATCH(request: NextRequest) {
                 COALESCE(bi.min_stock, p.default_min_stock) AS min_stock,
                 COALESCE(bi.status, 'Out of Stock') AS status,
                 p.image_url
-              FROM products p
-              LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $2::uuid
-              WHERE p.id = $1::uuid
+              FROM branch_inventory bi
+              JOIN products p ON p.id = bi.product_id
+              WHERE bi.product_id = $1::uuid
+                AND bi.branch_id = $2::uuid
             `
             : `
               SELECT ${productSelect}
@@ -610,13 +573,34 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unsupported action' }, { status: 400 })
     }
 
-    if (!canManageSettings(session)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
     const imageUrl = String(body.imageUrl ?? '').trim()
     if (!id || !imageUrl) {
       return NextResponse.json({ error: 'กรุณาระบุสินค้าและ URL รูปภาพ' }, { status: 400 })
+    }
+
+    const branchId = session.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : toUuidParam(String(body.branchId ?? '').trim())
+
+    if (session.role === 'STAFF' && !branchId) {
+      return NextResponse.json({ error: 'ไม่พบสาขาของผู้ใช้ STAFF' }, { status: 403 })
+    }
+
+    if (branchId) {
+      const { rowCount: inventoryCount } = await db.query(
+        `
+          SELECT 1
+          FROM branch_inventory
+          WHERE product_id = $1::uuid
+            AND branch_id = $2::uuid
+          LIMIT 1
+        `,
+        [id, branchId],
+      )
+
+      if (!inventoryCount) {
+        return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
+      }
     }
 
     const { rows } = await db.query(
@@ -655,54 +639,106 @@ export async function DELETE(request: NextRequest) {
   if (!canManageSettings(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
     const body = await request.json()
     const ids: string[] = Array.isArray(body.ids)
       ? body.ids.map((id: unknown) => String(id).trim()).filter(Boolean)
       : []
+    const branchId = session.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : toUuidParam(String(body.branchId ?? '').trim())
 
     if (ids.length === 0) {
       return NextResponse.json({ error: 'กรุณาเลือกสินค้าที่ต้องการลบ' }, { status: 400 })
     }
 
-    const { rows: imageRows } = await db.query<{ image_url: string | null }>(
-      `
-        SELECT image_url
-        FROM products
-        WHERE id = ANY($1::uuid[])
-      `,
-      [ids],
-    )
-
-    const storagePaths = Array.from(
-      new Set(
-        imageRows
-          .map((row) => storagePathFromPublicUrl(row.image_url))
-          .filter((path): path is string => Boolean(path)),
-      ),
-    )
-
-    if (storagePaths.length > 0) {
-      const { error } = await storageClient()
-        .storage
-        .from(PRODUCT_IMAGE_BUCKET)
-        .remove(storagePaths)
-
-      if (error) {
-        return NextResponse.json({ error: error.message || 'ลบไฟล์รูปภาพสินค้าไม่สำเร็จ' }, { status: 500 })
-      }
+    if (!branchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาก่อนลบสินค้า' }, { status: 400 })
     }
 
-    const { rowCount } = await db.query(
+    const { rows: existingRows } = await db.query<{ product_id: string }>(
       `
-        DELETE FROM products
-        WHERE id = ANY($1::uuid[])
+        SELECT product_id
+        FROM branch_inventory
+        WHERE product_id = ANY($1::uuid[])
+          AND branch_id = $2::uuid
       `,
-      [ids],
+      [ids, branchId],
     )
 
-    return NextResponse.json({ deleted: rowCount ?? 0, deletedImages: storagePaths.length })
+    const existingIds = existingRows.map((row) => row.product_id)
+
+    if (existingIds.length === 0) {
+      return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
+    }
+
+    const client = await db.connect()
+    try {
+      await client.query('BEGIN')
+
+      const { rowCount } = await client.query(
+        `
+          DELETE FROM branch_inventory
+          WHERE product_id = ANY($1::uuid[])
+            AND branch_id = $2::uuid
+        `,
+        [existingIds, branchId],
+      )
+
+      await client.query(
+        `
+          UPDATE products
+          SET total_current_stock = (
+            SELECT COALESCE(SUM(bi.current_stock), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          total_stock_in = (
+            SELECT COALESCE(SUM(bi.stock_in), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          total_stock_out = (
+            SELECT COALESCE(SUM(bi.stock_out), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          total_number_of_times_received = (
+            SELECT COALESCE(SUM(bi.number_of_times_received), 0)
+            FROM branch_inventory bi
+            WHERE bi.product_id = products.id
+          ),
+          aggregate_status = CASE
+            WHEN (
+              SELECT COALESCE(SUM(bi.current_stock), 0)
+              FROM branch_inventory bi
+              WHERE bi.product_id = products.id
+            ) <= 0 THEN 'Out of Stock'
+            WHEN (
+              SELECT COALESCE(SUM(bi.current_stock), 0)
+              FROM branch_inventory bi
+              WHERE bi.product_id = products.id
+            ) <= products.default_min_stock THEN 'Low Stock'
+            ELSE 'Active'
+          END,
+          updated_at = CURRENT_TIMESTAMP
+          WHERE id = ANY($1::uuid[])
+        `,
+        [existingIds],
+      )
+
+      await client.query('COMMIT')
+      return NextResponse.json({ deleted: rowCount ?? 0, deletedImages: 0 })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   } catch (error) {
     const code = typeof error === 'object' && error != null && 'code' in error ? String(error.code) : ''
     if (code === '22P02') {

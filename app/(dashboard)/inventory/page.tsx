@@ -72,13 +72,14 @@ type EditForm = {
   priceCash: string
   priceGrab: string
   priceLineman: string
+  currentStock: string
   stockIn: string
   minStock: string
   image: string
   imagePreview: string
 }
 
-const EMPTY_FORM: EditForm = { name: '', cost: '', priceCash: '', priceGrab: '', priceLineman: '', stockIn: '', minStock: '', image: '', imagePreview: '' }
+const EMPTY_FORM: EditForm = { name: '', cost: '', priceCash: '', priceGrab: '', priceLineman: '', currentStock: '', stockIn: '', minStock: '', image: '', imagePreview: '' }
 
 const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30]
 const IMPORT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
@@ -220,6 +221,10 @@ export default function InventoryPage() {
   const executeDelete = async () => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
+    if (!selectedBranchId) {
+      setDeleteErrorMsg('กรุณาเลือกสาขาก่อนลบสินค้า')
+      return
+    }
 
     setIsDeleting(true)
     setDeleteErrorMsg('')
@@ -228,7 +233,7 @@ export default function InventoryPage() {
       const response = await fetch('/api/products', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ ids, branchId: selectedBranchId }),
       })
       const data = await response.json()
 
@@ -260,6 +265,7 @@ export default function InventoryPage() {
       priceCash: String(p.priceCash || 0),
       priceGrab: String(p.priceGrab || 0),
       priceLineman: String(p.priceLineman || 0),
+      currentStock: String(p.currentStock || 0),
       stockIn: String(p.stockIn || 0),
       minStock: String(p.minStock || 0),
       image: p.image || '',
@@ -312,7 +318,9 @@ export default function InventoryPage() {
   }
 
   const saveProductEdit = async () => {
-    const required: (keyof EditForm)[] = ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'stockIn', 'minStock']
+    const required: (keyof EditForm)[] = editModal.isEdit
+      ? ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'minStock']
+      : ['name', 'cost', 'priceCash', 'priceGrab', 'priceLineman', 'stockIn', 'minStock']
     const errors = new Set<string>()
     required.forEach((k) => { if (!editForm[k].trim()) errors.add(k) })
     setEditErrors(errors)
@@ -332,19 +340,21 @@ export default function InventoryPage() {
         priceCash: parseFloat(editForm.priceCash) || 0,
         priceGrab: parseFloat(editForm.priceGrab) || 0,
         priceLineman: parseFloat(editForm.priceLineman) || 0,
-        stockIn: parseInt(editForm.stockIn) || 0,
         minStock: parseInt(editForm.minStock) || 0,
         imageUrl,
         branchId: selectedBranchId,
       }
+      const payload = editModal.isEdit
+        ? data
+        : { ...data, stockIn: parseInt(editForm.stockIn) || 0 }
 
       const response = await fetch('/api/products', {
         method: editModal.isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           editModal.isEdit
-            ? { action: 'update-product', id: editModal.originalId, ...data }
-            : data,
+            ? { action: 'update-product', id: editModal.originalId, ...payload }
+            : payload,
         ),
       })
       const result = await response.json()
@@ -1150,8 +1160,20 @@ export default function InventoryPage() {
           {/* Stock In / Min Stock grid */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">รับเข้าจำนวน (ชิ้น)</label>
-              <NumberField value={editForm.stockIn} onChange={(v) => setEditForm({ ...editForm, stockIn: v })} hasError={editErrors.has('stockIn')} step={1} />
+              <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
+                {editModal.isEdit ? 'สต็อกปัจจุบัน (ชิ้น)' : 'รับเข้าจำนวน (ชิ้น)'}
+              </label>
+              {editModal.isEdit ? (
+                <InputNumber
+                  value={editForm.currentStock === '' ? null : Number(editForm.currentStock)}
+                  disabled
+                  className="w-full"
+                  style={{ width: '100%' }}
+                  size="large"
+                />
+              ) : (
+                <NumberField value={editForm.stockIn} onChange={(v) => setEditForm({ ...editForm, stockIn: v })} hasError={editErrors.has('stockIn')} step={1} />
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-on-surface-variant mb-1.5">สต็อกต่ำ (ชิ้น)</label>

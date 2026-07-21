@@ -94,28 +94,21 @@ export async function POST(request: NextRequest) {
     try {
       await client.query('BEGIN')
 
-      // Lock the branch_inventory row (or create one) to prevent race conditions
+      // Stock-in is branch-scoped: the product must already be assigned to this branch.
       const { rows: invRows } = await client.query<{ id: string, min_stock: number, current_stock: number }>(
         `
-          INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
-          VALUES ($1, $2, 0, 0, 0, 0, 0, 'Out of Stock')
-          ON CONFLICT (product_id, branch_id) DO NOTHING
-          RETURNING id, min_stock, current_stock
+          SELECT id, min_stock, current_stock
+          FROM branch_inventory
+          WHERE product_id = $1::uuid
+            AND branch_id = $2::uuid
+          FOR UPDATE
         `,
         [productId, branchId],
       )
 
-      // If the row already existed, lock it
       if (invRows.length === 0) {
-        const { rows: existing } = await client.query<{ id: string, min_stock: number, current_stock: number }>(
-          `SELECT id, min_stock, current_stock FROM branch_inventory WHERE product_id = $1 AND branch_id = $2 FOR UPDATE`,
-          [productId, branchId],
-        )
-        if (existing.length === 0) {
-          await client.query('ROLLBACK')
-          return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
-        }
-        invRows.push(existing[0])
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'ไม่พบสินค้าในสาขาที่เลือก' }, { status: 404 })
       }
 
       // Insert the stock_in history record
@@ -228,17 +221,25 @@ export async function DELETE(request: NextRequest) {
     const ids: string[] = Array.isArray(body.ids)
       ? body.ids.map((id: unknown) => String(id).trim()).filter(Boolean)
       : []
+    const branchId = session?.role === 'STAFF'
+      ? toUuidParam(session.branchId)
+      : toUuidParam(String(body.branchId ?? '').trim())
 
     if (ids.length === 0) {
       return NextResponse.json({ error: 'กรุณาเลือกประวัติรับเข้าที่ต้องการลบ' }, { status: 400 })
+    }
+
+    if (!branchId) {
+      return NextResponse.json({ error: 'กรุณาเลือกสาขาก่อนลบประวัติรับเข้า' }, { status: 400 })
     }
 
     const { rowCount } = await db.query(
       `
         DELETE FROM stock_in
         WHERE id = ANY($1::uuid[])
+          AND branch_id = $2::uuid
       `,
-      [ids],
+      [ids, branchId],
     )
 
     return NextResponse.json({ deleted: rowCount ?? 0 })

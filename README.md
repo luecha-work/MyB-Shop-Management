@@ -52,7 +52,7 @@ The app reads database connection details from `DATABASE_URL`, uses `DATABASE_SC
 
 Supabase client helpers live in `lib/supabase`. They are available for future Supabase API/Auth/Storage usage. Current application login still uses the existing database-backed `users` table and custom JWT cookies, so the main middleware remains the app's existing route protection rather than Supabase Auth middleware.
 
-Product image uploads use Supabase Storage bucket `images` (public) through `/api/products/images`. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only in Vercel environment variables; never expose it as a `NEXT_PUBLIC_*` value.
+Product image uploads use Supabase Storage bucket `images` (public) through `/api/products/images`. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only in Vercel environment variables; never expose it as a `NEXT_PUBLIC_*` value. The upload route accepts either `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL` for the Supabase project URL.
 
 Schema convention:
 

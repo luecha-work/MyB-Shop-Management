@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, toNumber } from '@/lib/db'
 import { canManageSettings, sessionFromRequest } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
@@ -23,7 +23,20 @@ type BranchUserRecord = {
   role_name: string
 }
 
-const toBranchResponse = (branch: BranchRecord, users: BranchUserRecord[] = []) => ({
+type BranchProductRecord = {
+  id: string
+  product_code: string | null
+  product_name: string
+  current_stock: unknown
+  min_stock: unknown
+  status: string | null
+}
+
+const toBranchResponse = (
+  branch: BranchRecord,
+  users: BranchUserRecord[] = [],
+  products: BranchProductRecord[] = [],
+) => ({
   id: branch.id,
   branchCode: branch.branch_code,
   branchName: branch.branch_name,
@@ -36,6 +49,14 @@ const toBranchResponse = (branch: BranchRecord, users: BranchUserRecord[] = []) 
     email: user.email,
     roleName: user.role_name,
     status: user.status,
+  })),
+  products: products.map((product) => ({
+    id: product.id,
+    productCode: product.product_code,
+    name: product.product_name,
+    currentStock: toNumber(product.current_stock),
+    minStock: toNumber(product.min_stock),
+    status: product.status || 'Out of Stock',
   })),
 })
 
@@ -97,7 +118,24 @@ export async function GET(request: NextRequest) {
         [branchId],
       )
 
-      return NextResponse.json({ branch: toBranchResponse(branchRows[0], userRows) })
+      const { rows: productRows } = await db.query<BranchProductRecord>(
+        `
+          SELECT
+            p.id,
+            p.product_code,
+            p.product_name,
+            bi.current_stock,
+            bi.min_stock,
+            bi.status
+          FROM branch_inventory bi
+          JOIN products p ON p.id = bi.product_id
+          WHERE bi.branch_id = $1
+          ORDER BY p.product_name ASC
+        `,
+        [branchId],
+      )
+
+      return NextResponse.json({ branch: toBranchResponse(branchRows[0], userRows, productRows) })
     }
 
     const { rows: branchRows } = await db.query<BranchRecord>(`

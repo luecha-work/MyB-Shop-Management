@@ -169,12 +169,13 @@ export async function POST(request: NextRequest) {
             p.cash_price,
             p.grab_price,
             p.line_man_price,
-            COALESCE(bi.current_stock, 0) AS current_stock,
-            COALESCE(bi.min_stock, p.default_min_stock) AS min_stock
-          FROM products p
-          LEFT JOIN branch_inventory bi ON bi.product_id = p.id AND bi.branch_id = $2::uuid
-          WHERE p.id = ANY($1::uuid[])
-          FOR UPDATE OF p
+            bi.current_stock,
+            bi.min_stock
+          FROM branch_inventory bi
+          JOIN products p ON p.id = bi.product_id
+          WHERE bi.product_id = ANY($1::uuid[])
+            AND bi.branch_id = $2::uuid
+          FOR UPDATE OF bi
         `,
         [productIds, branchId],
       )
@@ -248,16 +249,6 @@ export async function POST(request: NextRequest) {
           ],
         )
         insertedRows.push(rows[0])
-
-        // Ensure branch_inventory row exists
-        await client.query(
-          `
-            INSERT INTO branch_inventory (product_id, branch_id, current_stock, stock_in, stock_out, number_of_times_received, min_stock, status)
-            VALUES ($1, $2, 0, 0, 0, 0, 0, 'Out of Stock')
-            ON CONFLICT (product_id, branch_id) DO NOTHING
-          `,
-          [item.productId, branchId],
-        )
 
         const { rowCount } = await client.query(
           `

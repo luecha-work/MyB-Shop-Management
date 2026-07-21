@@ -119,6 +119,10 @@ export default function StockInPage() {
   const executeDelete = async () => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
+    if (!selectedBranchId) {
+      setDeleteErrorMsg('กรุณาเลือกสาขาก่อนลบประวัติรับเข้า')
+      return
+    }
 
     setIsDeleting(true)
     setDeleteErrorMsg('')
@@ -127,7 +131,7 @@ export default function StockInPage() {
       const response = await fetch('/api/stock-in', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ ids, branchId: selectedBranchId }),
       })
       const data = await response.json()
 

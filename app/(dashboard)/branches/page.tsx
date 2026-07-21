@@ -6,6 +6,7 @@ import { Alert, Button, Checkbox, Empty, Input, Modal, Pagination, Select, Table
 import type { TableColumnsType } from 'antd'
 import { ArrowRight, CircleAlert, Eye, PackagePlus, Pencil, Plus, Save, Store, Trash2 } from 'lucide-react'
 import { Loader } from '@/components/UI/Loader'
+import { formatNum } from '@/lib/format'
 
 type BranchRow = {
   id: string
@@ -15,6 +16,7 @@ type BranchRow = {
   phone: string
   status: string
   users: BranchUser[]
+  products: BranchProduct[]
 }
 
 type BranchUser = {
@@ -22,6 +24,15 @@ type BranchUser = {
   name: string
   email: string
   roleName: string
+  status: string
+}
+
+type BranchProduct = {
+  id: string
+  productCode: string | null
+  name: string
+  currentStock: number
+  minStock: number
   status: string
 }
 
@@ -53,6 +64,16 @@ const roleTag = (roleName: string) => {
   if (role === 'OWNER') return <Tag className="rounded-full border-purple-300 bg-purple-50 !text-purple-700 font-bold">{role}</Tag>
   if (role === 'ADMIN') return <Tag className="rounded-full border-blue-300 bg-blue-50 !text-blue-700 font-bold">{role}</Tag>
   return <Tag className="rounded-full border-amber-300 bg-amber-50 !text-amber-700 font-bold">{role}</Tag>
+}
+
+const productStatusTag = (product: BranchProduct) => {
+  if (product.currentStock <= 0 || product.status === 'Out of Stock' || product.status === 'สินค้าหมด') {
+    return <Tag className="rounded-full border-rose-300 bg-rose-50 !text-rose-700 font-bold">สินค้าหมด</Tag>
+  }
+  if (product.currentStock <= product.minStock || product.status === 'Low Stock' || product.status === 'เหลือน้อย') {
+    return <Tag className="rounded-full border-amber-300 bg-amber-50 !text-amber-700 font-bold">เหลือน้อย</Tag>
+  }
+  return <Tag className="rounded-full border-emerald-300 bg-emerald-50 !text-emerald-700 font-bold">พร้อมขาย</Tag>
 }
 
 export default function ManageBranchesPage() {
@@ -708,6 +729,32 @@ export default function ManageBranchesPage() {
                           {roleTag(user.roleName)}
                           {statusTag(user.status)}
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <div className="text-xs font-semibold text-on-surface-variant mb-1">สินค้าในสาขานี้</div>
+                  <div className="font-semibold text-primary">{(viewBranch.products ?? []).length.toLocaleString('th-TH')} รายการ</div>
+                </div>
+              </div>
+              {(viewBranch.products ?? []).length === 0 ? (
+                <div className="text-sm text-on-surface-variant">ยังไม่มีสินค้าที่ผูกกับสาขานี้</div>
+              ) : (
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-outline-variant/40 bg-white">
+                  {(viewBranch.products ?? []).map((product) => (
+                    <div key={product.id} className="flex items-center justify-between gap-3 border-b border-outline-variant/20 p-3 last:border-b-0">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-on-surface break-words">{product.name}</div>
+                        <div className="text-xs text-on-surface-variant mt-0.5">รหัส: {product.productCode || '-'}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <div className="font-bold text-primary">{formatNum(product.currentStock)} ชิ้น</div>
+                        {productStatusTag(product)}
                       </div>
                     </div>
                   ))}
