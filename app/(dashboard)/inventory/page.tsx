@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Alert, Button, Checkbox, ConfigProvider, Empty, Input, InputNumber, Modal, Pagination, Select, Table, Tag, Upload } from 'antd'
-import type { TableColumnsType } from 'antd'
+import type { TableColumnsType, UploadProps } from 'antd'
 import {
   ArrowLeft,
   ArrowRight,
@@ -301,6 +301,11 @@ export default function InventoryPage() {
       setEditErrorMsg('')
     }
     reader.readAsDataURL(file)
+  }
+
+  const handleProductImageSelect: UploadProps['beforeUpload'] = (file) => {
+    previewSelectedImage(file)
+    return false
   }
 
   const uploadProductImage = async (file: File) => {
@@ -1123,7 +1128,7 @@ export default function InventoryPage() {
                 accept="image/*"
                 maxCount={1}
                 showUploadList={false}
-                beforeUpload={(file) => { previewSelectedImage(file); return false }}
+                beforeUpload={handleProductImageSelect}
               >
                 <Button icon={<UploadIcon size={16} />}>เลือกรูปภาพ</Button>
               </Upload>

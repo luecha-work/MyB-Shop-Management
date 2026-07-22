@@ -24,6 +24,17 @@ const storageClient = () => {
   })
 }
 
+const toSafeStorageName = (value: string) => {
+  const slug = value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'product'
+}
+
 export async function POST(request: NextRequest) {
   const session = await sessionFromRequest(request)
   if (!session) {
@@ -55,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const safeName = productName.toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, '-').replace(/^-+|-+$/g, '') || 'product'
+    const safeName = toSafeStorageName(productName)
     const path = `${PRODUCT_IMAGE_FOLDER}/${Date.now()}-${crypto.randomUUID()}-${safeName}.${extension}`
     const supabase = storageClient()
     const { data, error } = await supabase.storage
